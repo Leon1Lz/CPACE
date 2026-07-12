@@ -1,0 +1,357 @@
+"use client"
+
+import { useState, useEffect, use } from "react"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import {
+  BookOpen, Clock, ChevronRight, ChevronLeft, CheckCircle,
+  PlayCircle, FileText, Lock, Award, ArrowLeft, Loader2,
+  GraduationCap, BarChart3, ClipboardCheck,
+} from "lucide-react"
+import Link from "next/link"
+
+type Module = {
+  id: string
+  title: string
+  description: string | null
+  content: string | null
+  videoUrl: string | null
+  order: number
+  duration: number | null
+}
+
+type Course = {
+  id: string
+  title: string
+  description: string | null
+  category: string | null
+  level: string | null
+  duration: number | null
+  thumbnail: string | null
+  status: string
+  instructor: { firstName: string; lastName: string } | null
+  modules: Module[]
+  _count: { enrollments: number; assessments: number }
+}
+
+type Enrollment = {
+  id: string
+  status: string
+  progress: number
+  completedModules: string[]
+}
+
+export default function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  const { data: session } = useSession()
+  const router = useRouter()
+
+  const [course, setCourse] = useState<Course | null>(null)
+  const [enrollment, setEnrollment] = useState<Enrollment | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [activeModule, setActiveModule] = useState<Module | null>(null)
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`/api/courses/${id}?modules=true`).then(r => r.json()),
+      fetch(`/api/enrollments?courseId=${id}`).then(r => r.ok ? r.json() : null),
+    ]).then(([courseData, enrollData]) => {
+      if (courseData?.id) {
+        setCourse(courseData)
+        // Auto-open first module
+        if (courseData.modules?.length > 0) setActiveModule(courseData.modules[0])
+      }
+      if (enrollData?.id) {
+        setEnrollment(enrollData)
+        setCompletedIds(new Set(enrollData.completedModules ?? []))
+      }
+    }).finally(() => setLoading(false))
+  }, [id])
+
+  const markComplete = async (moduleId: string) => {
+    if (completedIds.has(moduleId) || saving) return
+    setSaving(true)
+    try {
+      const newCompleted = new Set([...completedIds, moduleId])
+      setCompletedIds(newCompleted)
+      // Update progress
+      const progressPct = course ? Math.round((newCompleted.size / course.modules.length) * 100) : 0
+      await fetch(`/api/enrollments?courseId=${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completedModules: [...newCompleted], progress: progressPct }),
+      })
+      // Auto-advance to next module
+      if (course) {
+        const idx = course.modules.findIndex(m => m.id === moduleId)
+        if (idx < course.modules.length - 1) setActiveModule(course.modules[idx + 1])
+      }
+    } finally { setSaving(false) }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      </div>
+    )
+  }
+
+  if (!course) {
+    return (
+      <div className="text-center py-20">
+        <BookOpen className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+        <p className="text-gray-500">Course not found.</p>
+        <Button asChild variant="outline" className="mt-4 rounded-xl" size="sm">
+          <Link href="/dashboard/courses">← Back to Courses</Link>
+        </Button>
+      </div>
+    )
+  }
+
+  const totalModules = course.modules.length
+  const completedCount = completedIds.size
+  const progress = totalModules > 0 ? Math.round((completedCount / totalModules) * 100) : 0
+  const activeIdx = activeModule ? course.modules.findIndex(m => m.id === activeModule.id) : -1
+
+  const levelColors: Record<string, string> = {
+    BEGINNER: "bg-emerald-100 text-emerald-700",
+    INTERMEDIATE: "bg-amber-100 text-amber-700",
+    ADVANCED: "bg-red-100 text-red-700",
+  }
+
+  return (
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Back + Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <Button asChild variant="ghost" size="sm" className="rounded-xl shrink-0 mt-1 text-gray-500 hover:text-gray-700">
+            <Link href="/dashboard/courses"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Link>
+          </Button>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              {course.category && <Badge variant="secondary" className="text-xs">{course.category}</Badge>}
+              {course.level && (
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${levelColors[course.level] ?? "bg-gray-100 text-gray-600"}`}>
+                  {course.level.charAt(0) + course.level.slice(1).toLowerCase()}
+                </span>
+              )}
+            </div>
+            <h1 className="text-2xl font-black text-gray-900">{course.title}</h1>
+            {course.instructor && (
+              <p className="text-sm text-gray-400 mt-1">
+                Instructor: {course.instructor.firstName} {course.instructor.lastName}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Progress ring area */}
+        <div className="shrink-0 hidden md:block">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-4 text-center min-w-[140px]">
+            <div className="relative w-16 h-16 mx-auto mb-2">
+              <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="26" fill="none" stroke="#f3f4f6" strokeWidth="6" />
+                <circle
+                  cx="32" cy="32" r="26" fill="none" stroke="#10b981" strokeWidth="6"
+                  strokeDasharray={`${2 * Math.PI * 26}`}
+                  strokeDashoffset={`${2 * Math.PI * 26 * (1 - progress / 100)}`}
+                  strokeLinecap="round"
+                  className="transition-all duration-700"
+                />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-sm font-black text-gray-900">
+                {progress}%
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 font-medium">{completedCount}/{totalModules} modules</p>
+            {progress === 100 && (
+              <p className="text-xs text-emerald-600 font-bold mt-1 flex items-center gap-1 justify-center">
+                <CheckCircle className="h-3 w-3" /> Complete!
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Progress bar (mobile) */}
+      <div className="md:hidden">
+        <div className="flex justify-between text-xs text-gray-500 mb-1">
+          <span>Progress</span><span>{progress}%</span>
+        </div>
+        <Progress value={progress} className="h-2" />
+      </div>
+
+      {totalModules === 0 ? (
+        <Card className="border-0 shadow-md">
+          <CardContent className="py-20 text-center">
+            <FileText className="h-12 w-12 mx-auto text-gray-200 mb-4" />
+            <p className="text-gray-400 font-medium">No modules added yet</p>
+            <p className="text-sm text-gray-300 mt-1">Check back soon — your instructor is preparing content.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex gap-5 items-start">
+          {/* ── Left: Module list sidebar ──────────────────────────────── */}
+          <div className="w-72 shrink-0 space-y-2">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1 mb-3">Course Content</p>
+            {course.modules.map((mod, i) => {
+              const isDone = completedIds.has(mod.id)
+              const isActive = activeModule?.id === mod.id
+              return (
+                <button
+                  key={mod.id}
+                  onClick={() => setActiveModule(mod)}
+                  className={`w-full text-left p-3 rounded-2xl border-2 transition-all duration-150 flex items-start gap-3 ${
+                    isActive
+                      ? "border-emerald-400 bg-emerald-50 shadow-sm"
+                      : isDone
+                      ? "border-gray-100 bg-white hover:border-emerald-200"
+                      : "border-gray-100 bg-white hover:border-gray-200"
+                  }`}
+                >
+                  <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                    isDone ? "bg-emerald-500 text-white" : isActive ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-400"
+                  }`}>
+                    {isDone ? <CheckCircle className="h-3.5 w-3.5" /> : <span className="text-xs font-black">{i + 1}</span>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-semibold leading-tight line-clamp-2 ${isActive ? "text-emerald-700" : isDone ? "text-gray-600" : "text-gray-800"}`}>
+                      {mod.title}
+                    </p>
+                    {mod.duration && (
+                      <p className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1">
+                        <Clock className="h-2.5 w-2.5" /> {mod.duration} min
+                      </p>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+
+            {/* Assessments link */}
+            {course._count.assessments > 0 && (
+              <div className="pt-2 border-t border-gray-100">
+                <Button asChild variant="outline" size="sm" className="w-full rounded-xl text-xs border-amber-200 text-amber-700 hover:bg-amber-50">
+                  <Link href="/dashboard/assessments">
+                    <ClipboardCheck className="h-3.5 w-3.5 mr-1.5" />
+                    {course._count.assessments} Assessment{course._count.assessments > 1 ? "s" : ""}
+                  </Link>
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* ── Right: Module content viewer ──────────────────────────── */}
+          <div className="flex-1 min-w-0">
+            {activeModule ? (
+              <Card className="border-0 shadow-md">
+                {/* Module header */}
+                <CardHeader className="border-b border-gray-50 pb-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">
+                          Module {activeIdx + 1} of {totalModules}
+                        </span>
+                        {completedIds.has(activeModule.id) && (
+                          <span className="flex items-center gap-1 text-xs text-emerald-600 font-semibold">
+                            <CheckCircle className="h-3 w-3" /> Completed
+                          </span>
+                        )}
+                      </div>
+                      <CardTitle className="text-xl font-black text-gray-900">{activeModule.title}</CardTitle>
+                      {activeModule.description && (
+                        <p className="text-sm text-gray-500 mt-1">{activeModule.description}</p>
+                      )}
+                    </div>
+                    {activeModule.duration && (
+                      <div className="shrink-0 flex items-center gap-1.5 text-sm text-gray-400 bg-gray-50 rounded-xl px-3 py-1.5">
+                        <Clock className="h-3.5 w-3.5" /> {activeModule.duration} min
+                      </div>
+                    )}
+                  </div>
+                </CardHeader>
+
+                <CardContent className="p-6">
+                  {/* Video embed */}
+                  {activeModule.videoUrl && (
+                    <div className="mb-6 rounded-2xl overflow-hidden bg-black aspect-video shadow-lg">
+                      {activeModule.videoUrl.includes("youtube.com") || activeModule.videoUrl.includes("youtu.be") ? (
+                        <iframe
+                          src={activeModule.videoUrl.replace("watch?v=", "embed/")}
+                          className="w-full h-full"
+                          allowFullScreen
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        />
+                      ) : (
+                        <video src={activeModule.videoUrl} controls className="w-full h-full" />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Text content */}
+                  {activeModule.content ? (
+                    <div
+                      className="prose prose-sm max-w-none text-gray-700 leading-relaxed space-y-3"
+                      dangerouslySetInnerHTML={{ __html: activeModule.content.replace(/\n/g, "<br/>") }}
+                    />
+                  ) : !activeModule.videoUrl ? (
+                    <div className="text-center py-12 text-gray-300">
+                      <FileText className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                      <p className="text-sm text-gray-400">No content for this module yet.</p>
+                    </div>
+                  ) : null}
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-between pt-6 mt-6 border-t border-gray-100">
+                    <Button
+                      variant="outline"
+                      onClick={() => activeIdx > 0 && setActiveModule(course.modules[activeIdx - 1])}
+                      disabled={activeIdx === 0}
+                      className="rounded-xl gap-1.5"
+                    >
+                      <ChevronLeft className="h-4 w-4" /> Previous
+                    </Button>
+
+                    <div className="flex gap-3">
+                      {!completedIds.has(activeModule.id) && (
+                        <Button
+                          onClick={() => markComplete(activeModule.id)}
+                          disabled={saving}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl gap-2"
+                        >
+                          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                          Mark Complete
+                        </Button>
+                      )}
+                      {activeIdx < totalModules - 1 && (
+                        <Button
+                          onClick={() => setActiveModule(course.modules[activeIdx + 1])}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl gap-1.5"
+                        >
+                          Next <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="text-center py-20 text-gray-400">
+                <PlayCircle className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                <p>Select a module to start learning</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

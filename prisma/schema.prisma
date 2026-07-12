@@ -1,0 +1,359 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// User model with role-based access
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  firstName     String
+  lastName      String
+  role          UserRole  @default(LEARNER)
+  avatar        String?
+  phone         String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  coursesCreated    Course[]         @relation("CourseCreator")
+  enrollments       Enrollment[]
+  assessmentResults AssessmentResult[]
+  certificates       Certificate[]
+  instructorCourses Course[]         @relation("CourseInstructor")
+  examSessions      ExamSession[]
+  groupsCreated     Group[]          @relation("GroupCreator")
+  groupMemberships  GroupMember[]
+  chatsSent         ExamChat[]       @relation("ChatSender")
+
+  @@map("users")
+}
+
+// User roles enum
+enum UserRole {
+  ADMIN
+  INSTRUCTOR
+  PROCTOR
+  LEARNER
+}
+
+// Course model
+model Course {
+  id                String    @id @default(cuid())
+  title             String
+  description       String?
+  content           String?   // Rich text content
+  category          String?   // Course category (Marketing, Finance, etc.)
+  level             String?   // Course level (Beginner, Intermediate, Advanced)
+  duration          String?   // Course duration (e.g., "8 weeks", "40 hours")
+  price             Decimal   @default(0.00) @db.Decimal(10, 2)
+  thumbnail         String?
+  learningObjectives String[]  // Array of learning objectives
+  status            CourseStatus @default(DRAFT)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  creatorId    String
+  creator      User      @relation("CourseCreator", fields: [creatorId], references: [id])
+  instructorId String?
+  instructor   User?     @relation("CourseInstructor", fields: [instructorId], references: [id])
+  
+  modules      CourseModule[]
+  enrollments  Enrollment[]
+  assessments  Assessment[]
+  certificates Certificate[]
+  groups       GroupCourse[]
+
+  @@map("courses")
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// Course modules/lessons
+model CourseModule {
+  id          String    @id @default(cuid())
+  title       String
+  description String?   // Short summary shown in the module list
+  content     String?   // Rich text / HTML content
+  videoUrl    String?   // YouTube or direct video URL
+  duration    Int?      // Estimated minutes to complete
+  order       Int
+  isPublished Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  courseId    String
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("course_modules")
+}
+
+// User course enrollments
+model Enrollment {
+  id               String           @id @default(cuid())
+  enrolledAt       DateTime         @default(now())
+  completedAt      DateTime?
+  progress         Float            @default(0) // 0-100 percentage
+  status           EnrollmentStatus @default(ACTIVE)
+  completedModules String[]         // Array of completed CourseModule IDs
+
+  // Relations
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId   String
+  course     Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@map("enrollments")
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  DROPPED
+  SUSPENDED
+}
+
+// Participant groups / cohorts
+model Group {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  creatorId   String
+  creator     User     @relation("GroupCreator", fields: [creatorId], references: [id])
+
+  members     GroupMember[]
+  courses     GroupCourse[]
+
+  @@map("groups")
+}
+
+model GroupMember {
+  id       String   @id @default(cuid())
+  joinedAt DateTime @default(now())
+
+  groupId  String
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+model GroupCourse {
+  id         String   @id @default(cuid())
+  assignedAt DateTime @default(now())
+
+  groupId    String
+  group      Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, courseId])
+  @@map("group_courses")
+}
+
+// Assessment model
+model Assessment {
+  id           String         @id @default(cuid())
+  title        String
+  description  String?
+  type         AssessmentType @default(PRACTICE_EXAM)
+  timeLimit    Int?           // Minutes (null = no limit)
+  attempts     Int?           // Max attempts allowed (null = unlimited, for PRACTICE_EXAM)
+  passingScore Float          @default(70) // Percentage
+  isPublished  Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Relations
+  courseId    String
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  questions    Question[]
+  results      AssessmentResult[]
+  examSessions ExamSession[]
+
+  @@map("assessments")
+}
+
+enum AssessmentType {
+  REVIEWER         // Open-book style, retakable, study aid
+  PRACTICE_EXAM    // Timed drill, retakable, no certificate
+  RULES_GUIDELINES // Informational guidelines exam/quiz
+  FINAL_EXAM       // One-shot (limited attempts), passing triggers certificate
+  QUIZ             // Short in-module quiz
+  ASSIGNMENT       // Submitted work
+  SURVEY           // Feedback/survey
+}
+
+// Assessment questions
+model Question {
+  id          String       @id @default(cuid())
+  question    String
+  type        QuestionType @default(MULTIPLE_CHOICE)
+  order       Int
+  points      Float        @default(1)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  assessmentId String
+  assessment   Assessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  
+  options      QuestionOption[]
+  answers      Answer[]
+
+  @@map("questions")
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+  ESSAY
+}
+
+// Question options for multiple choice
+model QuestionOption {
+  id         String @id @default(cuid())
+  text       String
+  isCorrect  Boolean @default(false)
+  order      Int
+
+  // Relations
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("question_options")
+}
+
+// User answers to questions
+model Answer {
+  id         String @id @default(cuid())
+  content    String // User's answer text
+  isCorrect  Boolean?
+  points     Float  @default(0)
+  createdAt  DateTime @default(now())
+
+  // Relations
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  resultId   String
+  result     AssessmentResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+
+  @@map("answers")
+}
+
+// Assessment results
+model AssessmentResult {
+  id          String    @id @default(cuid())
+  score       Float     // Percentage score
+  passed      Boolean
+  attempt     Int       @default(1)
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  
+  answers     Answer[]
+  examSession ExamSession?
+
+  @@map("assessment_results")
+}
+
+// Live exam session — tracked per learner attempt for proctors
+model ExamSession {
+  id           String    @id @default(cuid())
+  status       ExamSessionStatus @default(IN_PROGRESS)
+  startedAt    DateTime  @default(now())
+  submittedAt  DateTime?
+  flagged      Boolean   @default(false)
+  flagReason   String?
+  ipAddress    String?
+  userAgent    String?
+
+  // Relations
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  resultId     String?    @unique
+  result       AssessmentResult? @relation(fields: [resultId], references: [id])
+  chats        ExamChat[]
+
+  @@map("exam_sessions")
+}
+
+enum ExamSessionStatus {
+  IN_PROGRESS
+  SUBMITTED
+  ABANDONED
+  FLAGGED
+}
+
+// Certificate model
+model Certificate {
+  id                String    @id @default(cuid())
+  title             String
+  description       String?
+  certificateNumber String @unique
+  issuedAt          DateTime  @default(now())
+  expiresAt         DateTime?
+  fileUrl           String?   // PDF file URL
+  isValid           Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+
+  // Relations
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  courseId    String
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("certificates")
+}
+
+// Proctor ↔ Examinee chat messages tied to an ExamSession
+model ExamChat {
+  id        String   @id @default(cuid())
+  message   String
+  sentAt    DateTime @default(now())
+  isRead    Boolean  @default(false)
+
+  // Who sent the message
+  senderId  String
+  sender    User     @relation("ChatSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  // Which exam session this belongs to
+  sessionId String
+  session   ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("exam_chats")
+}

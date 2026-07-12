@@ -1,0 +1,25 @@
+<svg width="200" height="80" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- CPACE Logo - Based on user's design -->
+  <g>
+    <!-- Circular emblem with three concentric incomplete circles -->
+    <g transform="translate(20, 25)">
+      <!-- Outer circle -->
+      <circle cx="15" cy="15" r="14" fill="none" stroke="#006B3F" stroke-width="2" stroke-dasharray="66 10" stroke-dashoffset="0"/>
+      <!-- Middle circle -->
+      <circle cx="15" cy="15" r="10" fill="none" stroke="#006B3F" stroke-width="2" stroke-dasharray="47 8" stroke-dashoffset="0"/>
+      <!-- Inner circle -->
+      <circle cx="15" cy="15" r="6" fill="none" stroke="#006B3F" stroke-width="2" stroke-dasharray="28 6" stroke-dashoffset="0"/>
+    </g>
+    
+    <!-- CPACE text -->
+    <text x="50" y="35" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#006B3F">CPACE</text>
+    
+    <!-- Full name text -->
+    <text x="50" y="50" font-family="Arial, sans-serif" font-size="8" font-weight="normal" fill="#006B3F">
+      CENTER FOR PROFESSIONAL ADVANCEMENT
+    </text>
+    <text x="50" y="58" font-family="Arial, sans-serif" font-size="8" font-weight="normal" fill="#006B3F">
+      AND CONTINUING EDUCATION
+    </text>
+  </g>
+</svg>
