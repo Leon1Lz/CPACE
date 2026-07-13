@@ -19,7 +19,9 @@ import {
   AlertTriangle, CheckCircle, XCircle, Eye, Loader2, ClipboardCheck, MessageCircle, Send,
 } from "lucide-react"
 import { ExamChat } from "@/components/ui/exam-chat"
-// ExamChat is used indirectly via ProctorInlineChat below
+import Pusher from "pusher-js"
+import { useToast } from "@/hooks/use-toast"
+import { ToastAction } from "@/components/ui/toast"
 
 type ExamSession = {
   id: string
@@ -66,7 +68,6 @@ function ProctorInlineChat({ sessionId, currentUserId }: { sessionId: string; cu
   const [draft, setDraft] = useState("")
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -77,9 +78,43 @@ function ProctorInlineChat({ sessionId, currentUserId }: { sessionId: string; cu
 
   useEffect(() => {
     fetchMessages()
-    intervalRef.current = setInterval(fetchMessages, 5000)
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
-  }, [fetchMessages])
+
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || ""
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || ""
+
+    if (!pusherKey) {
+      console.warn("Pusher key missing in environment")
+      return
+    }
+
+    const pusher = new Pusher(pusherKey, {
+      cluster: pusherCluster,
+      authEndpoint: "/api/pusher/auth",
+    })
+
+    const channelName = `private-exam-session-${sessionId}`
+    const channel = pusher.subscribe(channelName)
+
+    channel.bind("new-message", (newMsg: ChatMsg) => {
+      setMessages(prev => {
+        // Prevent duplication
+        if (prev.some(m => m.id === newMsg.id)) return prev
+
+        // Trigger reading state sync on backend
+        if (newMsg.sender.id !== currentUserId) {
+          fetch(`/api/chat?sessionId=${sessionId}`).catch(() => {})
+        }
+
+        return [...prev, newMsg]
+      })
+    })
+
+    return () => {
+      channel.unbind_all()
+      pusher.unsubscribe(channelName)
+      pusher.disconnect()
+    }
+  }, [sessionId, currentUserId, fetchMessages])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }) }, [messages])
 
@@ -94,7 +129,10 @@ function ProctorInlineChat({ sessionId, currentUserId }: { sessionId: string; cu
       })
       if (res.ok) {
         const msg: ChatMsg = await res.json()
-        setMessages(p => [...p, msg])
+        setMessages(p => {
+          if (p.some(m => m.id === msg.id)) return p
+          return [...p, msg]
+        })
         setDraft("")
       }
     } finally { setSending(false) }
@@ -179,12 +217,18 @@ export default function ProctorPage() {
     if (session && !canAccess) router.push("/dashboard")
   }, [session, canAccess, router])
 
+  const { toast } = useToast()
+
   const fetchSessions = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     else setRefreshing(true)
     try {
       const res = await fetch("/api/proctor/sessions")
-      if (res.ok) setSessions(await res.json())
+      if (res.ok) {
+        const data = await res.json()
+        setSessions(data)
+        return data
+      }
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -192,6 +236,68 @@ export default function ProctorPage() {
   }, [])
 
   useEffect(() => { fetchSessions() }, [fetchSessions])
+
+  // Listen to new examinee messages globally on the proctor dashboard
+  useEffect(() => {
+    if (!canAccess) return
+
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || ""
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || ""
+
+    if (!pusherKey) return
+
+    const pusher = new Pusher(pusherKey, {
+      cluster: pusherCluster,
+      authEndpoint: "/api/pusher/auth",
+    })
+
+    const channel = pusher.subscribe("private-proctor-notifications")
+
+    channel.bind("new-chat-message", (data: {
+      sessionId: string
+      message: string
+      learnerName: string
+      assessmentTitle: string
+      chat: any
+    }) => {
+      // Avoid notifying if the chat is already open for this exact session
+      if (selected?.id === data.sessionId) return
+
+      toast({
+        title: `Message from ${data.learnerName} 💬`,
+        description: `"${data.message}" in ${data.assessmentTitle}`,
+        action: (
+          <ToastAction
+            altText="View chat"
+            onClick={() => {
+              setSessions(prev => {
+                const found = prev.find(s => s.id === data.sessionId)
+                if (found) {
+                  setSelected(found)
+                } else {
+                  fetchSessions(true).then((latestSessions) => {
+                    if (latestSessions) {
+                      const latestFound = latestSessions.find((s: any) => s.id === data.sessionId)
+                      if (latestFound) setSelected(latestFound)
+                    }
+                  })
+                }
+                return prev
+              })
+            }}
+          >
+            View
+          </ToastAction>
+        )
+      })
+    })
+
+    return () => {
+      channel.unbind_all()
+      pusher.unsubscribe("private-proctor-notifications")
+      pusher.disconnect()
+    }
+  }, [canAccess, toast, fetchSessions, selected])
 
   // Live elapsed-time ticker
   useEffect(() => {

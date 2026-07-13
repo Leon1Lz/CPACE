@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { MessageCircle, X, Minus, Send, ShieldCheck, GraduationCap } from "lucide-react"
+import Pusher from "pusher-js"
+import { useToast } from "@/hooks/use-toast"
 
 export type ChatMessage = {
   id: string
@@ -23,8 +25,6 @@ interface ExamChatProps {
   show: boolean
 }
 
-const POLL_INTERVAL = 5000 // 5 seconds
-
 export function ExamChat({ sessionId, currentUserId, currentUserRole, show }: ExamChatProps) {
   const [open, setOpen] = useState(false)
   const [minimized, setMinimized] = useState(false)
@@ -37,7 +37,7 @@ export function ExamChat({ sessionId, currentUserId, currentUserRole, show }: Ex
   const inputRef = useRef<HTMLInputElement>(null)
   const dragRef = useRef<{ startX: number; startY: number; initX: number; initY: number } | null>(null)
   const initialized = useRef(false)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const { toast } = useToast()
 
   const isProctor = currentUserRole === "PROCTOR" || currentUserRole === "ADMIN"
 
@@ -66,17 +66,68 @@ export function ExamChat({ sessionId, currentUserId, currentUserRole, show }: Ex
         return data
       })
     } catch {
-      // silently ignore poll errors
+      // silently ignore errors
     }
   }, [sessionId, open, minimized, currentUserId])
 
-  // Start/stop polling
+  // Start/stop Pusher subscription
   useEffect(() => {
     if (!show || !sessionId) return
+    
+    // Initial fetch of message history
     fetchMessages()
-    pollRef.current = setInterval(fetchMessages, POLL_INTERVAL)
-    return () => { if (pollRef.current) clearInterval(pollRef.current) }
-  }, [show, sessionId, fetchMessages])
+
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || ""
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || ""
+    
+    if (!pusherKey) {
+      console.warn("Pusher key missing in environment")
+      return
+    }
+
+    const pusher = new Pusher(pusherKey, {
+      cluster: pusherCluster,
+      authEndpoint: "/api/pusher/auth",
+    })
+
+    const channelName = `private-exam-session-${sessionId}`
+    const channel = pusher.subscribe(channelName)
+
+    channel.bind("new-message", (newMsg: ChatMessage) => {
+      setMessages(prev => {
+        // Prevent duplication
+        if (prev.some(m => m.id === newMsg.id)) return prev
+        
+        // Update unread count
+        if (newMsg.sender.id !== currentUserId) {
+          const isProctorMsg = newMsg.sender.role === "PROCTOR" || newMsg.sender.role === "ADMIN"
+          
+          // Trigger toast outside state updater to avoid rendering side-effects
+          setTimeout(() => {
+            toast({
+              title: isProctorMsg ? "Message from Proctor 🛡️" : `Message from ${newMsg.sender.firstName} 💬`,
+              description: newMsg.message,
+            })
+          }, 0)
+
+          if (!open || minimized) {
+            setUnread(u => u + 1)
+          } else {
+            // Trigger reading state sync on backend
+            fetch(`/api/chat?sessionId=${sessionId}`).catch(() => {})
+          }
+        }
+        
+        return [...prev, newMsg]
+      })
+    })
+
+    return () => {
+      channel.unbind_all()
+      pusher.unsubscribe(channelName)
+      pusher.disconnect()
+    }
+  }, [show, sessionId, currentUserId, open, minimized, fetchMessages])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

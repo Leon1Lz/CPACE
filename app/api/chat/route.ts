@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { triggerEvent, examChatChannel } from "@/lib/pusher"
 
 // GET /api/chat?sessionId=xxx — fetch messages for a session
 export async function GET(req: NextRequest) {
@@ -67,7 +68,12 @@ export async function POST(req: NextRequest) {
     // Verify access
     const examSession = await prisma.examSession.findUnique({
       where: { id: sessionId },
-      select: { userId: true, status: true },
+      select: { 
+        userId: true, 
+        status: true,
+        user: { select: { firstName: true, lastName: true } },
+        assessment: { select: { title: true } }
+      },
     })
     if (!examSession) return NextResponse.json({ error: "Session not found" }, { status: 404 })
 
@@ -88,6 +94,24 @@ export async function POST(req: NextRequest) {
         sender: { select: { id: true, firstName: true, lastName: true, role: true } },
       },
     })
+
+    // Trigger Pusher event in background
+    try {
+      await triggerEvent(examChatChannel(sessionId), "new-message", chat as any)
+
+      // Notify proctors if message is from examinee (LEARNER)
+      if (userRecord.role === "LEARNER") {
+        await triggerEvent("private-proctor-notifications", "new-chat-message", {
+          sessionId,
+          message: chat.message,
+          learnerName: `${userRecord.firstName} ${userRecord.lastName}`,
+          assessmentTitle: examSession.assessment.title,
+          chat
+        })
+      }
+    } catch (pusherError) {
+      console.error("Failed to trigger Pusher event:", pusherError)
+    }
 
     return NextResponse.json(chat)
   } catch (error) {
