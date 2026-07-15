@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { BarChart3, Users, BookOpen, Award, TrendingUp, GraduationCap, CheckCircle, XCircle, Loader2 } from "lucide-react"
+import { BarChart3, Users, BookOpen, Award, TrendingUp, GraduationCap, CheckCircle, XCircle, Loader2, Download } from "lucide-react"
 
 export default function ReportsPage() {
   const { data: session } = useSession()
@@ -137,6 +138,38 @@ export default function ReportsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Detailed Data Export */}
+          <Card className="border-0 shadow-md md:col-span-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Download className="h-4 w-4 text-emerald-600" /> Detailed Data Export
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Button
+                variant="outline"
+                className="flex items-center gap-2 h-11 justify-center border-gray-200 hover:border-emerald-500 rounded-xl"
+                onClick={() => window.open("/api/reports?export=users", "_blank")}
+              >
+                <Users className="h-4 w-4 text-gray-500" /> Export User Directory
+              </Button>
+              <Button
+                variant="outline"
+                className="flex items-center gap-2 h-11 justify-center border-gray-200 hover:border-emerald-500 rounded-xl"
+                onClick={() => window.open("/api/reports?export=enrollments", "_blank")}
+              >
+                <TrendingUp className="h-4 w-4 text-gray-500" /> Export Enrollments
+              </Button>
+              <Button
+                variant="outline"
+                className="flex items-center gap-2 h-11 justify-center border-gray-200 hover:border-emerald-500 rounded-xl"
+                onClick={() => window.open("/api/reports?export=results", "_blank")}
+              >
+                <Award className="h-4 w-4 text-gray-500" /> Export Exam Results
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     )
@@ -188,6 +221,31 @@ export default function ReportsPage() {
             </div>
           )}
         </div>
+
+        {/* Detailed Data Export */}
+        <Card className="border-0 shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Download className="h-4 w-4 text-emerald-600" /> Detailed Data Export
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 h-11 justify-center border-gray-200 hover:border-emerald-500 rounded-xl"
+              onClick={() => window.open("/api/reports?export=enrollments", "_blank")}
+            >
+              <TrendingUp className="h-4 w-4 text-gray-500" /> Export Course Enrollments
+            </Button>
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 h-11 justify-center border-gray-200 hover:border-emerald-500 rounded-xl"
+              onClick={() => window.open("/api/reports?export=results", "_blank")}
+            >
+              <Award className="h-4 w-4 text-gray-500" /> Export Exam Results
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }

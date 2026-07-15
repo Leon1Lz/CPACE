@@ -1,0 +1,265 @@
+"use client"
+
+import { useState, useEffect, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ArrowLeft, Loader2, Eye, EyeOff, ShieldCheck, BookOpen, Users, Award, Star } from "lucide-react"
+import Image from "next/image"
+
+const stats = [
+  { value: "10K+", label: "Professionals" },
+  { value: "50+", label: "Programs" },
+  { value: "98%", label: "Satisfaction" },
+]
+
+const features = [
+  { icon: <BookOpen className="w-5 h-5" />, title: "50+ Certification Programs", desc: "Professional courses in Marketing, Finance, and Operations" },
+  { icon: <Users className="w-5 h-5" />, title: "Expert Instructors", desc: "Learn from industry leaders with real-world experience" },
+  { icon: <Award className="w-5 h-5" />, title: "Globally Recognized", desc: "Certifications respected by top employers worldwide" },
+]
+
+function ResetPasswordForm() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const token = searchParams.get("token")
+
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [message, setMessage] = useState("")
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    if (!token) {
+      setError("Reset token is missing. Please request a new password reset link.")
+    }
+  }, [token])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!token) return
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.")
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.")
+      return
+    }
+
+    setIsLoading(true)
+    setMessage("")
+    setError("")
+
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setMessage(data.message)
+        setTimeout(() => {
+          router.push("/login")
+        }, 3000)
+      } else {
+        setError(data.error || "An error occurred. Please try again.")
+      }
+    } catch {
+      setError("An error occurred. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="space-y-2">
+        <Label htmlFor="password" className="text-sm font-medium text-gray-700">New Password</Label>
+        <div className="relative">
+          <Input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            disabled={!token}
+            className="h-11 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-xl bg-white pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">Confirm New Password</Label>
+        <Input
+          id="confirmPassword"
+          type="password"
+          placeholder="••••••••"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          disabled={!token}
+          className="h-11 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-xl bg-white"
+        />
+      </div>
+
+      {error && (
+        <Alert variant="destructive" className="rounded-xl">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {message && (
+        <Alert className="border-emerald-200 bg-emerald-50 text-emerald-800 rounded-xl">
+          <AlertDescription>
+            <p className="font-semibold">{message}</p>
+            <p className="text-xs text-emerald-600 mt-1">Redirecting you to the login page...</p>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Button
+        type="submit"
+        className="w-full h-11 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+        disabled={isLoading || !token}
+      >
+        {isLoading ? (
+          <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Resetting password...</>
+        ) : (
+          "Reset Password"
+        )}
+      </Button>
+    </form>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      {/* Left Panel */}
+      <div className="hidden lg:flex w-1/2 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-cover bg-center" style={{
+            backgroundImage: `url("https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1400&q=80")`
+          }}></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/95 via-teal-900/90 to-slate-900/95"></div>
+          <div className="absolute inset-0 opacity-[0.08]" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2310b981' fill-opacity='0.5'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            backgroundSize: '60px 60px'
+          }}></div>
+        </div>
+        <div className="absolute top-16 left-16 w-40 h-40 bg-emerald-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-16 right-16 w-56 h-56 bg-teal-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+
+        <div className="relative z-10 flex flex-col justify-between p-12 w-full">
+          <div className="flex items-center gap-3">
+            <div className="relative w-36 h-10">
+              <Image src="/logo.svg" alt="CPACE" fill className="object-contain" priority />
+            </div>
+          </div>
+
+          <div className="space-y-8">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 rounded-full text-xs font-semibold">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Secure Connection Established
+              </div>
+              <h2 className="text-4xl font-bold text-white leading-tight">
+                Create a Strong Password for{" "}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">
+                  Your Account
+                </span>
+              </h2>
+              <p className="text-white/70 leading-relaxed">
+                Choose a strong and secure password containing letters, numbers, and symbols to protect your personal dashboard.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {features.map((f, i) => (
+                <div key={i} className="flex items-start gap-4 group">
+                  <div className="w-10 h-10 bg-white/10 border border-white/20 rounded-xl flex items-center justify-center text-emerald-300 shrink-0 group-hover:bg-emerald-500/20 transition-colors duration-200">
+                    {f.icon}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-white text-sm">{f.title}</p>
+                    <p className="text-white/60 text-xs leading-relaxed">{f.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10">
+              {stats.map((s, i) => (
+                <div key={i} className="text-center">
+                  <div className="text-2xl font-bold text-white">{s.value}</div>
+                  <div className="text-xs text-white/50 mt-0.5">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
+                <Star className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-white font-semibold text-sm">Industry Recognized</p>
+                <p className="text-white/60 text-xs">Certifications trusted by top Philippine employers</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Form Panel */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center min-h-screen bg-gray-50 p-6 lg:p-12">
+        <div className="w-full max-w-md space-y-8">
+          <div className="lg:hidden flex flex-col items-center gap-2">
+            <div className="relative w-36 h-10">
+              <Image src="/logo.svg" alt="CPACE" fill className="object-contain" priority />
+            </div>
+          </div>
+
+          <Link href="/login" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-emerald-600 transition-colors duration-200 group">
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform duration-200" />
+            Back to Login
+          </Link>
+
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-gray-900">Reset Password</h1>
+            <p className="text-gray-500">Configure your new account password details below.</p>
+          </div>
+
+          <Suspense fallback={<div className="text-center py-6"><Loader2 className="h-6 w-6 animate-spin mx-auto text-emerald-600" /></div>}>
+            <ResetPasswordForm />
+          </Suspense>
+
+          <p className="text-center text-sm text-gray-500">
+            Remembered your password?{" "}
+            <Link href="/login" className="text-emerald-600 hover:text-emerald-700 font-semibold">
+              Log in
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}

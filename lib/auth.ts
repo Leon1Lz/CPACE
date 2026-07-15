@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
+import crypto from "crypto"
 import { prisma } from "./prisma"
 
 export const authOptions: NextAuthOptions = {
@@ -40,11 +41,21 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        // Generate a new unique session token
+        const sessionToken = crypto.randomUUID()
+
+        // Update the user's active session token in the database
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { activeSessionToken: sessionToken }
+        })
+
         return {
           id: user.id,
           email: user.email,
           name: `${user.firstName} ${user.lastName}`,
           role: user.role,
+          sessionToken,
         }
       }
     })
@@ -56,13 +67,31 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.role = user.role
+        token.userId = user.id
+        token.sessionToken = (user as any).sessionToken
+      } else if (token.userId) {
+        // Only run check on subsequent requests to avoid redundant DB query at login
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.userId as string },
+            select: { activeSessionToken: true }
+          })
+          if (!dbUser || dbUser.activeSessionToken !== token.sessionToken) {
+            token.error = "SessionExpired"
+          }
+        } catch (error) {
+          console.error("Error verifying active session token:", error)
+        }
       }
       return token
     },
     async session({ session, token }) {
       if (token) {
-        session.user.id = token.sub!
+        session.user.id = token.userId as string
         session.user.role = token.role as string
+        if (token.error) {
+          (session as any).error = token.error
+        }
       }
       return session
     }

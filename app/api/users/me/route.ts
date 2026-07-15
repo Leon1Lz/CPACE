@@ -80,3 +80,42 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Failed to update profile" }, { status: 500 })
   }
 }
+
+export async function DELETE() {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
+
+    // Check if user is course creator or instructor
+    const coursesCount = await prisma.course.count({
+      where: {
+        OR: [
+          { creatorId: user.id },
+          { instructorId: user.id }
+        ]
+      }
+    })
+
+    const groupsCount = await prisma.group.count({
+      where: { creatorId: user.id }
+    })
+
+    if (coursesCount > 0 || groupsCount > 0) {
+      return NextResponse.json({
+        error: "Cannot delete account: you are currently managing courses or groups. Please delete or re-assign them first."
+      }, { status: 400 })
+    }
+
+    // Safe to delete
+    await prisma.user.delete({ where: { id: user.id } })
+
+    return NextResponse.json({ message: "Account deleted successfully" })
+  } catch (error) {
+    console.error("Delete account error:", error)
+    return NextResponse.json({ error: "Failed to delete account" }, { status: 500 })
+  }
+}
+

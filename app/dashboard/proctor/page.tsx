@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import {
   ShieldCheck, Monitor, Clock, Flag, Search, RefreshCw,
-  AlertTriangle, CheckCircle, XCircle, Eye, Loader2, ClipboardCheck, MessageCircle, Send,
+  AlertTriangle, CheckCircle, XCircle, Eye, Loader2, ClipboardCheck, MessageCircle, Send, Camera,
 } from "lucide-react"
 import { ExamChat } from "@/components/ui/exam-chat"
 import Pusher from "pusher-js"
@@ -31,6 +31,7 @@ type ExamSession = {
   flagged: boolean
   flagReason: string | null
   ipAddress: string | null
+  identityPhoto?: string | null
   user: { id: string; firstName: string; lastName: string; email: string }
   assessment: { id: string; title: string; type: string; course: { title: string } }
 }
@@ -83,8 +84,11 @@ function ProctorInlineChat({ sessionId, currentUserId }: { sessionId: string; cu
     const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || ""
 
     if (!pusherKey) {
-      console.warn("Pusher key missing in environment")
-      return
+      console.warn("Pusher key missing in environment — falling back to polling.")
+      const interval = setInterval(() => {
+        fetchMessages()
+      }, 5000)
+      return () => clearInterval(interval)
     }
 
     const pusher = new Pusher(pusherKey, {
@@ -290,6 +294,43 @@ export default function ProctorPage() {
           </ToastAction>
         )
       })
+    })
+
+    channel.bind("session-flagged", (data: {
+      sessionId: string
+      learnerName: string
+      assessmentTitle: string
+      flagReason: string
+    }) => {
+      toast({
+        variant: "destructive",
+        title: `🚨 Violation: ${data.learnerName}`,
+        description: `${data.assessmentTitle} — Reason: ${data.flagReason}`,
+        action: (
+          <ToastAction
+            altText="View details"
+            onClick={() => {
+              setSessions(prev => {
+                const found = prev.find(s => s.id === data.sessionId)
+                if (found) {
+                  setSelected(found)
+                } else {
+                  fetchSessions(true).then((latestSessions) => {
+                    if (latestSessions) {
+                      const latestFound = latestSessions.find((s: any) => s.id === data.sessionId)
+                      if (latestFound) setSelected(latestFound)
+                    }
+                  })
+                }
+                return prev
+              })
+            }}
+          >
+            View
+          </ToastAction>
+        )
+      })
+      fetchSessions(true)
     })
 
     return () => {
@@ -612,6 +653,25 @@ export default function ProctorPage() {
                       <AlertTriangle className="h-3 w-3" /> Flagged Session
                     </p>
                     <p className="text-sm text-rose-700">{selected.flagReason || "No reason provided."}</p>
+                  </div>
+                )}
+
+                {selected.identityPhoto && (
+                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-2 mt-3">
+                    <p className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
+                      <Camera className="h-3.5 w-3.5 text-emerald-600" /> Verified Identity Snapshot
+                    </p>
+                    <div className="relative w-full h-[150px] bg-slate-900 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={selected.identityPhoto}
+                        alt="Candidate Identity Snap"
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute bottom-2 right-2 bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded shadow">
+                        SCREENED PASS
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>

@@ -1,10 +1,12 @@
 "use client"
 
-import { Suspense } from "react"
+import { useState } from "react"
 import Link from "next/link"
-import { LoginForm } from "@/components/auth/login-form"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, BookOpen, Users, Award, CheckCircle, GraduationCap, Star, TrendingUp, Loader2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ArrowLeft, Loader2, KeyRound, GraduationCap, Star, BookOpen, Users, Award } from "lucide-react"
 import Image from "next/image"
 
 const stats = [
@@ -19,56 +21,83 @@ const features = [
   { icon: <Award className="w-5 h-5" />, title: "Globally Recognized", desc: "Certifications respected by top employers worldwide" },
 ]
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [message, setMessage] = useState("")
+  const [error, setError] = useState("")
+  const [debugUrl, setDebugUrl] = useState("")
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setMessage("")
+    setError("")
+    setDebugUrl("")
+
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setMessage(data.message)
+        if (data.debugUrl) {
+          setDebugUrl(data.debugUrl)
+        }
+      } else {
+        setError(data.error || "An error occurred. Please try again.")
+      }
+    } catch {
+      setError("An error occurred. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
-
-      {/* ── Left — Visual Panel ── */}
+      {/* Left Panel */}
       <div className="hidden lg:flex w-1/2 relative overflow-hidden">
-        {/* Background photo */}
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-cover bg-center" style={{
             backgroundImage: `url("https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1400&q=80")`
           }}></div>
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/95 via-teal-900/90 to-slate-900/95"></div>
-          {/* Grid pattern */}
           <div className="absolute inset-0 opacity-[0.08]" style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2310b981' fill-opacity='0.5'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
             backgroundSize: '60px 60px'
           }}></div>
         </div>
-        {/* Floating orbs */}
         <div className="absolute top-16 left-16 w-40 h-40 bg-emerald-500/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-16 right-16 w-56 h-56 bg-teal-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
 
-        {/* Content */}
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
-          {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="relative w-36 h-10">
               <Image src="/logo.svg" alt="CPACE" fill className="object-contain" priority />
             </div>
           </div>
 
-          {/* Main content */}
           <div className="space-y-8">
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 rounded-full text-xs font-semibold">
-                <GraduationCap className="w-3.5 h-3.5" />
-                Welcome Back
+                <KeyRound className="w-3.5 h-3.5" />
+                Security & Account Recovery
               </div>
               <h2 className="text-4xl font-bold text-white leading-tight">
-                Advance Your Career with{" "}
+                Recover Your Account with{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">
-                  CPACE Philippines
+                  CPACE Portal
                 </span>
               </h2>
               <p className="text-white/70 leading-relaxed">
-                Join thousands of professionals who have transformed their careers with our internationally recognized certification programs.
+                Confirm your identity to securely reset your password and resume your professional training courses.
               </p>
             </div>
 
-            {/* Features */}
             <div className="space-y-4">
               {features.map((f, i) => (
                 <div key={i} className="flex items-start gap-4 group">
@@ -83,7 +112,6 @@ export default function LoginPage() {
               ))}
             </div>
 
-            {/* Stats */}
             <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10">
               {stats.map((s, i) => (
                 <div key={i} className="text-center">
@@ -94,7 +122,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Bottom floating card */}
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
@@ -109,49 +136,80 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* ── Right — Login Form ── */}
+      {/* Right Form Panel */}
       <div className="w-full lg:w-1/2 flex items-center justify-center min-h-screen bg-gray-50 p-6 lg:p-12">
         <div className="w-full max-w-md space-y-8">
-
-          {/* Mobile Logo */}
           <div className="lg:hidden flex flex-col items-center gap-2">
             <div className="relative w-36 h-10">
               <Image src="/logo.svg" alt="CPACE" fill className="object-contain" priority />
             </div>
           </div>
 
-          {/* Back */}
-          <Link href="/" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-emerald-600 transition-colors duration-200 group">
+          <Link href="/login" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-emerald-600 transition-colors duration-200 group">
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform duration-200" />
-            Back to Home
+            Back to Login
           </Link>
 
-          {/* Header */}
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-gray-900">Welcome Back</h1>
-            <p className="text-gray-500">Sign in to access your learning portal and continue your professional development journey.</p>
+            <h1 className="text-3xl font-bold text-gray-900">Forgot Password?</h1>
+            <p className="text-gray-500">Enter your registered email address and we will generate a link to reset your password.</p>
           </div>
 
-          {/* Form */}
-          <Suspense fallback={
-            <div className="flex items-center justify-center p-4">
-              <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-11 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-xl bg-white"
+              />
             </div>
-          }>
-            <LoginForm />
-          </Suspense>
 
-          {/* Footer */}
+            {error && (
+              <Alert variant="destructive" className="rounded-xl">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {message && (
+              <Alert className="border-emerald-200 bg-emerald-50 text-emerald-800 rounded-xl">
+                <AlertDescription>
+                  <p className="font-semibold">{message}</p>
+                  {debugUrl && (
+                    <div className="mt-3 p-3 bg-white border border-emerald-200 rounded-lg text-xs break-all">
+                      <p className="font-bold text-emerald-700 mb-1">🔧 Local Dev Reset Link:</p>
+                      <a href={debugUrl} className="text-blue-600 hover:underline font-mono font-medium">{debugUrl}</a>
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full h-11 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Requesting reset...</>
+              ) : (
+                "Send Reset Link"
+              )}
+            </Button>
+          </form>
+
           <p className="text-center text-sm text-gray-500">
-            Don&apos;t have an account?{" "}
-            <Link href="/register" className="text-emerald-600 hover:text-emerald-700 font-semibold">
-              Create one
+            Remembered your password?{" "}
+            <Link href="/login" className="text-emerald-600 hover:text-emerald-700 font-semibold">
+              Log in
             </Link>
           </p>
-
         </div>
       </div>
-
     </div>
   )
 }

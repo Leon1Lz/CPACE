@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import useSWR from "swr"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -21,9 +21,13 @@ import {
 } from "lucide-react"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface Trend { current: number; previous: number | null; pct: number | null }
+export interface Trend {
+  current: number
+  previous: number | null
+  pct: number | null
+}
 
-interface StatCardProps {
+export interface StatCardProps {
   title: string
   value: string | number
   icon: React.ReactNode
@@ -121,28 +125,65 @@ function StatusBadge({ status }: { status: string }) {
 
 // ── Sparkline chart data builder (7-day mock based on total) ──────────────────
 function buildSparkline(total: number) {
+  const t = typeof total === "number" && !isNaN(total) ? total : 0;
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-  const base = Math.max(1, Math.floor(total / 7))
+  const base = Math.max(1, Math.floor(t / 7))
   return days.map((d, i) => ({
     day: d,
     value: Math.max(0, base + Math.floor(Math.sin(i) * base * 0.4)),
   }))
 }
 
+const fetcher = (url: string) => fetch(url).then(r => r.json())
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // ADMIN DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
+export interface AdminRecentEnrollment {
+  id: string
+  enrolledAt: string
+  status: string
+  user: {
+    firstName: string
+    lastName: string
+    email: string
+  }
+  course: {
+    title: string
+    category: string | null
+  }
+}
+
+export interface AdminStats {
+  role: "ADMIN"
+  totalUsers: number
+  totalCourses: number
+  totalEnrollments: number
+  totalCertificates: number
+  recentEnrollments: AdminRecentEnrollment[]
+  trends: {
+    users: Trend
+    courses: Trend
+    enrollments: Trend
+    certificates: Trend
+  }
+}
+
 export function AdminDashboard({ userName = "Admin" }: { userName?: string }) {
-  const [data, setData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { data, error, isLoading } = useSWR<AdminStats>("/api/dashboard/stats", fetcher)
 
-  useEffect(() => {
-    fetch("/api/dashboard/stats").then(r => r.json()).then(setData).finally(() => setLoading(false))
-  }, [])
+  if (isLoading || !data) return <DashboardSkeleton />
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
+        <AlertCircle className="h-10 w-10 text-red-500" />
+        <h3 className="text-lg font-bold text-gray-800">Failed to load admin stats</h3>
+        <p className="text-sm text-gray-400">Please try refreshing the page.</p>
+      </div>
+    )
+  }
 
-  if (loading) return <DashboardSkeleton />
-
-  const enrollmentChart = buildSparkline(data?.totalEnrollments ?? 0)
+  const enrollmentChart = buildSparkline(data.totalEnrollments)
 
   return (
     <div className="space-y-6">
@@ -154,10 +195,10 @@ export function AdminDashboard({ userName = "Admin" }: { userName?: string }) {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Users"    value={data?.totalUsers ?? 0}        icon={<Users />}      gradient="from-emerald-500 to-teal-600"  trend={data?.trends?.users} />
-        <StatCard title="Total Courses"  value={data?.totalCourses ?? 0}      icon={<BookOpen />}   gradient="from-blue-500 to-cyan-600"     trend={data?.trends?.courses} />
-        <StatCard title="Enrollments"    value={data?.totalEnrollments ?? 0}  icon={<TrendingUp />} gradient="from-violet-500 to-purple-600" trend={data?.trends?.enrollments} />
-        <StatCard title="Certificates"   value={data?.totalCertificates ?? 0} icon={<Award />}      gradient="from-amber-500 to-orange-600"  trend={data?.trends?.certificates} />
+        <StatCard title="Total Users"    value={data.totalUsers}        icon={<Users />}      gradient="from-emerald-500 to-teal-600"  trend={data.trends?.users} />
+        <StatCard title="Total Courses"  value={data.totalCourses}      icon={<BookOpen />}   gradient="from-blue-500 to-cyan-600"     trend={data.trends?.courses} />
+        <StatCard title="Enrollments"    value={data.totalEnrollments}  icon={<TrendingUp />} gradient="from-violet-500 to-purple-600" trend={data.trends?.enrollments} />
+        <StatCard title="Certificates"   value={data.totalCertificates} icon={<Award />}      gradient="from-amber-500 to-orange-600"  trend={data.trends?.certificates} />
       </div>
 
       {/* Enrollment trend chart */}
@@ -182,7 +223,7 @@ export function AdminDashboard({ userName = "Admin" }: { userName?: string }) {
               <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.1)", fontSize: 12 }}
-                formatter={(v: number) => [v, "Enrollments"]}
+                formatter={(v: any) => [isNaN(Number(v)) ? "0" : Number(v).toString(), "Enrollments"]}
               />
               <Area type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} fill="url(#enrollGrad)" dot={{ fill: "#10b981", strokeWidth: 0, r: 3 }} />
             </AreaChart>
@@ -201,7 +242,7 @@ export function AdminDashboard({ userName = "Admin" }: { userName?: string }) {
           </div>
         </CardHeader>
         <CardContent>
-          {data?.recentEnrollments?.length > 0 ? (
+          {data.recentEnrollments?.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow className="border-gray-100">
@@ -213,7 +254,7 @@ export function AdminDashboard({ userName = "Admin" }: { userName?: string }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.recentEnrollments.map((e: any) => (
+                {data.recentEnrollments.map((e) => (
                   <TableRow key={e.id} className="border-gray-50 hover:bg-gray-50/50">
                     <TableCell>
                       <div className="flex items-center gap-2.5">
@@ -250,17 +291,59 @@ export function AdminDashboard({ userName = "Admin" }: { userName?: string }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // INSTRUCTOR DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
+export interface InstructorCourse {
+  id: string
+  title: string
+  status: string
+  _count: {
+    enrollments: number
+  }
+}
+
+export interface InstructorSubmission {
+  id: string
+  score: number | null
+  passed: boolean | null
+  completedAt: string | null
+  user: {
+    firstName: string
+    lastName: string
+  }
+  assessment: {
+    title: string
+    course: {
+      title: string
+    }
+  } | null
+}
+
+export interface InstructorStats {
+  role: "INSTRUCTOR"
+  myCourses: InstructorCourse[]
+  recentSubmissions: InstructorSubmission[]
+  totalLearners: number
+  pendingGrading: number
+  trends: {
+    learners: Trend
+    submissions: Trend
+  }
+}
+
 export function InstructorDashboard({ userName = "Instructor" }: { userName?: string }) {
-  const [data, setData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { data, error, isLoading } = useSWR<InstructorStats>("/api/dashboard/stats", fetcher)
 
-  useEffect(() => {
-    fetch("/api/dashboard/stats").then(r => r.json()).then(setData).finally(() => setLoading(false))
-  }, [])
+  if (isLoading || !data) return <DashboardSkeleton />
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
+        <AlertCircle className="h-10 w-10 text-red-500" />
+        <h3 className="text-lg font-bold text-gray-800">Failed to load instructor stats</h3>
+        <p className="text-sm text-gray-400">Please try refreshing the page.</p>
+      </div>
+    )
+  }
 
-  if (loading) return <DashboardSkeleton />
-
-  const submissionChart = (data?.myCourses ?? []).slice(0, 6).map((c: any) => ({
+  const submissionChart = (data.myCourses ?? []).slice(0, 6).map((c) => ({
     name: c.title.split(" ").slice(0, 2).join(" "),
     learners: c._count.enrollments,
   }))
@@ -278,9 +361,9 @@ export function InstructorDashboard({ userName = "Instructor" }: { userName?: st
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="My Courses"    value={data?.myCourses?.length ?? 0}  icon={<BookOpen />}      gradient="from-blue-500 to-cyan-600"    subtitle="Created by you" />
-        <StatCard title="Total Learners" value={data?.totalLearners ?? 0}      icon={<Users />}         gradient="from-emerald-500 to-teal-600" trend={data?.trends?.learners} />
-        <StatCard title="Submissions"   value={data?.recentSubmissions?.length ?? 0} icon={<ClipboardCheck />} gradient="from-amber-500 to-orange-600" subtitle="Recent activity" />
+        <StatCard title="My Courses"    value={data.myCourses?.length ?? 0}  icon={<BookOpen />}      gradient="from-blue-500 to-cyan-600"    subtitle="Created by you" />
+        <StatCard title="Total Learners" value={data.totalLearners}      icon={<Users />}         gradient="from-emerald-500 to-teal-600" trend={data.trends?.learners} />
+        <StatCard title="Submissions"   value={data.recentSubmissions?.length ?? 0} icon={<ClipboardCheck />} gradient="from-amber-500 to-orange-600" subtitle="Recent activity" />
       </div>
 
       {/* Learners per course bar chart */}
@@ -297,7 +380,7 @@ export function InstructorDashboard({ userName = "Instructor" }: { userName?: st
                 <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
                 <Tooltip
                   contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.1)", fontSize: 12 }}
-                  formatter={(v: number) => [v, "Learners"]}
+                  formatter={(v: any) => [isNaN(Number(v)) ? "0" : Number(v).toString(), "Learners"]}
                 />
                 <Bar dataKey="learners" fill="#3b82f6" radius={[6, 6, 0, 0]} />
               </BarChart>
@@ -312,9 +395,9 @@ export function InstructorDashboard({ userName = "Instructor" }: { userName?: st
           <CardTitle className="text-base font-semibold text-gray-900">My Courses</CardTitle>
         </CardHeader>
         <CardContent>
-          {data?.myCourses?.length > 0 ? (
+          {data.myCourses?.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {data.myCourses.map((course: any) => (
+              {data.myCourses.map((course) => (
                 <div key={course.id} className="p-4 rounded-2xl border border-gray-100 bg-gray-50 hover:shadow-md transition-all duration-200 group">
                   <div className="flex items-start justify-between mb-3">
                     <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center">
@@ -348,7 +431,7 @@ export function InstructorDashboard({ userName = "Instructor" }: { userName?: st
           <CardTitle className="text-base font-semibold text-gray-900">Recent Assessment Submissions</CardTitle>
         </CardHeader>
         <CardContent>
-          {data?.recentSubmissions?.length > 0 ? (
+          {data.recentSubmissions?.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow className="border-gray-100">
@@ -359,7 +442,7 @@ export function InstructorDashboard({ userName = "Instructor" }: { userName?: st
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.recentSubmissions.map((r: any) => (
+                {data.recentSubmissions.map((r) => (
                   <TableRow key={r.id} className="border-gray-50 hover:bg-gray-50/50">
                     <TableCell>
                       <div className="flex items-center gap-2.5">
@@ -370,7 +453,7 @@ export function InstructorDashboard({ userName = "Instructor" }: { userName?: st
                     <TableCell className="text-sm text-gray-700">{r.assessment?.title}</TableCell>
                     <TableCell>
                       <span className={`text-sm font-semibold ${r.passed ? "text-emerald-600" : "text-red-500"}`}>
-                        {r.score?.toFixed(0)}%
+                        {r.score !== null && r.score !== undefined ? `${r.score.toFixed(0)}%` : "—"}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -399,15 +482,29 @@ export function InstructorDashboard({ userName = "Instructor" }: { userName?: st
 // ═══════════════════════════════════════════════════════════════════════════════
 // PROCTOR DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
+export interface ProctorStats {
+  role: "PROCTOR"
+  activeSessions: number
+  todaySessions: number
+  flaggedSessions: number
+  trends: {
+    sessions: Trend
+  }
+}
+
 export function ProctorDashboard({ userName = "Proctor" }: { userName?: string }) {
-  const [data, setData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { data, error, isLoading } = useSWR<ProctorStats>("/api/dashboard/stats", fetcher)
 
-  useEffect(() => {
-    fetch("/api/dashboard/stats").then(r => r.json()).then(setData).finally(() => setLoading(false))
-  }, [])
-
-  if (loading) return <DashboardSkeleton />
+  if (isLoading || !data) return <DashboardSkeleton />
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
+        <AlertCircle className="h-10 w-10 text-red-500" />
+        <h3 className="text-lg font-bold text-gray-800">Failed to load proctor stats</h3>
+        <p className="text-sm text-gray-400">Please try refreshing the page.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -417,9 +514,9 @@ export function ProctorDashboard({ userName = "Proctor" }: { userName?: string }
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="Active Sessions"  value={data?.activeSessions ?? 0}  icon={<Monitor />}      gradient="from-violet-500 to-purple-600" subtitle="Currently in progress" />
-        <StatCard title="Exams Today"      value={data?.todaySessions ?? 0}   icon={<ClipboardCheck />} gradient="from-blue-500 to-cyan-600"   trend={data?.trends?.sessions} />
-        <StatCard title="Flagged Sessions" value={data?.flaggedSessions ?? 0} icon={<ShieldCheck />}  gradient="from-rose-500 to-pink-600"    subtitle="Needs review" />
+        <StatCard title="Active Sessions"  value={data.activeSessions}  icon={<Monitor />}      gradient="from-violet-500 to-purple-600" subtitle="Currently in progress" />
+        <StatCard title="Exams Today"      value={data.todaySessions}   icon={<ClipboardCheck />} gradient="from-blue-500 to-cyan-600"   trend={data.trends?.sessions} />
+        <StatCard title="Flagged Sessions" value={data.flaggedSessions} icon={<ShieldCheck />}  gradient="from-rose-500 to-pink-600"    subtitle="Needs review" />
       </div>
 
       <div className="flex flex-col items-center justify-center py-24 rounded-2xl border-2 border-dashed border-violet-100 bg-violet-50/30 text-center">
@@ -441,25 +538,74 @@ export function ProctorDashboard({ userName = "Proctor" }: { userName?: string }
 // ═══════════════════════════════════════════════════════════════════════════════
 // LEARNER DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
+export interface LearnerEnrollment {
+  id: string
+  status: string
+  progress: number
+  course: {
+    id: string
+    title: string
+    category: string | null
+    thumbnail: string | null
+    _count: {
+      modules: number
+    }
+  }
+}
+
+export interface LearnerCertificate {
+  id: string
+  title: string
+  issuedAt: string
+  certificateNumber: string
+  course: {
+    title: string
+  }
+}
+
+export interface LearnerAssessment {
+  id: string
+  title: string
+  timeLimit: number | null
+  course: {
+    title: string
+  } | null
+}
+
+export interface LearnerStats {
+  role: "LEARNER"
+  enrollments: LearnerEnrollment[]
+  certificates: LearnerCertificate[]
+  upcomingAssessments: LearnerAssessment[]
+  trends: {
+    completed: Trend
+    inProgress: Trend
+  }
+}
+
 export function LearnerDashboard({ userName = "Learner" }: { userName?: string }) {
-  const [data, setData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { data, error, isLoading } = useSWR<LearnerStats>("/api/dashboard/stats", fetcher)
 
-  useEffect(() => {
-    fetch("/api/dashboard/stats").then(r => r.json()).then(setData).finally(() => setLoading(false))
-  }, [])
+  if (isLoading || !data) return <DashboardSkeleton />
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
+        <AlertCircle className="h-10 w-10 text-red-500" />
+        <h3 className="text-lg font-bold text-gray-800">Failed to load learner dashboard</h3>
+        <p className="text-sm text-gray-400">Please try refreshing the page.</p>
+      </div>
+    )
+  }
 
-  if (loading) return <DashboardSkeleton />
+  const enrollments = data.enrollments ?? []
+  const certificates = data.certificates ?? []
+  const upcomingAssessments = data.upcomingAssessments ?? []
 
-  const enrollments: any[] = data?.enrollments ?? []
-  const certificates: any[] = data?.certificates ?? []
-  const upcomingAssessments: any[] = data?.upcomingAssessments ?? []
-
-  const completed = enrollments.filter(e => e.status === "COMPLETED").length
-  const inProgress = enrollments.filter(e => e.status === "ACTIVE").length
+  const completed = enrollments.filter((e) => e.status === "COMPLETED").length
+  const inProgress = enrollments.filter((e) => e.status === "ACTIVE").length
 
   // #2 — Most recent active course for the hero card
-  const heroCourse = enrollments.find(e => e.status === "ACTIVE") ?? enrollments[0] ?? null
+  const heroCourse = enrollments.find((e) => e.status === "ACTIVE") ?? enrollments[0] ?? null
 
   return (
     <div className="space-y-6">
@@ -552,7 +698,7 @@ export function LearnerDashboard({ userName = "Learner" }: { userName?: string }
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {enrollments.length > 0 ? enrollments.slice(0, 4).map((e: any) => (
+          {enrollments.length > 0 ? enrollments.slice(0, 4).map((e) => (
             <div key={e.id} className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 bg-gray-50 hover:shadow-sm transition-all duration-200">
               <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0">
                 <GraduationCap className="h-6 w-6 text-white" />
@@ -602,7 +748,7 @@ export function LearnerDashboard({ userName = "Learner" }: { userName?: string }
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {upcomingAssessments.length > 0 ? upcomingAssessments.map((a: any) => (
+          {upcomingAssessments.length > 0 ? upcomingAssessments.map((a) => (
             <div key={a.id} className="flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-gray-50 hover:shadow-sm transition-all duration-200">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
@@ -650,7 +796,7 @@ export function LearnerDashboard({ userName = "Learner" }: { userName?: string }
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {certificates.length > 0 ? certificates.map((c: any) => (
+          {certificates.length > 0 ? certificates.map((c) => (
             <div key={c.id} className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 bg-gradient-to-r from-violet-50 to-purple-50">
               <div className="h-14 w-20 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0">
                 <Award className="h-7 w-7 text-white" />

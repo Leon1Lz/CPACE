@@ -1,119 +1,39 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Calendar, ArrowRight, MessageCircle, Newspaper, Users, Zap, BookOpen, Globe, Mail, Send, CheckCircle, TrendingUp } from "lucide-react"
+import { Calendar, ArrowRight, MessageCircle, Newspaper, Users, Zap, Globe, Mail, Send, CheckCircle, TrendingUp, Loader2 } from "lucide-react"
 
-const articles = [
-  {
-    title: "CPACE Philippines and San Beda University Manila Forge Partnership to Expand Microcredential Opportunities for Students",
-    date: "March 18, 2026",
-    comments: 0,
-    excerpt: "With this collaboration, CPACE Philippines and San Beda University Manila reaffirm their dedication to empowering…",
-    category: "Partnership",
-    categoryColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    icon: <Users className="w-4 h-4" />,
-    image: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    featured: true,
-  },
-  {
-    title: "Beyond Job Titles: Orchestrating People, Tech, and Purpose",
-    date: "February 6, 2026",
-    comments: 0,
-    excerpt: "We're living in a liminal hour where titles matter less than capability. This piece argues…",
-    category: "Industry Insights",
-    categoryColor: "bg-blue-100 text-blue-700 border-blue-200",
-    icon: <TrendingUp className="w-4 h-4" />,
-    image: "https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    featured: false,
-  },
-  {
-    title: "Fintech Revolution Summit – Philippines 2026",
-    date: "January 26, 2026",
-    comments: 0,
-    excerpt: "The Fintech Revolution Summit is set to return to Manila on April 30, 2026, at…",
-    category: "Events",
-    categoryColor: "bg-violet-100 text-violet-700 border-violet-200",
-    icon: <Zap className="w-4 h-4" />,
-    image: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    featured: false,
-  },
-  {
-    title: "CHRO Philippines 2026: Navigating the Future of HR in the Philippines",
-    date: "December 16, 2025",
-    comments: 0,
-    excerpt: "CHRO Philippines 2026: Navigating the Future of HR in the Philippines 27–28 January…",
-    category: "Events",
-    categoryColor: "bg-violet-100 text-violet-700 border-violet-200",
-    icon: <Zap className="w-4 h-4" />,
-    image: "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    featured: false,
-  },
-  {
-    title: "CPACE Philippines, Gordon College host CFMS exam among graduating students",
-    date: "December 12, 2025",
-    comments: 0,
-    excerpt: "The CPACE Philippines has partnered with Gordon College to host the CFMS exam among graduating students…",
-    category: "Partnership",
-    categoryColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    icon: <Users className="w-4 h-4" />,
-    image: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    featured: false,
-  },
-  {
-    title: "BatStateU, CPACE Philippines seal accord to expand students' career growth",
-    date: "December 2, 2025",
-    comments: 0,
-    excerpt: "The CPACE Philippines has signed an accord with BatStateU to expand students' career growth opportunities…",
-    category: "Partnership",
-    categoryColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    icon: <Users className="w-4 h-4" />,
-    image: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    featured: false,
-  },
-  {
-    title: "NEMSU Tagbina in Mindanao to collab with CPACE Philippines after fruitful first CFMS® exam",
-    date: "November 28, 2025",
-    comments: 0,
-    excerpt: "A fruitful first CFMS® exam paves the way for a lasting collaboration between NEMSU Tagbina and CPACE Philippines…",
-    category: "Partnership",
-    categoryColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    icon: <Users className="w-4 h-4" />,
-    image: "https://images.unsplash.com/photo-1577896851231-70ef18881754?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    featured: false,
-  },
-  {
-    title: "Stop Forwarding Emails: How cloudHQ Gmail Label Sharing Syncs Your Entire Team",
-    date: "November 25, 2025",
-    comments: 0,
-    excerpt: "In the modern workplace, email remains a cornerstone of communication. cloudHQ's Gmail Label Sharing changes the game…",
-    category: "Technology",
-    categoryColor: "bg-orange-100 text-orange-700 border-orange-200",
-    icon: <Globe className="w-4 h-4" />,
-    image: "https://images.unsplash.com/photo-1563986768609-322da13575f3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    featured: false,
-  },
-  {
-    title: "CPACE Philippines, WLC Partner to Future-Proof Financial Mgmt Curriculum",
-    date: "November 21, 2025",
-    comments: 0,
-    excerpt: "The CPACE Philippines has officially signed a partnership with WLC to future-proof the Financial Management curriculum…",
-    category: "Partnership",
-    categoryColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    icon: <Users className="w-4 h-4" />,
-    image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    featured: false,
-  },
-]
+const iconMap: Record<string, React.ReactNode> = {
+  users: <Users className="w-4 h-4" />,
+  "trending-up": <TrendingUp className="w-4 h-4" />,
+  zap: <Zap className="w-4 h-4" />,
+  globe: <Globe className="w-4 h-4" />,
+}
 
 export function LatestIndustrySection() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [submitted, setSubmitted] = useState(false)
 
-  const featured = articles[0]
-  const rest = articles.slice(1, 7)
+  const [articles, setArticles] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch("/api/articles")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setArticles(data)
+        }
+      })
+      .catch((err) => console.error("Error fetching articles:", err))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const featured = articles.find(a => a.featured) || articles[0]
+  const rest = articles.filter(a => a.id !== featured?.id).slice(0, 6)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -163,113 +83,134 @@ export function LatestIndustrySection() {
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-gray-500 gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+              <p className="text-sm font-semibold">Loading insights...</p>
+            </div>
+          ) : articles.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <Newspaper className="w-12 h-12 mx-auto text-gray-300 mb-3 stroke-[1.5]" />
+              <p className="text-sm font-semibold">No insights found.</p>
+            </div>
+          ) : (
+            <>
+              {/* Featured Article */}
+              {featured && (
+                <div className="group relative bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300">
+                  <div className="grid grid-cols-1 lg:grid-cols-2">
+                    <div className="relative h-64 lg:h-auto min-h-[280px]">
+                      <img
+                        src={featured.image}
+                        alt={featured.title}
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/20 lg:bg-gradient-to-l lg:from-transparent lg:to-black/20"></div>
+                      <div className="absolute top-4 left-4">
+                        <span className="px-3 py-1 bg-emerald-500 text-white text-xs font-bold rounded-full shadow-lg">
+                          ★ Featured
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-8 lg:p-10 flex flex-col justify-center space-y-5">
+                      <div className="flex items-center gap-3">
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-full border ${featured.categoryColor}`}>
+                          {iconMap[featured.iconName]}
+                          {featured.category}
+                        </span>
+                        <div className="flex items-center gap-1.5 text-sm text-gray-400">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {featured.date || new Date(featured.createdAt).toLocaleDateString()}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-sm text-gray-400">
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          {featured.comments} Comments
+                        </div>
+                      </div>
+                      <Link href={`/insights/${featured.slug}`}>
+                        <h3 className="text-2xl lg:text-3xl font-bold text-gray-900 leading-tight group-hover:text-emerald-700 transition-colors duration-200 cursor-pointer">
+                          {featured.title}
+                        </h3>
+                      </Link>
+                      <p className="text-gray-500 leading-relaxed line-clamp-3">{featured.excerpt}</p>
+                      <Link href={`/insights/${featured.slug}`}>
+                        <span className="inline-flex items-center gap-2 text-emerald-600 font-semibold hover:gap-3 transition-all duration-200 cursor-pointer">
+                          Read More <ArrowRight className="w-4 h-4" />
+                        </span>
+                      </Link>
+                    </div>
+                  </div>
+                  <div className="h-1 bg-gradient-to-r from-emerald-500 to-teal-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
+                </div>
+              )}
 
-          {/* Featured Article */}
-          <div className="group relative bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300">
-            <div className="grid grid-cols-1 lg:grid-cols-2">
-              <div className="relative h-64 lg:h-auto min-h-[280px]">
-                <img
-                  src={featured.image}
-                  alt={featured.title}
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/20 lg:bg-gradient-to-l lg:from-transparent lg:to-black/20"></div>
-                <div className="absolute top-4 left-4">
-                  <span className="px-3 py-1 bg-emerald-500 text-white text-xs font-bold rounded-full shadow-lg">
-                    ★ Featured
-                  </span>
+              {/* Articles Grid */}
+              {rest.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {rest.map((article, index) => (
+                    <article
+                      key={article.id}
+                      className="group bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
+                    >
+                      {/* Image */}
+                      <div className="relative h-44 overflow-hidden">
+                        <img
+                          src={article.image}
+                          alt={article.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+                        <div className="absolute top-3 left-3">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full border backdrop-blur-sm ${article.categoryColor}`}>
+                            {iconMap[article.iconName]}
+                            {article.category}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Content */}
+                      <div className="p-6 space-y-4">
+                        <div className="flex items-center gap-3 text-xs text-gray-400">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5" />
+                            {article.date || new Date(article.createdAt).toLocaleDateString()}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            {article.comments} Comments
+                          </div>
+                        </div>
+                        <Link href={`/insights/${article.slug}`}>
+                          <h3 className="font-bold text-gray-900 leading-tight group-hover:text-emerald-600 transition-colors duration-200 line-clamp-3 cursor-pointer">
+                            {article.title}
+                          </h3>
+                        </Link>
+                        <p className="text-gray-500 text-sm leading-relaxed line-clamp-2">{article.excerpt}</p>
+                        <div className="h-px bg-gray-100 group-hover:bg-emerald-100 transition-colors duration-300"></div>
+                        <Link href={`/insights/${article.slug}`}>
+                          <span className="flex items-center gap-2 text-sm font-semibold text-emerald-600 group/btn cursor-pointer">
+                            Read More
+                            <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform duration-200" />
+                          </span>
+                        </Link>
+                      </div>
+                      <div className="h-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
+                    </article>
+                  ))}
                 </div>
-              </div>
-              <div className="p-8 lg:p-10 flex flex-col justify-center space-y-5">
-                <div className="flex items-center gap-3">
-                  <span className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-full border ${featured.categoryColor}`}>
-                    {featured.icon}
-                    {featured.category}
-                  </span>
-                  <div className="flex items-center gap-1.5 text-sm text-gray-400">
-                    <Calendar className="w-3.5 h-3.5" />
-                    {featured.date}
-                  </div>
-                  <div className="flex items-center gap-1.5 text-sm text-gray-400">
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    {featured.comments} Comments
-                  </div>
-                </div>
-                <h3 className="text-2xl lg:text-3xl font-bold text-gray-900 leading-tight group-hover:text-emerald-700 transition-colors duration-200">
-                  {featured.title}
-                </h3>
-                <p className="text-gray-500 leading-relaxed">{featured.excerpt}</p>
+              )}
+
+              {/* View All */}
+              <div className="text-center">
                 <Link href="/insights">
-                  <button className="inline-flex items-center gap-2 text-emerald-600 font-semibold hover:gap-3 transition-all duration-200">
-                    Read More <ArrowRight className="w-4 h-4" />
-                  </button>
+                  <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold px-10 py-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 text-base">
+                    View All Articles
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
                 </Link>
               </div>
-            </div>
-            <div className="h-1 bg-gradient-to-r from-emerald-500 to-teal-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
-          </div>
-
-          {/* Articles Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {rest.map((article, index) => (
-              <article
-                key={index}
-                className="group bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
-              >
-                {/* Image */}
-                <div className="relative h-44 overflow-hidden">
-                  <img
-                    src={article.image}
-                    alt={article.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
-                  <div className="absolute top-3 left-3">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full border backdrop-blur-sm ${article.categoryColor}`}>
-                      {article.icon}
-                      {article.category}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-6 space-y-4">
-                  <div className="flex items-center gap-3 text-xs text-gray-400">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {article.date}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <MessageCircle className="w-3 h-3" />
-                      {article.comments} Comments
-                    </div>
-                  </div>
-                  <h3 className="font-bold text-gray-900 leading-tight group-hover:text-emerald-600 transition-colors duration-200 line-clamp-3">
-                    {article.title}
-                  </h3>
-                  <p className="text-gray-500 text-sm leading-relaxed line-clamp-2">{article.excerpt}</p>
-                  <div className="h-px bg-gray-100 group-hover:bg-emerald-100 transition-colors duration-300"></div>
-                  <Link href="/insights">
-                    <button className="flex items-center gap-2 text-sm font-semibold text-emerald-600 group/btn">
-                      Read More
-                      <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform duration-200" />
-                    </button>
-                  </Link>
-                </div>
-                <div className="h-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
-              </article>
-            ))}
-          </div>
-
-          {/* View All */}
-          <div className="text-center">
-            <Link href="/insights">
-              <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold px-10 py-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 text-base">
-                View All Articles
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
-          </div>
+            </>
+          )}
         </div>
       </div>
 

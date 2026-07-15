@@ -70,6 +70,9 @@ export async function POST(req: NextRequest) {
 
     // Authenticate the Pusher channel subscription
     const pusher = getPusherServer()
+    if (!pusher) {
+      return NextResponse.json({ error: "Pusher not configured" }, { status: 503 })
+    }
     const authResponse = pusher.authorizeChannel(socketId, channelName)
 
     return NextResponse.json(authResponse)

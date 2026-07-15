@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import Link from "next/link"
 import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,6 +19,13 @@ export function LoginForm() {
   const [error, setError] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    if (searchParams.get("error") === "session_expired") {
+      setError("Your session has expired because you signed in from another device or tab.")
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,7 +73,7 @@ export function LoginForm() {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label htmlFor="password" className="text-sm font-medium text-gray-700">Password</Label>
-          <a href="#" className="text-xs text-emerald-600 hover:text-emerald-700 font-medium">Forgot password?</a>
+          <Link href="/forgot-password" className="text-xs text-emerald-600 hover:text-emerald-700 font-medium">Forgot password?</Link>
         </div>
         <div className="relative">
           <Input

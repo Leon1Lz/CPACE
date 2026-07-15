@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react"
 import {
   LayoutDashboard, BookOpen, ClipboardCheck, BarChart3,
   Award, Users, Settings, LogOut, Bell, ChevronDown, ShieldCheck, UsersRound,
+  Newspaper,
 } from "lucide-react"
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
@@ -38,6 +39,7 @@ const menuItems = {
     { id: "proctor", label: "Exam Monitor", icon: ShieldCheck, href: "/dashboard/proctor" },
     { id: "groups", label: "Groups", icon: UsersRound, href: "/dashboard/groups" },
     { id: "users", label: "User Management", icon: Users, href: "/dashboard/users" },
+    { id: "insights", label: "Manage Insights", icon: Newspaper, href: "/dashboard/insights" },
     { id: "settings", label: "Settings", icon: Settings, href: "/dashboard/settings" },
   ],
   instructor: [
@@ -46,6 +48,7 @@ const menuItems = {
     { id: "assessments", label: "Assessments", icon: ClipboardCheck, href: "/dashboard/assessments" },
     { id: "groups", label: "Groups", icon: UsersRound, href: "/dashboard/groups" },
     { id: "reports", label: "Learner Progress", icon: BarChart3, href: "/dashboard/reports" },
+    { id: "insights", label: "Manage Insights", icon: Newspaper, href: "/dashboard/insights" },
     { id: "settings", label: "Settings", icon: Settings, href: "/dashboard/settings" },
   ],
   learner: [

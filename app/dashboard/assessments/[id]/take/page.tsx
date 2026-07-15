@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, use } from "react"
+import { useState, useEffect, useCallback, use, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,8 +14,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import {
   Clock, ChevronLeft, ChevronRight, CheckCircle, XCircle,
-  Award, AlertTriangle, Loader2, Flag, ClipboardList,
+  Award, AlertTriangle, Loader2, Flag, ClipboardList, Camera, RefreshCw
 } from "lucide-react"
+
 import { FloatingCalculator } from "@/components/ui/floating-calculator"
 import { ExamChat } from "@/components/ui/exam-chat"
 
@@ -50,6 +51,88 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
   const [result, setResult] = useState<any>(null)
   const [attemptCount, setAttemptCount] = useState(0)
   const [sessionId, setSessionId] = useState<string | null>(null)
+  
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null)
+  const [cameraActive, setCameraActive] = useState(false)
+  const [cameraError, setCameraError] = useState(false)
+  const [isFsLocked, setIsFsLocked] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+
+  const startCamera = async () => {
+    setCameraError(false)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        videoRef.current.play()
+      }
+      setCameraActive(true)
+    } catch (err) {
+      console.error("Camera access failed:", err)
+      setCameraError(true)
+    }
+  }
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+    setCameraActive(false)
+  }
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement("canvas")
+      canvas.width = 320
+      canvas.height = 240
+      const ctx = canvas.getContext("2d")
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0, 320, 240)
+        const dataUrl = canvas.toDataURL("image/jpeg")
+        setCapturedPhoto(dataUrl)
+        stopCamera()
+      }
+    }
+  }
+
+  const simulateMockPhoto = () => {
+    const canvas = document.createElement("canvas")
+    canvas.width = 320
+    canvas.height = 240
+    const ctx = canvas.getContext("2d")
+    if (ctx) {
+      const grad = ctx.createLinearGradient(0, 0, 320, 240)
+      grad.addColorStop(0, "#10b981")
+      grad.addColorStop(1, "#047857")
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, 320, 240)
+      ctx.strokeStyle = "rgba(255,255,255,0.2)"
+      ctx.lineWidth = 4
+      ctx.strokeRect(20, 20, 280, 200)
+      ctx.fillStyle = "#ffffff"
+      ctx.font = "bold 16px sans-serif"
+      ctx.textAlign = "center"
+      ctx.fillText("VERIFIED CANDIDATE", 160, 100)
+      ctx.font = "12px sans-serif"
+      ctx.fillText(`ID: CPACE-${currentUserId.slice(0, 8).toUpperCase()}`, 160, 130)
+      ctx.font = "bold 10px sans-serif"
+      ctx.fillStyle = "#a7f3d0"
+      ctx.fillText("SNAPSHOT SIMULATION SUCCESS", 160, 165)
+      setCapturedPhoto(canvas.toDataURL("image/jpeg"))
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [])
+
 
   useEffect(() => {
     fetch(`/api/assessments/${id}`).then(r => r.json()).then(data => {
@@ -83,6 +166,107 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
     return () => clearTimeout(t)
   }, [phase, timeLeft, handleSubmit])
 
+  // Browser Lock: Fullscreen and Focus/Visibility violations detection
+  useEffect(() => {
+    if (phase !== "taking" || !sessionId || assessment?.type !== "FINAL_EXAM") return
+
+    let warningCount = 0
+
+    const flagSession = async (reason: string) => {
+      try {
+        await fetch(`/api/assessments/${id}/session`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, flagged: true, flagReason: reason }),
+        })
+      } catch (err) {
+        console.error("Failed to flag session:", err)
+      }
+    }
+
+    const handleFullscreenChange = () => {
+      if (document.fullscreenElement === null) {
+        warningCount++
+        flagSession(`Exited Fullscreen mode (Violation #${warningCount})`)
+        setIsFsLocked(true)
+      }
+    }
+
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        warningCount++
+        flagSession(`Tab/window switched — lost focus (Violation #${warningCount})`)
+      }
+    }
+
+    const handleBlur = () => {
+      warningCount++
+      flagSession(`Window lost focus (Violation #${warningCount})`)
+    }
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    window.addEventListener("blur", handleBlur)
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      window.removeEventListener("blur", handleBlur)
+    }
+  }, [phase, sessionId, assessment?.type, id])
+
+  // Prevent copying, cutting, pasting, and context menu (right-click)
+  useEffect(() => {
+    if (phase !== "taking" || assessment?.type !== "FINAL_EXAM") return
+
+    const blockEvent = (e: Event) => e.preventDefault()
+
+    document.addEventListener("copy", blockEvent)
+    document.addEventListener("cut", blockEvent)
+    document.addEventListener("paste", blockEvent)
+    document.addEventListener("contextmenu", blockEvent)
+
+    return () => {
+      document.removeEventListener("copy", blockEvent)
+      document.removeEventListener("cut", blockEvent)
+      document.removeEventListener("paste", blockEvent)
+      document.removeEventListener("contextmenu", blockEvent)
+    }
+  }, [phase, assessment?.type])
+
+  // Block Developer Tools and standard cheats shortcuts
+  useEffect(() => {
+    if (phase !== "taking" || assessment?.type !== "FINAL_EXAM") return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "F12") {
+        e.preventDefault()
+        alert("Developer Options are disabled during examinations.")
+        return
+      }
+      if (e.key === "PrintScreen") {
+        e.preventDefault()
+        alert("Screen capture controls are disabled.")
+        return
+      }
+      if (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "i" || e.key === "j")) {
+        e.preventDefault()
+        alert("Developer tools are disabled.")
+        return
+      }
+      if (e.ctrlKey && (e.key === "c" || e.key === "C" || e.key === "v" || e.key === "V" || e.key === "u" || e.key === "U")) {
+        e.preventDefault()
+        alert("Copying, pasting, and viewing page source are disabled.")
+        return
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [phase, assessment?.type])
+
+
   const startExam = async () => {
     const now = new Date().toISOString()
     setStartedAt(now)
@@ -90,10 +274,23 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
     setPhase("taking")
     // Create ExamSession so proctor can monitor
     try {
-      const res = await fetch(`/api/assessments/${id}/session`, { method: "POST" })
+      const res = await fetch(`/api/assessments/${id}/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identityPhoto: capturedPhoto || undefined })
+      })
       if (res.ok) {
         const data = await res.json()
         setSessionId(data.sessionId)
+
+        // Request Fullscreen for Final Exam
+        if (assessment?.type === "FINAL_EXAM") {
+          try {
+            await document.documentElement.requestFullscreen()
+          } catch (fullscreenError) {
+            console.error("Fullscreen request failed:", fullscreenError)
+          }
+        }
       }
     } catch (_) {
       // Non-blocking — exam continues even if session tracking fails
@@ -138,6 +335,38 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
     return <div className="text-center py-20 text-gray-400">Assessment not found.</div>
   }
 
+  if (isFsLocked && isFinal) {
+    return (
+      <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-6">
+        <Card className="max-w-md w-full border-0 shadow-2xl text-center p-8 rounded-3xl bg-white space-y-6">
+          <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center mx-auto">
+            <AlertTriangle className="h-8 w-8 text-rose-600 animate-bounce" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-gray-900 font-mono">Exam Lockout Protocol</h2>
+            <p className="text-sm text-gray-500 leading-relaxed">
+              Exiting fullscreen mode is a security violation. This attempt has been logged and sent to your proctor. You must re-enter fullscreen mode to continue.
+            </p>
+          </div>
+          <Button
+            onClick={async () => {
+              try {
+                await document.documentElement.requestFullscreen()
+                setIsFsLocked(false)
+              } catch {
+                alert("Please click the button again to request fullscreen access.")
+              }
+            }}
+            className="w-full bg-rose-600 hover:bg-rose-700 text-white rounded-xl h-11 font-semibold"
+          >
+            Re-Enter Fullscreen to Resume
+          </Button>
+        </Card>
+      </div>
+    )
+  }
+
+
   // ── INTRO ──────────────────────────────────────────────
   if (phase === "intro") {
     return (
@@ -172,13 +401,68 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
             )}
 
             {isFinal && (
-              <div className="flex gap-2 p-3 rounded-xl bg-rose-50 border border-rose-100">
-                <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
-                <div className="text-sm text-rose-700">
-                  <strong>Final Exam:</strong> Passing this exam will automatically issue your certificate.
-                  {attemptsLeft !== null && <span> You have <strong>{attemptsLeft}</strong> attempt{attemptsLeft !== 1 ? "s" : ""} remaining.</span>}
+              <>
+                <div className="flex gap-2 p-3 rounded-xl bg-rose-50 border border-rose-100">
+                  <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+                  <div className="text-sm text-rose-700">
+                    <strong>Final Exam:</strong> Passing this exam will automatically issue your certificate.
+                    {attemptsLeft !== null && <span> You have <strong>{attemptsLeft}</strong> attempt{attemptsLeft !== 1 ? "s" : ""} remaining.</span>}
+                  </div>
                 </div>
-              </div>
+
+                <Card className="border border-gray-100 bg-gray-50/50 rounded-2xl overflow-hidden shadow-inner">
+                  <CardHeader className="pb-2 bg-gray-50 border-b border-gray-100">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-gray-800">
+                      <Camera className="h-4 w-4 text-emerald-600" /> Identity Screening Verification
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-4">
+                    {!capturedPhoto ? (
+                      <div className="flex flex-col items-center gap-4">
+                        {cameraActive ? (
+                          <div className="relative w-[320px] h-[240px] bg-black rounded-xl overflow-hidden border-2 border-emerald-500 shadow-md">
+                            <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
+                            <div className="absolute bottom-3 left-0 right-0 flex justify-center">
+                              <Button size="sm" onClick={capturePhoto} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-xl shadow-lg">
+                                Capture snapshot photo 📸
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-full text-center py-6 border border-dashed border-gray-300 rounded-2xl bg-white space-y-3">
+                            <Camera className="h-8 w-8 text-gray-300 mx-auto" />
+                            <div className="space-y-1">
+                              <p className="text-xs font-bold text-gray-700">Webcam snap is required to start</p>
+                              <p className="text-[11px] text-gray-400 max-w-xs mx-auto">Please allow camera access in your browser, or simulate photo capture to proceed.</p>
+                            </div>
+                            <div className="flex gap-2 justify-center">
+                              <Button size="sm" onClick={startCamera} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs">
+                                Enable Camera
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={simulateMockPhoto} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl text-xs">
+                                Simulate Snap
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="relative w-[320px] h-[240px] rounded-xl overflow-hidden border-2 border-emerald-500 shadow-md">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={capturedPhoto} alt="Snapshot preview" className="w-full h-full object-cover" />
+                          <span className="absolute top-3 left-3 bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md">
+                            VERIFIED
+                          </span>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => setCapturedPhoto(null)} className="border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl text-xs">
+                          <RefreshCw className="h-3 w-3 mr-1" /> Retake Photo
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
             )}
 
             {isPractice && (
@@ -196,10 +480,14 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
             ) : (
               <Button
                 onClick={startExam}
-                disabled={!canRetake}
+                disabled={!canRetake || (isFinal && !capturedPhoto)}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-11 font-semibold"
               >
-                {canRetake ? "Start Exam" : "No attempts remaining"}
+                {!canRetake 
+                  ? "No attempts remaining" 
+                  : (isFinal && !capturedPhoto) 
+                    ? "Verify Identity to Unlock" 
+                    : "Start Exam"}
               </Button>
             )}
           </CardContent>

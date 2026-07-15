@@ -3,13 +3,22 @@ import Pusher from "pusher"
 // Singleton Pusher server instance
 let pusherInstance: Pusher | null = null
 
-export function getPusherServer(): Pusher {
+export function getPusherServer(): Pusher | null {
+  const appId = process.env.PUSHER_APP_ID
+  const key = process.env.NEXT_PUBLIC_PUSHER_KEY
+  const secret = process.env.PUSHER_SECRET
+  const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER
+
+  if (!appId || !key || !secret || !cluster) {
+    return null
+  }
+
   if (!pusherInstance) {
     pusherInstance = new Pusher({
-      appId: process.env.PUSHER_APP_ID!,
-      key: process.env.NEXT_PUBLIC_PUSHER_KEY!,
-      secret: process.env.PUSHER_SECRET!,
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+      appId,
+      key,
+      secret,
+      cluster,
       useTLS: true,
     })
   }
@@ -26,7 +35,12 @@ export async function triggerEvent(
   data: Record<string, unknown>
 ) {
   const pusher = getPusherServer()
-  await pusher.trigger(channel, event, data)
+  if (!pusher) return // Skip if Pusher is not configured
+  try {
+    await pusher.trigger(channel, event, data)
+  } catch (err) {
+    console.error("Failed to trigger Pusher event:", err)
+  }
 }
 
 /**

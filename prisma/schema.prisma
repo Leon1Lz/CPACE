@@ -22,6 +22,7 @@ model User {
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  activeSessionToken String?
 
   // Relations
   coursesCreated    Course[]         @relation("CourseCreator")
@@ -298,6 +299,7 @@ model ExamSession {
   flagReason   String?
   ipAddress    String?
   userAgent    String?
+  identityPhoto String?
 
   // Relations
   userId       String
@@ -356,4 +358,33 @@ model ExamChat {
   session   ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@map("exam_chats")
+}
+
+// Password reset tokens for self-service forgot password flow
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_tokens")
+}
+
+// News, updates, and industry insights
+model Article {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  excerpt       String
+  content       String   @db.Text
+  category      String
+  categoryColor String   @default("bg-emerald-100 text-emerald-700 border-emerald-200")
+  iconName      String   @default("users")
+  image         String
+  featured      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("articles")
 }

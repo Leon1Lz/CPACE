@@ -1,16 +1,22 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
+import { useSession, signOut } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { User, Lock, Bell, Shield, CheckCircle, Loader2, AlertCircle } from "lucide-react"
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
+} from "@/components/ui/alert-dialog"
+
 
 export default function SettingsPage() {
-  const { data: session } = useSession()
+  const { data: session, update } = useSession()
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [profileError, setProfileError] = useState("")
@@ -19,6 +25,29 @@ export default function SettingsPage() {
   const [pwSaving, setPwSaving] = useState(false)
   const [pwSaved, setPwSaved] = useState(false)
   const [pwError, setPwError] = useState("")
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState("")
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true)
+    setDeleteError("")
+    try {
+      const res = await fetch("/api/users/me", { method: "DELETE" })
+      const data = await res.json()
+      if (!res.ok) {
+        setDeleteError(data.error ?? "Failed to delete account")
+        setDeleting(false)
+        return
+      }
+      setDeleteOpen(false)
+      await signOut({ callbackUrl: "/" })
+    } catch {
+      setDeleteError("Network error — please try again")
+      setDeleting(false)
+    }
+  }
+
 
   useEffect(() => {
     fetch("/api/users/me").then(r => r.json()).then(data => {
@@ -44,6 +73,7 @@ export default function SettingsPage() {
     const data = await res.json()
     setSaving(false)
     if (!res.ok) { setProfileError(data.error ?? "Failed to save"); return }
+    update({ name: `${form.firstName} ${form.lastName}` })
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
@@ -203,11 +233,48 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-500 mb-4">Once you delete your account, there is no going back. Please be certain.</p>
-          <Button variant="outline" className="rounded-xl border-red-200 text-red-600 hover:bg-red-50">
-            Delete Account
-          </Button>
+          
+          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" className="rounded-xl border-red-200 text-red-600 hover:bg-red-50">
+                Delete Account
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="rounded-2xl max-w-md">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-red-600 flex items-center gap-2">
+                  <Shield className="h-5 w-5" /> Are you absolutely sure?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-sm text-gray-500">
+                  This action cannot be undone. This will permanently delete your account and remove all your data (enrolled courses, results, and certificates) from our database.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              
+              {deleteError && (
+                <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2 mt-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" /> {deleteError}
+                </div>
+              )}
+
+              <AlertDialogFooter className="mt-4 gap-2">
+                <AlertDialogCancel className="rounded-xl" disabled={deleting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleDeleteAccount();
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white rounded-xl"
+                  disabled={deleting}
+                >
+                  {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Delete Permanently
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
+
     </div>
   )
 }

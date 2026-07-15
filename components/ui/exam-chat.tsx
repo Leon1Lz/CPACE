@@ -81,8 +81,11 @@ export function ExamChat({ sessionId, currentUserId, currentUserRole, show }: Ex
     const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || ""
     
     if (!pusherKey) {
-      console.warn("Pusher key missing in environment")
-      return
+      console.warn("Pusher key missing in environment — falling back to polling.")
+      const interval = setInterval(() => {
+        fetchMessages()
+      }, 5000)
+      return () => clearInterval(interval)
     }
 
     const pusher = new Pusher(pusherKey, {
