@@ -240,7 +240,7 @@ export function FloatingCalculator({ show }: FloatingCalculatorProps) {
       <button
         id="calc-fab"
         onClick={() => { setOpen(true); dispatch("AC") }}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-200 ring-4 ring-emerald-300/30"
+        className="fixed bottom-6 left-88 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-200 ring-4 ring-emerald-300/30"
         aria-label="Open Calculator"
         title="Open Calculator"
       >

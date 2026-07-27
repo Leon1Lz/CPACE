@@ -84,6 +84,10 @@ export async function POST(request: NextRequest) {
     if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 })
     if (course.status !== "PUBLISHED") return NextResponse.json({ error: "Course is not available for enrollment" }, { status: 400 })
 
+    // Fetch student profile info for the email
+    const student = await prisma.user.findUnique({ where: { id: userId } })
+    if (!student) return NextResponse.json({ error: "Student not found" }, { status: 404 })
+
     // Prevent duplicate enrollment
     const existing = await prisma.enrollment.findUnique({ where: { userId_courseId: { userId, courseId } } })
     if (existing) return NextResponse.json({ error: "Already enrolled in this course" }, { status: 400 })
@@ -92,6 +96,25 @@ export async function POST(request: NextRequest) {
       data: { userId, courseId },
       include: { course: { select: { id: true, title: true, category: true } } },
     })
+
+    // Trigger welcome email
+    const { sendWelcomeEnrollmentEmail } = await import("@/lib/email")
+    await sendWelcomeEnrollmentEmail({
+      email: student.email,
+      studentName: `${student.firstName} ${student.lastName}`,
+      courseTitle: course.title,
+    })
+
+    // Create DB notification
+    const { createNotification } = await import("@/lib/notifications")
+    await createNotification({
+      userId,
+      title: "New Course Enrollment 📚",
+      message: `You have been enrolled in "${course.title}".`,
+      type: "COURSE",
+      link: `/dashboard/courses/${courseId}`,
+    })
+
     return NextResponse.json(enrollment, { status: 201 })
   } catch (e) {
     console.error("[POST /api/enrollments]", e)

@@ -41,6 +41,7 @@ import {
   Archive,
 } from "lucide-react"
 import { useSession } from "next-auth/react"
+import { PaginationControls } from "@/components/ui/pagination-controls"
 
 interface Course {
   id: string
@@ -82,7 +83,29 @@ export default function CoursesPage() {
   const [filterStatus, setFilterStatus] = useState("ALL")
   const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set())
 
+  // Pagination states
+  const [page, setPage] = useState(1)
+  const [limit] = useState(10)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [dbStats, setDbStats] = useState({ total: 0, published: 0, enrollments: 0 })
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+
   const role = session?.user?.role?.toLowerCase()
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm)
+      setPage(1)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  // Reset page when category or status filters change
+  useEffect(() => {
+    setPage(1)
+  }, [filterCategory, filterStatus])
 
   useEffect(() => {
     fetchCourses()
@@ -91,18 +114,27 @@ export default function CoursesPage() {
         if (Array.isArray(data)) setEnrolledIds(new Set(data.map((e: any) => e.courseId)))
       })
     }
-  }, [filterCategory, filterStatus, role])
+  }, [filterCategory, filterStatus, role, page, limit, debouncedSearch, session])
 
   const fetchCourses = async () => {
     try {
-      const params = new URLSearchParams()
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      })
       if (filterCategory && filterCategory !== "ALL") params.append("category", filterCategory)
       if (filterStatus && filterStatus !== "ALL") params.append("status", filterStatus)
+      if (debouncedSearch) params.append("search", debouncedSearch)
 
-      const response = await fetch(`/api/courses?${params}&limit=100`)
+      const response = await fetch(`/api/courses?${params.toString()}`)
       if (response.ok) {
         const json = await response.json()
-        setCourses(Array.isArray(json) ? json : Array.isArray(json?.data) ? json.data : [])
+        if (json.data) {
+          setCourses(json.data)
+          setTotal(json.total)
+          setTotalPages(json.totalPages)
+          if (json.stats) setDbStats(json.stats)
+        }
       }
     } catch (error) {
       console.error("Error fetching courses:", error)
@@ -111,10 +143,7 @@ export default function CoursesPage() {
     }
   }
 
-  const filteredCourses = courses.filter(course =>
-    course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.description.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredCourses = courses
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -126,9 +155,9 @@ export default function CoursesPage() {
   }
 
   const stats = {
-    totalCourses: courses.length,
-    publishedCourses: courses.filter(c => c.status === "PUBLISHED").length,
-    totalStudents: courses.reduce((sum, course) => sum + course._count.enrollments, 0),
+    totalCourses: dbStats.total,
+    publishedCourses: dbStats.published,
+    totalStudents: dbStats.enrollments,
   }
 
   const handlePublishToggle = async (courseId: string, currentStatus: string) => {
@@ -188,7 +217,7 @@ export default function CoursesPage() {
               }
               const gradient = CATEGORY_COLORS[course.category] ?? "from-gray-500 to-gray-600"
               return (
-                <Link key={course.id} href={`/dashboard/learn/courses/${course.id}`} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col">
+                <Link key={course.id} href={`/dashboard/courses/${course.id}`} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col">
                   <div className={`bg-gradient-to-r ${gradient} px-5 py-6`}>
                     <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center mb-3">
                       <GraduationCap className="h-5 w-5 text-white" />
@@ -342,93 +371,102 @@ export default function CoursesPage() {
               )}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Course</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Students</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Updated</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCourses.map((course) => (
-                  <TableRow key={course.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{course.title}</div>
-                        <div className="text-sm text-gray-500 line-clamp-1">
-                          {course.description}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{course.category}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-1">
-                        <Users className="h-4 w-4 text-gray-400" />
-                        <span>{course._count.enrollments}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(course.status)}>
-                        {course.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm text-gray-500">
-                        {new Date(course.updatedAt).toLocaleDateString()}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link href={`/dashboard/courses/${course.id}`}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href={`/dashboard/courses/${course.id}/edit`}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href={`/dashboard/courses/${course.id}/participants`}>
-                              <Users className="mr-2 h-4 w-4" />
-                              Participants
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handlePublishToggle(course.id, course.status)}>
-                            {course.status === "PUBLISHED"
-                              ? <><EyeOff className="mr-2 h-4 w-4" />Unpublish</>
-                              : <><Globe className="mr-2 h-4 w-4 text-emerald-600" />Publish</>
-                            }
-                          </DropdownMenuItem>
-                          {course.status !== "ARCHIVED" && (
-                            <DropdownMenuItem onClick={() => handleArchive(course.id)} className="text-gray-500">
-                              <Archive className="mr-2 h-4 w-4" />
-                              Archive
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Course</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Students</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Updated</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredCourses.map((course) => (
+                    <TableRow key={course.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{course.title}</div>
+                          <div className="text-sm text-gray-500 line-clamp-1">
+                            {course.description}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{course.category}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-1">
+                          <Users className="h-4 w-4 text-gray-400" />
+                          <span>{course._count.enrollments}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(course.status)}>
+                          {course.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm text-gray-500">
+                          {new Date(course.updatedAt).toLocaleDateString()}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link href={`/dashboard/courses/${course.id}`}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/dashboard/courses/${course.id}/edit`}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/dashboard/courses/${course.id}/participants`}>
+                                <Users className="mr-2 h-4 w-4" />
+                                Participants
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handlePublishToggle(course.id, course.status)}>
+                              {course.status === "PUBLISHED"
+                                ? <><EyeOff className="mr-2 h-4 w-4" />Unpublish</>
+                                : <><Globe className="mr-2 h-4 w-4 text-emerald-600" />Publish</>
+                              }
+                            </DropdownMenuItem>
+                            {course.status !== "ARCHIVED" && (
+                              <DropdownMenuItem onClick={() => handleArchive(course.id)} className="text-gray-500">
+                                <Archive className="mr-2 h-4 w-4" />
+                                Archive
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <PaginationControls
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                total={total}
+                limit={limit}
+              />
+            </>
           )}
         </CardContent>
       </Card>

@@ -49,7 +49,19 @@ export async function POST(request: NextRequest) {
         creator: { select: { firstName: true, lastName: true } },
       },
     })
-    // Return shape compatible with UI (matches GET response structure)
+
+    // Log staff action
+    await prisma.auditLog.create({
+      data: {
+        actorId: user.id,
+        actorName: `${user.firstName} ${user.lastName}`,
+        actorEmail: user.email,
+        action: "GROUP_CREATE",
+        category: "STAFF",
+        details: `Created participant group "${group.name}"`,
+      },
+    }).catch(() => {})
+
     return NextResponse.json({ ...group, members: [], courses: [] }, { status: 201 })
   } catch (e) {
     console.error("[POST /api/groups]", e)

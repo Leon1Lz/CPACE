@@ -107,9 +107,31 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }).catch(() => null) // silent — don't fail the submit if session update fails
     }
 
-    // Auto-issue certificate if FINAL_EXAM and passed
+    const released = assessment.releaseScores !== false || (assessment.scoresReleasedAt && new Date() >= new Date(assessment.scoresReleasedAt))
+    const { createNotification } = await import("@/lib/notifications")
+    
+    // Create DB notification for assessment completion
+    if (released) {
+      await createNotification({
+        userId: user.id,
+        title: passed ? "Assessment Passed ✅" : "Assessment Completed",
+        message: `You completed "${assessment.title}" with a score of ${score.toFixed(0)}%.`,
+        type: passed ? "SUCCESS" : "INFO",
+        link: "/dashboard/assessments",
+      })
+    } else {
+      await createNotification({
+        userId: user.id,
+        title: "Assessment Submitted 📝",
+        message: `You successfully submitted your answers for "${assessment.title}". Results will be released once they are processed.`,
+        type: "INFO",
+        link: "/dashboard/assessments",
+      })
+    }
+
+    // Auto-issue certificate if FINAL_EXAM and passed (only when released!)
     let certificate = null
-    if (assessment.type === "FINAL_EXAM" && passed) {
+    if (released && assessment.type === "FINAL_EXAM" && passed) {
       const existing = await prisma.certificate.findFirst({
         where: { userId: user.id, courseId: assessment.courseId },
       })
@@ -125,6 +147,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           },
         })
 
+        // Create DB notification for certificate
+        await createNotification({
+          userId: user.id,
+          title: "Certificate Issued 🎓",
+          message: `Congratulations! You earned a certificate for "${assessment.course.title}".`,
+          type: "SUCCESS",
+          link: "/dashboard/certificates",
+        })
+
         // Update enrollment to COMPLETED
         await prisma.enrollment.updateMany({
           where: { userId: user.id, courseId: assessment.courseId },
@@ -135,13 +166,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     return NextResponse.json({
       resultId: result.id,
-      score,
-      passed,
+      score: released ? score : null,
+      passed: released ? passed : null,
       totalPoints,
-      earnedPoints,
+      earnedPoints: released ? earnedPoints : null,
       attempt: attemptNumber + 1,
-      certificate,
+      certificate: released ? certificate : null,
       hasOpenEnded,
+      scoresReleased: released,
     })
   } catch (error) {
     console.error("Submit error:", error)

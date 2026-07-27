@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
+import { sanitizeHtml } from "@/lib/sanitize"
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,12 +16,20 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category")
     const level = searchParams.get("level")
     const status = searchParams.get("status")
+    const search = searchParams.get("search")
 
     const where: any = {}
     
     if (category) where.category = category
     if (level) where.level = level
     if (status) where.status = status
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ]
+    }
 
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"))
     const limit = Math.min(100, parseInt(searchParams.get("limit") ?? "20"))
@@ -32,12 +41,26 @@ export async function GET(request: NextRequest) {
       _count: { select: { enrollments: true, modules: true, assessments: true } },
     }
 
-    const [courses, total] = await Promise.all([
+    const [courses, total, dbTotal, publishedTotal, enrollmentTotal] = await Promise.all([
       prisma.course.findMany({ where, include, orderBy: { createdAt: 'desc' }, skip, take: limit }),
       prisma.course.count({ where }),
+      prisma.course.count(),
+      prisma.course.count({ where: { status: "PUBLISHED" } }),
+      prisma.enrollment.count(),
     ])
 
-    return NextResponse.json({ data: courses, total, page, limit, totalPages: Math.ceil(total / limit) })
+    return NextResponse.json({
+      data: courses,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      stats: {
+        total: dbTotal,
+        published: publishedTotal,
+        enrollments: enrollmentTotal,
+      }
+    })
   } catch (error) {
     console.error("Error fetching courses:", error)
     return NextResponse.json(
@@ -95,7 +118,7 @@ export async function POST(request: NextRequest) {
       data: {
         title,
         description,
-        content,
+        content: content ? sanitizeHtml(content) : null,
         category,
         level,
         duration,

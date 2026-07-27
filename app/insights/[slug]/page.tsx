@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import { Calendar, MessageCircle, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Newspaper } from "lucide-react"
 import Link from "next/link"
+import { SafeHtml } from "@/components/ui/safe-html"
 
 export default function ArticleDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
@@ -113,9 +114,10 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ slug: 
             )}
             
             <div className="p-6 md:p-12">
-              <div 
-                dangerouslySetInnerHTML={{ __html: article.content }} 
+              <SafeHtml
+                html={article.content}
                 className="prose max-w-none text-gray-700 leading-relaxed text-base md:text-lg"
+                externalLinks
               />
             </div>
           </article>

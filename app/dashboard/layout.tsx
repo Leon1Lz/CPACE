@@ -78,27 +78,41 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
   const breadcrumbParent = getBreadcrumbParent(pathname)
 
+  const isExamTaking = pathname.includes("/take")
+
   return (
     <SidebarProvider>
-      <AppSidebar role={userRole} userName={userName} userEmail={userEmail} />
+      <AppSidebar role={userRole} userName={userName} userEmail={userEmail} isExamTaking={isExamTaking} />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-3 border-b border-gray-100 bg-white px-6 sticky top-0 z-20">
-          <SidebarTrigger className="-ml-1 text-gray-400 hover:text-gray-700" />
+          <SidebarTrigger className={`-ml-1 text-gray-400 ${isExamTaking ? "pointer-events-none opacity-40 cursor-not-allowed" : "hover:text-gray-700"}`} />
           <Separator orientation="vertical" className="h-5 bg-gray-100" />
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/dashboard" className="text-gray-400 hover:text-emerald-600 text-sm">
-                  Dashboard
-                </BreadcrumbLink>
+                {isExamTaking ? (
+                  <span className="text-gray-400 text-sm cursor-not-allowed select-none opacity-60">
+                    Dashboard
+                  </span>
+                ) : (
+                  <BreadcrumbLink href="/dashboard" className="text-gray-400 hover:text-emerald-600 text-sm">
+                    Dashboard
+                  </BreadcrumbLink>
+                )}
               </BreadcrumbItem>
               {pathname !== "/dashboard" && breadcrumbParent && (
                 <>
                   <BreadcrumbSeparator className="text-gray-300" />
                   <BreadcrumbItem>
-                    <BreadcrumbLink href={breadcrumbParent.href} className="text-gray-400 hover:text-emerald-600 text-sm">
-                      {breadcrumbParent.label}
-                    </BreadcrumbLink>
+                    {isExamTaking ? (
+                      <span className="text-gray-400 text-sm cursor-not-allowed select-none opacity-60">
+                        {breadcrumbParent.label}
+                      </span>
+                    ) : (
+                      <BreadcrumbLink href={breadcrumbParent.href} className="text-gray-400 hover:text-emerald-600 text-sm">
+                        {breadcrumbParent.label}
+                      </BreadcrumbLink>
+                    )}
                   </BreadcrumbItem>
                 </>
               )}
@@ -129,7 +143,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <Button
               variant="ghost" size="icon"
-              onClick={() => signOut({ callbackUrl: "/" })}
+              onClick={() => {
+                if (isExamTaking && !confirm("Leaving during an active examination will abandon your attempt. Are you sure you want to log out?")) {
+                  return
+                }
+                signOut({ callbackUrl: "/" })
+              }}
               className="h-9 w-9 rounded-xl hover:bg-rose-50 hover:text-rose-600 text-gray-400 transition-colors"
             >
               <LogOut className="h-4 w-4" />

@@ -370,7 +370,7 @@ export default function ManageInsightsPage() {
 
       {/* Create / Edit Modal Form */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white p-6 border-0 shadow-2xl rounded-2xl">
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl max-h-[90vh] overflow-y-auto bg-white p-6 border-0 shadow-2xl rounded-2xl">
           <DialogHeader className="border-b border-gray-100 pb-4">
             <DialogTitle className="text-xl font-extrabold text-gray-900 flex items-center gap-1.5">
               <Sparkles className="w-5 h-5 text-emerald-500" />

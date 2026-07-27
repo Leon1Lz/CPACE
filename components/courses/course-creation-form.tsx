@@ -10,8 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Loader2, Save, Eye, Upload, X, Plus } from "lucide-react"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import { SafeHtml } from "@/components/ui/safe-html"
+import { Loader2, Save, Eye, X, Plus } from "lucide-react"
 import { useSession } from "next-auth/react"
 
 interface CourseFormData {
@@ -157,11 +158,15 @@ export function CourseCreationForm() {
 
               <div>
                 <h3 className="text-xl font-semibold mb-3">Course Content</h3>
-                <div className="prose max-w-none">
-                  <div dangerouslySetInnerHTML={{ 
-                    __html: formData.content.replace(/\n/g, '<br>') || "Course content will appear here..." 
-                  }} />
-                </div>
+                {formData.content ? (
+                  <SafeHtml
+                    html={formData.content}
+                    className="prose prose-sm max-w-none text-gray-700 leading-relaxed border rounded-xl p-4 bg-gray-50"
+                    externalLinks
+                  />
+                ) : (
+                  <p className="text-gray-400 text-sm border rounded-xl p-4 bg-gray-50 italic">Course content will appear here...</p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -326,23 +331,20 @@ export function CourseCreationForm() {
         <Card>
           <CardHeader>
             <CardTitle>Course Content</CardTitle>
-            <CardDescription>Detailed course material and curriculum</CardDescription>
+            <CardDescription>
+              Write your full course overview using the rich text editor below — headings, lists, quotes, code blocks, and links are all supported.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="content">Course Content *</Label>
-              <Textarea
-                id="content"
-                value={formData.content}
-                onChange={(e) => handleChange("content", e.target.value)}
-                placeholder="Enter your course content, lessons, and materials..."
-                rows={12}
-                required
-              />
-              <p className="text-sm text-gray-500">
-                You can use markdown formatting for better structure. Line breaks will be preserved.
-              </p>
-            </div>
+          <CardContent className="space-y-2">
+            <RichTextEditor
+              value={formData.content}
+              onChange={(val) => handleChange("content", val)}
+              placeholder="Write your course overview, learning objectives, or introductory material here…"
+              minHeight="320px"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Tip: Use Ctrl+B for bold, Ctrl+I for italic, Ctrl+Z to undo.
+            </p>
           </CardContent>
         </Card>
 

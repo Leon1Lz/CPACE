@@ -57,6 +57,32 @@ export async function PATCH(req: NextRequest) {
         ...(status && { status }),
       },
     })
+
+    // If flagged, notify other proctors via DB notifications
+    if (flagged === true) {
+      const examSession = await prisma.examSession.findUnique({
+        where: { id },
+        include: { user: true, assessment: true }
+      })
+      if (examSession) {
+        const { createRoleNotification } = await import("@/lib/notifications")
+        await createRoleNotification({
+          role: "PROCTOR",
+          title: "Exam Session Flagged 🚩",
+          message: `${examSession.user.firstName} ${examSession.user.lastName} was manually flagged during "${examSession.assessment.title}". Reason: ${flagReason || "Unknown"}`,
+          type: "EXAM",
+          link: "/dashboard/proctor",
+        })
+        await createRoleNotification({
+          role: "ADMIN",
+          title: "Exam Session Flagged 🚩",
+          message: `${examSession.user.firstName} ${examSession.user.lastName} was manually flagged during "${examSession.assessment.title}". Reason: ${flagReason || "Unknown"}`,
+          type: "EXAM",
+          link: "/dashboard/proctor",
+        })
+      }
+    }
+
     return NextResponse.json(updated)
   } catch {
     return NextResponse.json({ error: "Failed to update session" }, { status: 500 })

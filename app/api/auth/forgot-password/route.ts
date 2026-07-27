@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import crypto from "crypto"
+import { sendPasswordResetEmail } from "@/lib/email"
+import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req)
+    const limitResult = rateLimit(`forgot-password:${ip}`, 3, 15 * 60 * 1000) // Max 3 per 15 minutes
+    if (!limitResult.success) {
+      return NextResponse.json(
+        { error: "Too many password reset attempts. Please try again in 15 minutes." },
+        { status: 429 }
+      )
+    }
+
     const { email } = await req.json()
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 })
@@ -37,7 +48,10 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Generate reset URL
+    // Send email via Resend
+    await sendPasswordResetEmail(user.email, token)
+
+    // Generate reset URL for local console output
     const resetUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/reset-password?token=${token}`
 
     // Print to console for easy developer access

@@ -12,8 +12,11 @@ import {
   ChevronLeft, Plus, Trash2, CheckCircle, Circle, Loader2,
   ClipboardCheck, ListChecks, ToggleLeft, FileText, AlignLeft,
   GripVertical, AlertCircle, Upload, Download, FileSpreadsheet,
+  Settings, Eye, X as XIcon
 } from "lucide-react"
 import Link from "next/link"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 
 type Option = { id?: string; text: string; isCorrect: boolean }
 type Question = {
@@ -24,7 +27,21 @@ type Question = {
   order: number
   options: { id: string; text: string; isCorrect: boolean; order: number }[]
 }
-type Assessment = { id: string; title: string; type: string; passingScore: number; _count?: { questions: number } }
+type Assessment = {
+  id: string
+  title: string
+  type: string
+  courseId: string
+  description?: string | null
+  timeLimit?: number | null
+  attempts?: number | null
+  passingScore: number
+  releaseScores?: boolean
+  scoresReleasedAt?: string | Date | null
+  _count?: { questions: number }
+  materialUrl?: string | null
+  materialName?: string | null
+}
 
 const TYPE_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   MULTIPLE_CHOICE: { label: "Multiple Choice", icon: ListChecks, color: "text-blue-600 bg-blue-50" },
@@ -43,6 +60,7 @@ export default function ManageQuestionsPage() {
 
   const [assessment, setAssessment] = useState<Assessment | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
+  const [courses, setCourses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -54,6 +72,65 @@ export default function ManageQuestionsPage() {
   const [csvImporting, setCsvImporting] = useState(false)
   const [csvError, setCsvError] = useState("")
   const [csvSuccess, setCsvSuccess] = useState("")
+
+  // Edit Assessment Info States
+  const [editOpen, setEditOpen] = useState(false)
+  const [editForm, setEditForm] = useState({
+    title: "",
+    type: "REVIEWER",
+    courseId: "",
+    timeLimit: "",
+    passingScore: "70",
+    attempts: "1",
+    description: "",
+    releaseScores: true,
+    scoresReleasedAt: "",
+  })
+  const [editSaving, setEditSaving] = useState(false)
+  const [uploadingMaterial, setUploadingMaterial] = useState(false)
+  const [materialViewerOpen, setMaterialViewerOpen] = useState(false)
+
+  const handleUploadMaterial = async (file: File) => {
+    setUploadingMaterial(true)
+    const formData = new FormData()
+    formData.append("file", file)
+    try {
+      const res = await fetch(`/api/assessments/${assessmentId}/upload`, {
+        method: "POST",
+        body: formData,
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setAssessment(prev => prev ? { ...prev, materialUrl: updated.materialUrl, materialName: updated.materialName } : updated)
+      } else {
+        alert("Failed to upload material. Please try again.")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Error uploading material.")
+    } finally {
+      setUploadingMaterial(false)
+    }
+  }
+
+  const handleDeleteMaterial = async () => {
+    if (!confirm("Are you sure you want to remove the study material?")) return
+    try {
+      const res = await fetch(`/api/assessments/${assessmentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ materialUrl: null, materialName: null }),
+      })
+      if (res.ok) {
+        setAssessment(prev => prev ? { ...prev, materialUrl: null, materialName: null } : null)
+      } else {
+        alert("Failed to remove material.")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Error removing material.")
+    }
+  }
 
   const [form, setForm] = useState({
     question: "",
@@ -69,11 +146,63 @@ export default function ManageQuestionsPage() {
     Promise.all([
       fetch(`/api/assessments/${assessmentId}`).then(r => r.json()),
       fetch(`/api/assessments/${assessmentId}/questions`).then(r => r.json()),
-    ]).then(([a, q]) => {
+      fetch("/api/courses?limit=200").then(r => r.json()),
+    ]).then(([a, q, c]) => {
       setAssessment(a)
       setQuestions(Array.isArray(q) ? q : [])
+      setCourses(Array.isArray(c) ? c : Array.isArray(c?.data) ? c.data : [])
     }).finally(() => setLoading(false))
   }, [assessmentId, role, router])
+
+  // Sync edit form fields when assessment is loaded
+  useEffect(() => {
+    if (assessment) {
+      let formattedDate = ""
+      if (assessment.scoresReleasedAt) {
+        const d = new Date(assessment.scoresReleasedAt)
+        formattedDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+      }
+      setEditForm({
+        title: assessment.title || "",
+        type: assessment.type || "REVIEWER",
+        courseId: assessment.courseId || "",
+        timeLimit: assessment.timeLimit?.toString() || "",
+        passingScore: assessment.passingScore?.toString() || "70",
+        attempts: assessment.attempts?.toString() || "1",
+        description: assessment.description || "",
+        releaseScores: assessment.releaseScores !== false,
+        scoresReleasedAt: formattedDate,
+      })
+    }
+  }, [assessment])
+
+  const handleUpdateAssessment = async () => {
+    setEditSaving(true)
+    const isUnlimited = editForm.type === "REVIEWER" || editForm.type === "PRACTICE_EXAM"
+    try {
+      const res = await fetch(`/api/assessments/${assessmentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...editForm,
+          timeLimit: editForm.timeLimit ? parseInt(editForm.timeLimit) : null,
+          passingScore: parseFloat(editForm.passingScore),
+          attempts: isUnlimited ? null : parseInt(editForm.attempts),
+          releaseScores: editForm.releaseScores,
+          scoresReleasedAt: editForm.releaseScores ? null : (editForm.scoresReleasedAt ? new Date(editForm.scoresReleasedAt) : null),
+        }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setAssessment(prev => prev ? { ...prev, ...updated } : updated)
+        setEditOpen(false)
+      }
+    } catch (err) {
+      console.error("Failed to update assessment details:", err)
+    } finally {
+      setEditSaving(false)
+    }
+  }
 
   const needsOptions = form.type === "MULTIPLE_CHOICE" || form.type === "TRUE_FALSE"
 
@@ -211,12 +340,111 @@ export default function ManageQuestionsPage() {
           <div>
             <h1 className="text-xl font-bold text-gray-900">{assessment?.title ?? "Manage Questions"}</h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              {questions.length} question{questions.length !== 1 ? "s" : ""} · {totalPoints} total points · {assessment?.passingScore}% passing
+              {questions.length} question{questions.length !== 1 ? "s" : ""} · {totalPoints} total points{assessment?.type !== "REVIEWER" ? ` · ${assessment?.passingScore}% passing` : ""}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Edit Assessment Details Dialog */}
+          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50 h-9">
+                <Settings className="h-4 w-4 mr-2" /> Edit Details
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="rounded-2xl max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Edit Assessment Details</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 mt-2">
+                <div className="space-y-1.5">
+                  <Label>Title</Label>
+                  <Input placeholder="Assessment Title" value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} className="rounded-xl" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Type</Label>
+                  <Select value={editForm.type} onValueChange={v => setEditForm(p => ({ ...p, type: v }))}>
+                    <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="REVIEWER">Reviewer</SelectItem>
+                      <SelectItem value="PRACTICE_EXAM">Practice Exam</SelectItem>
+                      <SelectItem value="RULES_GUIDELINES">Rules & Guidelines</SelectItem>
+                      <SelectItem value="FINAL_EXAM">Final Examination</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Course</Label>
+                  <Select value={editForm.courseId} onValueChange={v => setEditForm(p => ({ ...p, courseId: v }))}>
+                    <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select course" /></SelectTrigger>
+                    <SelectContent>
+                      {courses.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {editForm.type !== "REVIEWER" && editForm.type !== "RULES_GUIDELINES" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>Time Limit (min)</Label>
+                      <Input type="number" placeholder="No limit" value={editForm.timeLimit} onChange={e => setEditForm(p => ({ ...p, timeLimit: e.target.value }))} className="rounded-xl" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Passing Score (%)</Label>
+                      <Input type="number" value={editForm.passingScore} onChange={e => setEditForm(p => ({ ...p, passingScore: e.target.value }))} className="rounded-xl" />
+                    </div>
+                  </div>
+                )}
+                {editForm.type !== "REVIEWER" && editForm.type !== "PRACTICE_EXAM" && (
+                  <div className="space-y-1.5">
+                    <Label>Max Attempts</Label>
+                    <Input type="number" min="1" value={editForm.attempts} onChange={e => setEditForm(p => ({ ...p, attempts: e.target.value }))} className="rounded-xl" />
+                  </div>
+                )}
+                {/* Score Release Policy settings */}
+                {editForm.type !== "REVIEWER" && (
+                  <div className="space-y-3 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Score Release Policy</p>
+                    
+                    <div className="flex items-center justify-between gap-4">
+                      <Label className="flex flex-col gap-0.5 cursor-pointer">
+                        <span className="font-semibold text-xs text-gray-800">Release Scores Immediately</span>
+                        <span className="text-[10px] text-gray-400 font-normal leading-tight">Show results to learners immediately upon completing the exam</span>
+                      </Label>
+                      <Checkbox
+                        checked={editForm.releaseScores}
+                        onCheckedChange={(v) => setEditForm(p => ({ ...p, releaseScores: !!v }))}
+                      />
+                    </div>
+
+                    {!editForm.releaseScores && (
+                      <div className="space-y-1.5 pt-2.5 border-t border-slate-200/50">
+                        <Label className="text-xs text-gray-600">Scheduled Release Date & Time</Label>
+                        <Input
+                          type="datetime-local"
+                          value={editForm.scoresReleasedAt}
+                          onChange={(e) => setEditForm(p => ({ ...p, scoresReleasedAt: e.target.value }))}
+                          className="rounded-xl h-9 text-xs"
+                        />
+                        <p className="text-[9px] text-gray-400 leading-snug">
+                          Leave blank to only release results manually. Learners will see a "Pending Release" screen.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <Label>Description</Label>
+                  <Textarea placeholder="Optional description" value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} className="rounded-xl" />
+                </div>
+                <Button onClick={handleUpdateAssessment} disabled={editSaving || !editForm.title || !editForm.courseId} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
+                  {editSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Save Details
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {/* CSV Import Dialog */}
           <Dialog open={csvOpen} onOpenChange={(v) => { setCsvOpen(v); if (!v) { setCsvFile(null); setCsvPreview([]); setCsvError(""); setCsvSuccess("") } }}>
             <DialogTrigger asChild>
@@ -224,7 +452,7 @@ export default function ManageQuestionsPage() {
                 <FileSpreadsheet className="h-4 w-4 mr-2" /> Import CSV
               </Button>
             </DialogTrigger>
-            <DialogContent className="rounded-2xl max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="rounded-2xl max-w-[calc(100%-2rem)] sm:max-w-2xl md:max-w-3xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <FileSpreadsheet className="h-5 w-5 text-blue-600" /> Import Questions from CSV
@@ -325,7 +553,7 @@ export default function ManageQuestionsPage() {
               <Plus className="h-4 w-4 mr-2" /> Add Question
             </Button>
           </DialogTrigger>
-          <DialogContent className="rounded-2xl max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="rounded-2xl max-w-[calc(100%-2rem)] sm:max-w-xl md:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add Question</DialogTitle>
             </DialogHeader>
@@ -415,6 +643,126 @@ export default function ManageQuestionsPage() {
           </DialogContent>
         </Dialog>
         </div>
+      </div>
+
+      {/* Study Material Upload Section */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">Assessment Study Material (PPT / PDF / Handout)</h2>
+              <p className="text-xs text-gray-400">Attach a slide deck, reading guide, or rules document for learners to view.</p>
+            </div>
+          </div>
+          {assessment?.materialUrl && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDeleteMaterial}
+              className="text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl text-xs gap-1.5 h-8 animate-fade-in"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Remove Material
+            </Button>
+          )}
+        </div>
+
+        {assessment?.materialUrl ? (
+          <>
+            <div className="flex items-center justify-between p-3.5 bg-blue-50/50 border border-blue-100/50 rounded-xl animate-fade-in">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 bg-blue-100 text-blue-700 flex items-center justify-center rounded-lg font-bold text-xs uppercase shrink-0">
+                  {assessment.materialName?.split(".").pop() ?? "FILE"}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 truncate">{assessment.materialName}</p>
+                  <div className="flex items-center gap-3 mt-1">
+                    <button
+                      onClick={() => setMaterialViewerOpen(true)}
+                      className="text-xs text-blue-600 hover:underline flex items-center gap-1 font-medium bg-transparent border-0 p-0 cursor-pointer"
+                    >
+                      <Eye className="h-3 w-3" /> View material
+                    </button>
+                    <a
+                      href={assessment.materialUrl}
+                      download
+                      className="text-xs text-gray-500 hover:underline flex items-center gap-1 font-medium"
+                    >
+                      <Download className="h-3 w-3" /> Download material
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Inline Material Viewer Dialog */}
+            <Dialog open={materialViewerOpen} onOpenChange={setMaterialViewerOpen}>
+              <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
+                <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-gray-100">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-8 w-8 bg-blue-100 text-blue-700 flex items-center justify-center rounded-lg font-bold text-[10px] uppercase shrink-0">
+                      {assessment.materialName?.split(".").pop() ?? "FILE"}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{assessment.materialName}</p>
+                      <p className="text-[10px] text-gray-400">Study Material Preview</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button asChild variant="outline" size="sm" className="rounded-xl text-xs gap-1.5 h-8">
+                      <a href={assessment.materialUrl} download>
+                        <Download className="h-3 w-3" /> Download
+                      </a>
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setMaterialViewerOpen(false)} className="rounded-xl h-8 w-8 p-0">
+                      <XIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex-1 bg-gray-900 relative" style={{ height: 'calc(90vh - 56px)' }}>
+                  {assessment.materialName?.toLowerCase().endsWith('.pdf') ? (
+                    <iframe
+                      src={assessment.materialUrl}
+                      className="w-full h-full border-0"
+                      title="Material Viewer"
+                    />
+                  ) : (
+                    <iframe
+                      src={`https://docs.google.com/gview?url=${encodeURIComponent(window.location.origin + assessment.materialUrl)}&embedded=true`}
+                      className="w-full h-full border-0"
+                      title="Material Viewer"
+                      onError={() => {}}
+                    />
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          </>
+        ) : (
+          <label className="flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed border-gray-100 hover:border-blue-300 hover:bg-blue-50/40 cursor-pointer transition-colors">
+            <input
+              type="file"
+              accept=".ppt,.pptx,.pdf,.doc,.docx,.txt"
+              className="sr-only"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadMaterial(f) }}
+              disabled={uploadingMaterial}
+            />
+            {uploadingMaterial ? (
+              <>
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                <p className="text-sm font-medium text-blue-700">Uploading material...</p>
+              </>
+            ) : (
+              <>
+                <Upload className="h-7 w-7 text-gray-400" />
+                <p className="text-sm text-gray-500 font-medium">Click to upload material (PPT, PDF, Doc)</p>
+                <p className="text-xs text-gray-400">Supported formats: .ppt, .pptx, .pdf, .doc, .docx, up to 10MB</p>
+              </>
+            )}
+          </label>
+        )}
       </div>
 
       {/* Question list */}

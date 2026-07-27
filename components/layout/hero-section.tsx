@@ -65,7 +65,7 @@ export function HeroSection() {
                 LEARN MORE
               </Button>
               <Link href="#certifications">
-                <Button variant="outline" className="border-2 border-white/30 text-white hover:bg-white/10 hover:border-white/50 font-semibold px-6 py-2 transition-all duration-300 transform hover:scale-105 backdrop-blur-sm">
+                <Button variant="ghost" className="border-2 border-white/30 text-white hover:bg-white/10 hover:text-white hover:border-white/50 font-semibold px-6 py-2 transition-all duration-300 transform hover:scale-105 backdrop-blur-sm">
                   Explore Programs
                 </Button>
               </Link>

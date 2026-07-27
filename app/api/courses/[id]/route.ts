@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { sanitizeHtml } from "@/lib/sanitize"
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const isStaff = user?.role === "ADMIN" || user?.role === "INSTRUCTOR"
 
     const { id } = await params
     const includeModules = req.nextUrl.searchParams.get("modules") === "true"
@@ -22,6 +26,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             orderBy: { order: "asc" },
             select: { id: true, title: true, description: true, content: true, videoUrl: true, order: true, duration: true },
           },
+          assessments: {
+            where: isStaff ? {} : { isPublished: true },
+            orderBy: { createdAt: "desc" },
+            include: {
+              _count: { select: { questions: true } }
+            }
+          }
         } : {}),
       },
     })
@@ -48,7 +59,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const allowedFields = ["title", "description", "content", "category", "level", "duration", "price", "thumbnail", "status", "learningObjectives"]
     const updateData: Record<string, unknown> = {}
     for (const key of allowedFields) {
-      if (key in data) updateData[key] = data[key]
+      if (key in data) {
+        // Sanitize HTML content fields before saving
+        updateData[key] = key === "content" && data[key]
+          ? sanitizeHtml(data[key])
+          : data[key]
+      }
     }
 
     const updated = await prisma.course.update({ where: { id }, data: updateData })

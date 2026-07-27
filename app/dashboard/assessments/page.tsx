@@ -10,11 +10,13 @@ import {
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Textarea } from "@/components/ui/textarea"
 import {
   ClipboardCheck, Plus, BookOpen, CheckCircle, AlertCircle,
   Loader2, FlaskConical, ScrollText, Trophy, ShieldCheck,
   Clock, RotateCcw, Lock, ChevronRight, ChevronLeft, GraduationCap,
-  Building2, Wrench, BarChart3,
+  Building2, Wrench, BarChart3, Trash2,
 } from "lucide-react"
 
 type Assessment = {
@@ -26,6 +28,8 @@ type Assessment = {
   attempts?: number | null
   passingScore: number
   isPublished: boolean
+  releaseScores?: boolean
+  scoresReleasedAt?: string | Date | null
   courseId: string
   course?: { id: string; title: string; category?: string | null }
   _count?: { questions: number; results: number }
@@ -112,7 +116,7 @@ const PROGRAMS = [
   },
 ]
 
-function AssessmentCard({ a, role, groupBadge, onTogglePublish }: { a: Assessment; role?: string; groupBadge: string; onTogglePublish?: (id: string, current: boolean) => void }) {
+function AssessmentCard({ a, role, groupBadge, onTogglePublish, onDelete }: { a: Assessment; role?: string; groupBadge: string; onTogglePublish?: (id: string, current: boolean) => void; onDelete?: (id: string) => void }) {
   const myResult = a.results?.[0]
   const isUnlimited = a.type === "REVIEWER" || a.type === "PRACTICE_EXAM"
   const isFinal = a.type === "FINAL_EXAM"
@@ -152,10 +156,17 @@ function AssessmentCard({ a, role, groupBadge, onTogglePublish }: { a: Assessmen
 
       <div className="flex items-center gap-3 shrink-0 ml-3">
         {role === "learner" && myResult && (
-          <span className={`flex items-center gap-1 text-xs font-bold ${myResult.passed ? "text-emerald-600" : "text-red-500"}`}>
-            {myResult.passed ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
-            {myResult.score?.toFixed(0)}%
-          </span>
+          myResult.score === null || (myResult as any).scoresPending ? (
+            <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-100">
+              <Clock className="h-3 w-3 animate-pulse" />
+              Pending Release
+            </span>
+          ) : (
+            <span className={`flex items-center gap-1 text-xs font-bold ${myResult.passed ? "text-emerald-600" : "text-red-500"}`}>
+              {myResult.passed ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
+              {myResult.score?.toFixed(0)}%
+            </span>
+          )
         )}
         {role === "learner" && !myResult && (
           <span className="text-xs text-gray-400">Not taken</span>
@@ -174,6 +185,15 @@ function AssessmentCard({ a, role, groupBadge, onTogglePublish }: { a: Assessmen
               <Link href={`/dashboard/assessments/${a.id}/manage`}>
                 Manage
               </Link>
+            </Button>
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={() => onDelete?.(a.id)}
+              className="rounded-xl h-9 w-9 text-gray-400 hover:text-red-600 hover:bg-red-50 hover:border-red-200 border-gray-200 shrink-0"
+              title="Delete Assessment"
+            >
+              <Trash2 className="h-4 w-4" />
             </Button>
           </>
         )}
@@ -195,7 +215,17 @@ export default function AssessmentsPage() {
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
   const [selectedProgram, setSelectedProgram] = useState<string | null>(null)
-  const [form, setForm] = useState({ title: "", description: "", type: "REVIEWER", courseId: "", timeLimit: "", passingScore: "70", attempts: "1" })
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    type: "REVIEWER",
+    courseId: "",
+    timeLimit: "",
+    passingScore: "70",
+    attempts: "1",
+    releaseScores: true,
+    scoresReleasedAt: "",
+  })
   const [saving, setSaving] = useState(false)
 
   const role = session?.user?.role?.toLowerCase()
@@ -221,6 +251,28 @@ export default function AssessmentsPage() {
     }
   }
 
+  const handleDeleteAssessment = async (id: string) => {
+    const item = assessments.find(x => x.id === id)
+    if (!item) return
+    if (!confirm(`Are you sure you want to delete "${item.title}"? This will permanently delete this assessment, all its questions, and all learners' results. This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/assessments/${id}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        setAssessments(prev => prev.filter(x => x.id !== id))
+      } else {
+        alert("Failed to delete assessment. Please try again.")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("An error occurred while deleting the assessment.")
+    }
+  }
+
   const handleCreate = async () => {
     setSaving(true)
     const isUnlimited = form.type === "REVIEWER" || form.type === "PRACTICE_EXAM"
@@ -232,13 +284,25 @@ export default function AssessmentsPage() {
         timeLimit: form.timeLimit ? parseInt(form.timeLimit) : null,
         passingScore: parseFloat(form.passingScore),
         attempts: isUnlimited ? null : parseInt(form.attempts),
+        releaseScores: form.releaseScores,
+        scoresReleasedAt: form.releaseScores ? null : (form.scoresReleasedAt ? new Date(form.scoresReleasedAt) : null),
       }),
     })
     if (res.ok) {
       const newA = await res.json()
       setAssessments(prev => [newA, ...prev])
       setOpen(false)
-      setForm({ title: "", description: "", type: "REVIEWER", courseId: "", timeLimit: "", passingScore: "70", attempts: "1" })
+      setForm({
+        title: "",
+        description: "",
+        type: "REVIEWER",
+        courseId: "",
+        timeLimit: "",
+        passingScore: "70",
+        attempts: "1",
+        releaseScores: true,
+        scoresReleasedAt: "",
+      })
     }
     setSaving(false)
   }
@@ -392,16 +456,18 @@ export default function AssessmentsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Time Limit (min)</Label>
-                    <Input type="number" placeholder="No limit" value={form.timeLimit} onChange={e => setForm(p => ({ ...p, timeLimit: e.target.value }))} className="rounded-xl" />
+                 {form.type !== "REVIEWER" && form.type !== "RULES_GUIDELINES" && (
+                   <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>Time Limit (min)</Label>
+                      <Input type="number" placeholder="No limit" value={form.timeLimit} onChange={e => setForm(p => ({ ...p, timeLimit: e.target.value }))} className="rounded-xl" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Passing Score (%)</Label>
+                      <Input type="number" value={form.passingScore} onChange={e => setForm(p => ({ ...p, passingScore: e.target.value }))} className="rounded-xl" />
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Passing Score (%)</Label>
-                    <Input type="number" value={form.passingScore} onChange={e => setForm(p => ({ ...p, passingScore: e.target.value }))} className="rounded-xl" />
-                  </div>
-                </div>
+                 )}
                 {!isUnlimitedType && (
                   <div className="space-y-1.5">
                     <Label>Max Attempts</Label>
@@ -413,6 +479,39 @@ export default function AssessmentsPage() {
                     <RotateCcw className="h-3.5 w-3.5" /> Unlimited retakes for this type
                   </div>
                 )}
+                {/* Score Release Policy settings */}
+                {form.type !== "REVIEWER" && (
+                  <div className="space-y-3 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Score Release Policy</p>
+                    
+                    <div className="flex items-center justify-between gap-4">
+                      <Label className="flex flex-col gap-0.5 cursor-pointer">
+                        <span className="font-semibold text-xs text-gray-800">Release Scores Immediately</span>
+                        <span className="text-[10px] text-gray-400 font-normal leading-tight">Show results to learners immediately upon completing the exam</span>
+                      </Label>
+                      <Checkbox
+                        checked={form.releaseScores}
+                        onCheckedChange={(v) => setForm(p => ({ ...p, releaseScores: !!v }))}
+                      />
+                    </div>
+
+                    {!form.releaseScores && (
+                      <div className="space-y-1.5 pt-2.5 border-t border-slate-200/50">
+                        <Label className="text-xs text-gray-600">Scheduled Release Date & Time</Label>
+                        <Input
+                          type="datetime-local"
+                          value={form.scoresReleasedAt}
+                          onChange={(e) => setForm(p => ({ ...p, scoresReleasedAt: e.target.value }))}
+                          className="rounded-xl h-9 text-xs"
+                        />
+                        <p className="text-[9px] text-gray-400 leading-snug">
+                          Leave blank to only release results manually. Learners will see a "Pending Release" screen.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="space-y-1.5">
                   <Label>Description</Label>
                   <Input placeholder="Optional description" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="rounded-xl" />
@@ -459,7 +558,7 @@ export default function AssessmentsPage() {
               {/* Card body */}
               <div className="flex-1 divide-y divide-gray-50">
                 {items.length > 0 ? items.map(a => (
-                  <AssessmentCard key={a.id} a={a} role={role} groupBadge={group.badge} onTogglePublish={handleTogglePublish} />
+                  <AssessmentCard key={a.id} a={a} role={role} groupBadge={group.badge} onTogglePublish={handleTogglePublish} onDelete={handleDeleteAssessment} />
                 )) : (
                   <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
                     <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${group.gradient} opacity-10 flex items-center justify-center mb-3`}>

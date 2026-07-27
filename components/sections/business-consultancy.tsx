@@ -119,7 +119,7 @@ export function BusinessConsultancy() {
               </Button>
             </Link>
             <Link href="/contact">
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-accent-700 font-semibold px-8 py-4">
+              <Button size="lg" variant="ghost" className="border-2 border-white text-white hover:bg-white hover:text-accent-700 font-semibold px-8 py-4">
                 Schedule Consultation
               </Button>
             </Link>

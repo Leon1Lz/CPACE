@@ -27,6 +27,7 @@ interface AppSidebarProps {
   onNavigate?: (page: string) => void
   userName?: string
   userEmail?: string
+  isExamTaking?: boolean
 }
 
 const menuItems = {
@@ -73,7 +74,7 @@ const roleColors: Record<UserRole, string> = {
   proctor: "bg-violet-100 text-violet-700",
 }
 
-export function AppSidebar({ role = "learner", activePage, onNavigate, userName = "User", userEmail = "" }: AppSidebarProps) {
+export function AppSidebar({ role = "learner", activePage, onNavigate, userName = "User", userEmail = "", isExamTaking = false }: AppSidebarProps) {
   const items = menuItems[role]
   const initials = userName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
   const pathname = usePathname()
@@ -93,8 +94,13 @@ export function AppSidebar({ role = "learner", activePage, onNavigate, userName 
       {/* Navigation */}
       <SidebarContent className="px-2 py-3">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest px-3 mb-1">
-            Main Menu
+          <SidebarGroupLabel className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest px-3 mb-1 flex items-center justify-between">
+            <span>Main Menu</span>
+            {isExamTaking && (
+              <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                🔒 Locked
+              </span>
+            )}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-0.5">
@@ -102,23 +108,40 @@ export function AppSidebar({ role = "learner", activePage, onNavigate, userName 
                 const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
                 return (
                   <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      className={`rounded-xl px-3 py-2.5 transition-all duration-200 ${
-                        isActive
-                          ? "bg-emerald-50 text-emerald-700 font-semibold"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      }`}
-                    >
-                      <Link href={item.href}>
+                    {isExamTaking ? (
+                      <div
+                        className={`flex items-center gap-3 rounded-xl px-3 py-2.5 select-none opacity-40 cursor-not-allowed ${
+                          isActive
+                            ? "bg-emerald-50 text-emerald-700 font-semibold"
+                            : "text-gray-400"
+                        }`}
+                        title="Navigation is locked during examination"
+                      >
                         <item.icon className={`h-4 w-4 ${isActive ? "text-emerald-600" : "text-gray-400"}`} />
                         <span className="text-sm">{item.label}</span>
                         {isActive && (
                           <span className="ml-auto w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
                         )}
-                      </Link>
-                    </SidebarMenuButton>
+                      </div>
+                    ) : (
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        className={`rounded-xl px-3 py-2.5 transition-all duration-200 ${
+                          isActive
+                            ? "bg-emerald-50 text-emerald-700 font-semibold"
+                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        }`}
+                      >
+                        <Link href={item.href}>
+                          <item.icon className={`h-4 w-4 ${isActive ? "text-emerald-600" : "text-gray-400"}`} />
+                          <span className="text-sm">{item.label}</span>
+                          {isActive && (
+                            <span className="ml-auto w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                          )}
+                        </Link>
+                      </SidebarMenuButton>
+                    )}
                   </SidebarMenuItem>
                 )
               })}

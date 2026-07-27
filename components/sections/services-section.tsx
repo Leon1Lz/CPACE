@@ -134,7 +134,7 @@ export function ServicesSection() {
                   </Button>
                 </Link>
                 <Link href="/about">
-                  <Button variant="outline" className="border-white/30 text-white hover:bg-white/10 hover:border-white/50 font-semibold px-8 py-3 backdrop-blur-sm transition-all duration-300">
+                  <Button variant="ghost" className="border-2 border-white/30 text-white hover:bg-white/10 hover:text-white hover:border-white/50 font-semibold px-8 py-3 backdrop-blur-sm transition-all duration-300">
                     Learn About Us
                   </Button>
                 </Link>
@@ -278,7 +278,7 @@ export function ServicesSection() {
                   </Button>
                 </Link>
                 <Link href="/register">
-                  <Button variant="outline" className="border-white/40 text-white hover:bg-white/10 font-semibold px-8 py-4 text-base whitespace-nowrap backdrop-blur-sm">
+                  <Button variant="ghost" className="border-2 border-white/40 text-white hover:bg-white/10 hover:text-white font-semibold px-8 py-4 text-base whitespace-nowrap backdrop-blur-sm">
                     Register Now
                   </Button>
                 </Link>

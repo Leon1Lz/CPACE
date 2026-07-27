@@ -148,7 +148,7 @@ export function ContactSection() {
               <Button size="lg" className="bg-white text-emerald-700 hover:bg-gray-100 font-semibold">
                 Schedule a Consultation
               </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-emerald-700 font-semibold">
+              <Button size="lg" variant="ghost" className="border-2 border-white text-white hover:bg-white hover:text-emerald-700 font-semibold">
                 Download Brochure
               </Button>
             </div>

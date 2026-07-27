@@ -32,6 +32,7 @@ type ExamSession = {
   flagReason: string | null
   ipAddress: string | null
   identityPhoto?: string | null
+  idPhoto?: string | null
   user: { id: string; firstName: string; lastName: string; email: string }
   assessment: { id: string; title: string; type: string; course: { title: string } }
 }
@@ -64,7 +65,7 @@ type ChatMsg = {
   sender: { id: string; firstName: string; lastName: string; role: string }
 }
 
-function ProctorInlineChat({ sessionId, currentUserId }: { sessionId: string; currentUserId: string }) {
+function ProctorInlineChat({ sessionId, currentUserId, onWebcamSnapshot }: { sessionId: string; currentUserId: string; onWebcamSnapshot?: (snapshot: string) => void }) {
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [draft, setDraft] = useState("")
   const [sending, setSending] = useState(false)
@@ -113,12 +114,16 @@ function ProctorInlineChat({ sessionId, currentUserId }: { sessionId: string; cu
       })
     })
 
+    channel.bind("webcam-snapshot", (data: { snapshot: string }) => {
+      onWebcamSnapshot?.(data.snapshot)
+    })
+
     return () => {
       channel.unbind_all()
       pusher.unsubscribe(channelName)
       pusher.disconnect()
     }
-  }, [sessionId, currentUserId, fetchMessages])
+  }, [sessionId, currentUserId, fetchMessages, onWebcamSnapshot])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }) }, [messages])
 
@@ -200,6 +205,7 @@ function ProctorInlineChat({ sessionId, currentUserId }: { sessionId: string; cu
 export default function ProctorPage() {
   const { data: session } = useSession()
   const router = useRouter()
+  const [proctorTab, setProctorTab] = useState<"monitor" | "audit">("monitor")
   const [sessions, setSessions] = useState<ExamSession[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -207,10 +213,49 @@ export default function ProctorPage() {
   const [statusFilter, setStatusFilter] = useState("ALL")
   const [flagFilter, setFlagFilter] = useState("ALL")
   const [selected, setSelected] = useState<ExamSession | null>(null)
+  const [liveSnapshot, setLiveSnapshot] = useState<string | null>(null)
   const [flagDialog, setFlagDialog] = useState(false)
   const [flagReason, setFlagReason] = useState("")
   const [flagging, setFlagging] = useState(false)
   const [tick, setTick] = useState(0)
+
+  // Audit Logs State
+  const [auditLogs, setAuditLogs] = useState<any[]>([])
+  const [auditLoading, setAuditLoading] = useState(false)
+  const [auditCategory, setAuditCategory] = useState<string>("ALL")
+  const [auditSearch, setAuditSearch] = useState("")
+  const [auditPage, setAuditPage] = useState(1)
+  const [auditTotalPages, setAuditTotalPages] = useState(1)
+
+  const fetchAuditLogs = useCallback(async () => {
+    setAuditLoading(true)
+    try {
+      const params = new URLSearchParams({
+        page: auditPage.toString(),
+        limit: "20",
+        category: auditCategory,
+        search: auditSearch,
+      })
+      const res = await fetch(`/api/audit?${params.toString()}`)
+      if (res.ok) {
+        const data = await res.json()
+        setAuditLogs(data.data ?? [])
+        setAuditTotalPages(data.totalPages ?? 1)
+      }
+    } finally {
+      setAuditLoading(false)
+    }
+  }, [auditPage, auditCategory, auditSearch])
+
+  useEffect(() => {
+    if (proctorTab === "audit") {
+      fetchAuditLogs()
+    }
+  }, [proctorTab, fetchAuditLogs])
+
+  useEffect(() => {
+    setLiveSnapshot(null)
+  }, [selected])
 
   const role = session?.user?.role?.toUpperCase()
   const currentUserId = (session?.user as any)?.id ?? ""
@@ -441,38 +486,132 @@ export default function ProctorPage() {
         ))}
       </div>
 
-      {/* Filters */}
-      <Card className="border-0 shadow-md">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-48">
+      {/* Proctor Dashboard Navigation Tabs */}
+      <div className="flex p-1 bg-gray-100 rounded-2xl gap-1 text-xs font-bold w-fit">
+        <button
+          type="button"
+          onClick={() => setProctorTab("monitor")}
+          className={`px-4 py-2 rounded-xl transition-all ${proctorTab === "monitor" ? "bg-white text-violet-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}
+        >
+          📺 Live Exam Monitor
+        </button>
+        <button
+          type="button"
+          onClick={() => setProctorTab("audit")}
+          className={`px-4 py-2 rounded-xl transition-all ${proctorTab === "audit" ? "bg-white text-violet-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}
+        >
+          📜 Staff Audit &amp; Security Logs
+        </button>
+      </div>
+
+      {proctorTab === "audit" ? (
+        <Card className="border-0 shadow-md space-y-4 p-5">
+          <div className="flex items-center gap-3 flex-wrap justify-between">
+            <div className="relative flex-1 min-w-48 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search learner or assessment..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
+                placeholder="Search staff action, user, or details..."
+                value={auditSearch}
+                onChange={e => setAuditSearch(e.target.value)}
                 className="pl-9 rounded-xl border-gray-200"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-44 rounded-xl border-gray-200"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Statuses</SelectItem>
-                <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                <SelectItem value="SUBMITTED">Submitted</SelectItem>
-                <SelectItem value="ABANDONED">Abandoned</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={flagFilter} onValueChange={setFlagFilter}>
-              <SelectTrigger className="w-36 rounded-xl border-gray-200"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Sessions</SelectItem>
-                <SelectItem value="FLAGGED">Flagged Only</SelectItem>
-                <SelectItem value="NORMAL">Not Flagged</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              {[
+                { key: "ALL", label: "All Logs" },
+                { key: "STAFF", label: "Staff Actions" },
+                { key: "EXAM_SECURITY", label: "Exam Security Flags" },
+              ].map(cat => (
+                <button
+                  key={cat.key}
+                  onClick={() => { setAuditCategory(cat.key); setAuditPage(1); }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${auditCategory === cat.key ? "bg-violet-600 text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </CardHeader>
+
+          {auditLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-7 w-7 animate-spin text-violet-600" />
+            </div>
+          ) : auditLogs.length === 0 ? (
+            <div className="text-center py-16 text-gray-400 text-sm">No activity logs found.</div>
+          ) : (
+            <div className="rounded-xl border border-gray-100 overflow-hidden">
+              <Table>
+                <TableHeader className="bg-gray-50/50">
+                  <TableRow>
+                    <TableHead className="text-xs font-bold text-gray-500 uppercase">Timestamp</TableHead>
+                    <TableHead className="text-xs font-bold text-gray-500 uppercase">Category</TableHead>
+                    <TableHead className="text-xs font-bold text-gray-500 uppercase">Action</TableHead>
+                    <TableHead className="text-xs font-bold text-gray-500 uppercase">Actor / Staff</TableHead>
+                    <TableHead className="text-xs font-bold text-gray-500 uppercase">Details</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {auditLogs.map((log: any) => (
+                    <TableRow key={log.id} className="hover:bg-gray-50/50 transition-colors">
+                      <TableCell className="text-xs font-mono text-gray-500 whitespace-nowrap">
+                        {new Date(log.createdAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${log.category === "EXAM_SECURITY" ? "bg-rose-100 text-rose-700" : "bg-blue-100 text-blue-700"}`}>
+                          {log.category === "EXAM_SECURITY" ? "🚩 Security Alert" : "👥 Staff Action"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs font-bold text-gray-800">
+                        {log.action}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <p className="font-semibold text-gray-900">{log.actorName ?? "System"}</p>
+                        {log.actorEmail && <p className="text-[11px] text-gray-400">{log.actorEmail}</p>}
+                      </TableCell>
+                      <TableCell className="text-xs text-gray-600 leading-relaxed max-w-md">
+                        {log.details}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </Card>
+      ) : (
+        /* Filters for Live Exam Monitor */
+        <Card className="border-0 shadow-md">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="relative flex-1 min-w-48">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search learner or assessment..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="pl-9 rounded-xl border-gray-200"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-44 rounded-xl border-gray-200"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Statuses</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="SUBMITTED">Submitted</SelectItem>
+                  <SelectItem value="ABANDONED">Abandoned</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={flagFilter} onValueChange={setFlagFilter}>
+                <SelectTrigger className="w-36 rounded-xl border-gray-200"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Sessions</SelectItem>
+                  <SelectItem value="FLAGGED">Flagged Only</SelectItem>
+                  <SelectItem value="NORMAL">Not Flagged</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
 
         <CardContent>
           {loading ? (
@@ -596,11 +735,12 @@ export default function ProctorPage() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Session Detail Dialog */}
       {selected && !flagDialog && (
         <Dialog open onOpenChange={() => setSelected(null)}>
-          <DialogContent className="max-w-2xl rounded-2xl">
+          <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-2xl md:max-w-3xl lg:max-w-4xl rounded-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-violet-600" /> Session Detail
@@ -656,24 +796,60 @@ export default function ProctorPage() {
                   </div>
                 )}
 
-                {selected.identityPhoto && (
-                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-2 mt-3">
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  {/* Face Photo / Live Feed */}
+                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-2">
                     <p className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
-                      <Camera className="h-3.5 w-3.5 text-emerald-600" /> Verified Identity Snapshot
+                      <Camera className="h-3.5 w-3.5 text-emerald-600" />
+                      {liveSnapshot ? "Live Proctoring Feed" : "Verified Face Snap"}
                     </p>
-                    <div className="relative w-full h-[150px] bg-slate-900 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                    <div className="relative w-full h-[120px] bg-slate-900 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={selected.identityPhoto}
+                        src={liveSnapshot || selected.identityPhoto || "/placeholder-avatar.png"}
                         alt="Candidate Identity Snap"
                         className="w-full h-full object-cover"
                       />
-                      <span className="absolute bottom-2 right-2 bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded shadow">
-                        SCREENED PASS
-                      </span>
+                      {liveSnapshot ? (
+                        <span className="absolute bottom-2 right-2 bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded shadow flex items-center gap-1 animate-pulse">
+                          <span className="h-1 w-1 bg-white rounded-full animate-ping" /> LIVE
+                        </span>
+                      ) : selected.identityPhoto ? (
+                        <span className="absolute bottom-2 right-2 bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded shadow">
+                          VERIFIED
+                        </span>
+                      ) : (
+                        <span className="absolute bottom-2 right-2 bg-gray-400 text-white text-[9px] font-black px-2 py-0.5 rounded shadow">
+                          MISSING
+                        </span>
+                      )}
                     </div>
                   </div>
-                )}
+
+                  {/* Government ID card */}
+                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-2">
+                    <p className="text-xs text-gray-400 font-medium flex items-center gap-1.5">
+                      <Camera className="h-3.5 w-3.5 text-violet-600" /> Government ID Document
+                    </p>
+                    <div className="relative w-full h-[120px] bg-slate-900 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={selected.idPhoto || "/placeholder-id.png"}
+                        alt="Candidate ID document"
+                        className="w-full h-full object-cover animate-fade-in"
+                      />
+                      {selected.idPhoto ? (
+                        <span className="absolute bottom-2 right-2 bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded shadow">
+                          PASSED
+                        </span>
+                      ) : (
+                        <span className="absolute bottom-2 right-2 bg-gray-400 text-white text-[9px] font-black px-2 py-0.5 rounded shadow">
+                          MISSING
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Right: Inline Chat Panel */}
@@ -691,6 +867,7 @@ export default function ProctorPage() {
                 <ProctorInlineChat
                   sessionId={selected.id}
                   currentUserId={currentUserId}
+                  onWebcamSnapshot={setLiveSnapshot}
                 />
               </div>
             </div>

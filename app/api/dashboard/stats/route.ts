@@ -6,7 +6,8 @@ import { prisma } from "@/lib/prisma"
 // Helper: count records created this week vs last week
 async function weekTrend(
   model: any,
-  whereBase: object = {}
+  whereBase: object = {},
+  dateField: string = "createdAt"
 ): Promise<{ current: number; previous: number; pct: number | null }> {
   const now = new Date()
   const startOfThisWeek = new Date(now)
@@ -17,8 +18,8 @@ async function weekTrend(
   startOfLastWeek.setDate(startOfThisWeek.getDate() - 7)
 
   const [current, previous] = await Promise.all([
-    model.count({ where: { ...whereBase, createdAt: { gte: startOfThisWeek } } }),
-    model.count({ where: { ...whereBase, createdAt: { gte: startOfLastWeek, lt: startOfThisWeek } } }),
+    model.count({ where: { ...whereBase, [dateField]: { gte: startOfThisWeek } } }),
+    model.count({ where: { ...whereBase, [dateField]: { gte: startOfLastWeek, lt: startOfThisWeek } } }),
   ])
 
   const pct = previous === 0 ? (current > 0 ? 100 : null) : Math.round(((current - previous) / previous) * 100)
@@ -55,7 +56,7 @@ export async function GET() {
         }),
         weekTrend(prisma.user),
         weekTrend(prisma.course),
-        weekTrend(prisma.enrollment),
+        weekTrend(prisma.enrollment, {}, "enrolledAt"),
         weekTrend(prisma.certificate),
       ])
       return NextResponse.json({

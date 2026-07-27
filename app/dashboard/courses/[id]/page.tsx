@@ -10,9 +10,11 @@ import { Progress } from "@/components/ui/progress"
 import {
   BookOpen, Clock, ChevronRight, ChevronLeft, CheckCircle,
   PlayCircle, FileText, Lock, Award, ArrowLeft, Loader2,
-  GraduationCap, BarChart3, ClipboardCheck,
+  GraduationCap, BarChart3, ClipboardCheck, Eye, X as XIcon, Download,
 } from "lucide-react"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import Link from "next/link"
+import { SafeHtml } from "@/components/ui/safe-html"
 
 type Module = {
   id: string
@@ -22,6 +24,19 @@ type Module = {
   videoUrl: string | null
   order: number
   duration: number | null
+}
+
+type Assessment = {
+  id: string
+  title: string
+  description: string | null
+  type: string
+  timeLimit: number | null
+  attempts: number | null
+  passingScore: number
+  materialUrl?: string | null
+  materialName?: string | null
+  _count?: { questions: number }
 }
 
 type Course = {
@@ -35,7 +50,8 @@ type Course = {
   status: string
   instructor: { firstName: string; lastName: string } | null
   modules: Module[]
-  _count: { enrollments: number; assessments: number }
+  assessments?: Assessment[]
+  _count: { enrollments: number; modules: number; assessments: number }
 }
 
 type Enrollment = {
@@ -54,8 +70,10 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeModule, setActiveModule] = useState<Module | null>(null)
+  const [activeAssessment, setActiveAssessment] = useState<Assessment | null>(null)
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
+  const [materialViewerOpen, setMaterialViewerOpen] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -235,15 +253,40 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
               )
             })}
 
-            {/* Assessments link */}
-            {course._count.assessments > 0 && (
-              <div className="pt-2 border-t border-gray-100">
-                <Button asChild variant="outline" size="sm" className="w-full rounded-xl text-xs border-amber-200 text-amber-700 hover:bg-amber-50">
-                  <Link href="/dashboard/assessments">
-                    <ClipboardCheck className="h-3.5 w-3.5 mr-1.5" />
-                    {course._count.assessments} Assessment{course._count.assessments > 1 ? "s" : ""}
-                  </Link>
-                </Button>
+            {/* Course Assessments Section */}
+            {course.assessments && course.assessments.length > 0 && (
+              <div className="pt-4 border-t border-gray-100 space-y-2 animate-fade-in">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1 mb-2">Assessments</p>
+                {course.assessments.map((ass) => {
+                  const isActive = activeAssessment?.id === ass.id
+                  const isFinal = ass.type === "FINAL_EXAM"
+                  const isReviewer = ass.type === "REVIEWER"
+                  return (
+                    <button
+                      key={ass.id}
+                      onClick={() => { setActiveAssessment(ass); setActiveModule(null); }}
+                      className={`w-full text-left p-3 rounded-2xl border-2 transition-all duration-150 flex items-start gap-3 ${
+                        isActive
+                          ? "border-amber-400 bg-amber-50 shadow-sm"
+                          : "border-gray-100 bg-white hover:border-amber-200"
+                      }`}
+                    >
+                      <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                        isActive ? "bg-amber-100 text-amber-700" : isFinal ? "bg-red-50 text-red-600" : "bg-gray-100 text-gray-400"
+                      }`}>
+                        <ClipboardCheck className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold leading-tight line-clamp-2 ${isActive ? "text-amber-700" : "text-gray-800"}`}>
+                          {ass.title}
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-wider font-bold">
+                          {ass.type.replace("_", " ")}
+                        </p>
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -298,9 +341,10 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
 
                   {/* Text content */}
                   {activeModule.content ? (
-                    <div
+                    <SafeHtml
+                      html={activeModule.content}
                       className="prose prose-sm max-w-none text-gray-700 leading-relaxed space-y-3"
-                      dangerouslySetInnerHTML={{ __html: activeModule.content.replace(/\n/g, "<br/>") }}
+                      externalLinks
                     />
                   ) : !activeModule.videoUrl ? (
                     <div className="text-center py-12 text-gray-300">
@@ -343,10 +387,135 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
                   </div>
                 </CardContent>
               </Card>
+            ) : activeAssessment ? (
+              <Card className="border-0 shadow-md">
+                <CardHeader className="border-b border-gray-50 pb-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                          {activeAssessment.type.replace("_", " ")}
+                        </span>
+                      </div>
+                      <CardTitle className="text-xl font-black text-gray-900">{activeAssessment.title}</CardTitle>
+                    </div>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="p-6 space-y-6">
+                  {activeAssessment.description && (
+                    <p className="text-sm text-gray-600 bg-gray-50 rounded-xl p-4 leading-relaxed">
+                      {activeAssessment.description}
+                    </p>
+                  )}
+
+                  {/* Details grid matching taker intro details */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="p-3.5 rounded-xl bg-gray-50/50 border border-gray-100">
+                      <p className="text-xs text-gray-400 font-medium">Questions</p>
+                      <p className="text-base font-bold text-gray-900 mt-0.5">
+                        {activeAssessment._count?.questions ?? 0} items
+                      </p>
+                    </div>
+                    {activeAssessment.type !== "REVIEWER" && activeAssessment.type !== "RULES_GUIDELINES" && (
+                      <>
+                        <div className="p-3.5 rounded-xl bg-gray-50/50 border border-gray-100">
+                          <p className="text-xs text-gray-400 font-medium">Passing Score</p>
+                          <p className="text-base font-bold text-gray-900 mt-0.5">
+                            {activeAssessment.passingScore}%
+                          </p>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-gray-50/50 border border-gray-100">
+                          <p className="text-xs text-gray-400 font-medium">Time Limit</p>
+                          <p className="text-base font-bold text-gray-900 mt-0.5">
+                            {activeAssessment.timeLimit ? `${activeAssessment.timeLimit} min` : "No limit"}
+                          </p>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-gray-50/50 border border-gray-100">
+                          <p className="text-xs text-gray-400 font-medium">Attempts</p>
+                          <p className="text-base font-bold text-gray-900 mt-0.5">
+                            {activeAssessment.attempts ?? "Unlimited"}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Attached material with viewer slideshow */}
+                  {activeAssessment.materialUrl && (
+                    <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-100 rounded-xl shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-emerald-100 text-emerald-700 flex items-center justify-center rounded-lg font-bold text-xs uppercase shrink-0">
+                          {activeAssessment.materialName?.split(".").pop() ?? "FILE"}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-800">Study Material Attached</p>
+                          <p className="text-xs text-gray-500 truncate max-w-[200px]">{activeAssessment.materialName}</p>
+                        </div>
+                      </div>
+                      <Button size="sm" onClick={() => setMaterialViewerOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs gap-1.5">
+                        <Eye className="h-3.5 w-3.5" /> View Material
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Start Button */}
+                  <Button asChild className="w-full bg-amber-600 hover:bg-amber-700 text-white rounded-xl h-11 font-semibold text-sm">
+                    <Link href={`/dashboard/assessments/${activeAssessment.id}/take`}>
+                      Start {activeAssessment.type === "FINAL_EXAM" ? "Exam Verification" : "Assessment"} →
+                    </Link>
+                  </Button>
+                </CardContent>
+
+                {/* Study Material Slideshow Viewer Dialog */}
+                {activeAssessment.materialUrl && (
+                  <Dialog open={materialViewerOpen} onOpenChange={setMaterialViewerOpen}>
+                    <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
+                      <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-gray-100">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-8 w-8 bg-emerald-100 text-emerald-700 flex items-center justify-center rounded-lg font-bold text-[10px] uppercase shrink-0">
+                            {activeAssessment.materialName?.split(".").pop() ?? "FILE"}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-800 truncate">{activeAssessment.materialName}</p>
+                            <p className="text-[10px] text-gray-400">Study Material</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button asChild variant="outline" size="sm" className="rounded-xl text-xs gap-1.5 h-8">
+                            <a href={activeAssessment.materialUrl} download>
+                              <Download className="h-3 w-3" /> Download
+                            </a>
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setMaterialViewerOpen(false)} className="rounded-xl h-8 w-8 p-0">
+                            <XIcon className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="flex-1 bg-gray-900 relative" style={{ height: 'calc(90vh - 56px)' }}>
+                        {activeAssessment.materialName?.toLowerCase().endsWith('.pdf') ? (
+                          <iframe
+                            src={activeAssessment.materialUrl}
+                            className="w-full h-full border-0"
+                            title="Material Viewer"
+                          />
+                        ) : (
+                          <iframe
+                            src={`https://docs.google.com/gview?url=${encodeURIComponent(window.location.origin + activeAssessment.materialUrl)}&embedded=true`}
+                            className="w-full h-full border-0"
+                            title="Material Viewer"
+                            onError={() => {}}
+                          />
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </Card>
             ) : (
               <div className="text-center py-20 text-gray-400">
                 <PlayCircle className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                <p>Select a module to start learning</p>
+                <p>Select a module or assessment to start learning</p>
               </div>
             )}
           </div>

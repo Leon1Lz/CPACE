@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { sanitizeHtml, stripTags } from "@/lib/sanitize"
 
 // Helper to generate slug from title
 function generateSlug(title: string): string {
@@ -63,12 +64,15 @@ export async function POST(req: NextRequest) {
       count++
     }
 
+    const cleanContent = sanitizeHtml(content)
     const article = await prisma.article.create({
       data: {
-        title,
+        title: title.trim(),
         slug,
-        excerpt: excerpt || content.substring(0, 150).replace(/<[^>]*>/g, "") + "...",
-        content,
+        excerpt: excerpt
+          ? stripTags(excerpt).slice(0, 200)
+          : stripTags(cleanContent).slice(0, 150) + "...",
+        content: cleanContent,
         category: category || "News",
         categoryColor: categoryColor || "bg-emerald-100 text-emerald-700 border-emerald-200",
         iconName: iconName || "users",

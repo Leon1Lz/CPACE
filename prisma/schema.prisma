@@ -34,6 +34,7 @@ model User {
   groupsCreated     Group[]          @relation("GroupCreator")
   groupMemberships  GroupMember[]
   chatsSent         ExamChat[]       @relation("ChatSender")
+  notifications     Notification[]
 
   @@map("users")
 }
@@ -183,6 +184,10 @@ model Assessment {
   attempts     Int?           // Max attempts allowed (null = unlimited, for PRACTICE_EXAM)
   passingScore Float          @default(70) // Percentage
   isPublished  Boolean        @default(false)
+  releaseScores Boolean       @default(true)
+  scoresReleasedAt DateTime?
+  materialUrl  String?
+  materialName String?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
@@ -300,6 +305,7 @@ model ExamSession {
   ipAddress    String?
   userAgent    String?
   identityPhoto String?
+  idPhoto       String?
 
   // Relations
   userId       String
@@ -387,4 +393,44 @@ model Article {
   updatedAt     DateTime @updatedAt
 
   @@map("articles")
+}
+
+// Persistable user notifications
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("INFO") // "INFO", "SUCCESS", "WARNING", "ALERT", "COURSE", "EXAM"
+  isRead    Boolean  @default(false)
+  link      String?  // Optional redirect URL path
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+// Whitelist of emails pre-approved to register
+model PreApprovedEmail {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  role      UserRole @default(LEARNER)
+  createdAt DateTime @default(now())
+
+  @@map("pre_approved_emails")
+}
+
+// Audit and activity log for staff actions and security events
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorName  String?
+  actorEmail String?
+  action     String   // e.g. "GROUP_CREATE", "BULK_ENROLL", "EXAM_VIOLATION", "COURSE_UPDATE"
+  category   String   // "STAFF", "EXAM_SECURITY", "SYSTEM"
+  details    String?  // Rich description / JSON string
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
 }

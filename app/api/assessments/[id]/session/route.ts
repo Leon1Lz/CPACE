@@ -15,9 +15,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { id: assessmentId } = await params
 
     let identityPhoto: string | undefined
+    let idPhoto: string | undefined
     try {
       const body = await request.json()
       identityPhoto = body.identityPhoto
+      idPhoto = body.idPhoto
     } catch {
       // Body is empty or not JSON
     }
@@ -42,6 +44,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         ipAddress,
         userAgent,
         identityPhoto,
+        idPhoto,
         status: "IN_PROGRESS",
       },
     })
@@ -96,6 +99,35 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       } catch (pusherError) {
         console.error("Failed to send real-time flag notification:", pusherError)
       }
+
+      // Create persistent DB notifications for proctors and admins
+      const { createRoleNotification } = await import("@/lib/notifications")
+      await createRoleNotification({
+        role: "PROCTOR",
+        title: "Exam Session Flagged 🚩",
+        message: `${user.firstName} ${user.lastName} was flagged during "${examSession.assessment.title}". Reason: ${flagReason || "Unknown"}`,
+        type: "EXAM",
+        link: "/dashboard/proctor",
+      })
+      await createRoleNotification({
+        role: "ADMIN",
+        title: "Exam Session Flagged 🚩",
+        message: `${user.firstName} ${user.lastName} was flagged during "${examSession.assessment.title}". Reason: ${flagReason || "Unknown"}`,
+        type: "EXAM",
+        link: "/dashboard/proctor",
+      })
+
+      // Record in AuditLog table
+      await prisma.auditLog.create({
+        data: {
+          actorId: user.id,
+          actorName: `${user.firstName} ${user.lastName}`,
+          actorEmail: user.email,
+          action: "EXAM_VIOLATION",
+          category: "EXAM_SECURITY",
+          details: `Flagged in "${examSession.assessment.title}": ${flagReason || "Security violation"}`,
+        },
+      }).catch(() => {})
     }
 
     return NextResponse.json(updatedSession)

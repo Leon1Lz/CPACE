@@ -190,7 +190,7 @@ export function AdminDashboard({ userName = "Admin" }: { userName?: string }) {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Welcome, {userName} 👋</h1>
-        <p className="text-sm text-gray-500 mt-1">Here's what's happening across the learning portal today.</p>
+        <p className="text-sm text-gray-500 mt-1">Here&apos;s what&apos;s happening across the learning portal today.</p>
       </div>
 
       {/* Stat Cards */}
@@ -725,7 +725,7 @@ export function LearnerDashboard({ userName = "Learner" }: { userName?: string }
           )) : (
             <div className="text-center py-12 text-gray-400 space-y-3">
               <BookOpen className="h-10 w-10 mx-auto opacity-30" />
-              <p className="text-sm font-medium">You haven't enrolled in any courses yet</p>
+              <p className="text-sm font-medium">You haven&apos;t enrolled in any courses yet</p>
               <p className="text-xs text-gray-400">Browse the course catalog to get started on your journey</p>
               <Button asChild className="mt-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs">
                 <Link href="/dashboard/courses"><ArrowRight className="h-3.5 w-3.5 mr-1.5" /> Browse the course catalog</Link>

@@ -13,8 +13,12 @@ import {
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog"
+import {
   Clock, ChevronLeft, ChevronRight, CheckCircle, XCircle,
-  Award, AlertTriangle, Loader2, Flag, ClipboardList, Camera, RefreshCw
+  Award, AlertTriangle, Loader2, Flag, ClipboardList, Camera, RefreshCw,
+  Download, FileText, Eye, X as XIcon
 } from "lucide-react"
 
 import { FloatingCalculator } from "@/components/ui/floating-calculator"
@@ -28,6 +32,8 @@ type Assessment = {
   course: { id: string; title: string }
   questions: Question[]
   _count: { results: number }
+  materialUrl?: string | null
+  materialName?: string | null
 }
 
 type AnswerMap = Record<string, { selectedOptionId?: string; content?: string }>
@@ -53,21 +59,31 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
   const [sessionId, setSessionId] = useState<string | null>(null)
   
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null)
+  const [capturedIdPhoto, setCapturedIdPhoto] = useState<string | null>(null)
+  const [activeVerifyStep, setActiveVerifyStep] = useState<"face" | "id">("face")
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraError, setCameraError] = useState(false)
   const [isFsLocked, setIsFsLocked] = useState(false)
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const [materialViewerOpen, setMaterialViewerOpen] = useState(false)
+  const isFinal = assessment?.type === "FINAL_EXAM"
+
+  const videoRefCallback = useCallback((el: HTMLVideoElement | null) => {
+    videoRef.current = el
+    if (el && streamRef.current) {
+      if (el.srcObject !== streamRef.current) {
+        el.srcObject = streamRef.current
+        el.play().catch(() => {})
+      }
+    }
+  }, [])
 
   const startCamera = async () => {
     setCameraError(false)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } })
       streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        videoRef.current.play()
-      }
       setCameraActive(true)
     } catch (err) {
       console.error("Camera access failed:", err)
@@ -92,8 +108,15 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0, 320, 240)
         const dataUrl = canvas.toDataURL("image/jpeg")
-        setCapturedPhoto(dataUrl)
-        stopCamera()
+        if (activeVerifyStep === "face") {
+          setCapturedPhoto(dataUrl)
+          setActiveVerifyStep("id")
+        } else {
+          setCapturedIdPhoto(dataUrl)
+          if (!isFinal) {
+            stopCamera()
+          }
+        }
       }
     }
   }
@@ -115,13 +138,22 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
       ctx.fillStyle = "#ffffff"
       ctx.font = "bold 16px sans-serif"
       ctx.textAlign = "center"
-      ctx.fillText("VERIFIED CANDIDATE", 160, 100)
+      ctx.fillText(activeVerifyStep === "face" ? "VERIFIED CANDIDATE" : "GOVERNMENT ID CARD", 160, 100)
       ctx.font = "12px sans-serif"
       ctx.fillText(`ID: CPACE-${currentUserId.slice(0, 8).toUpperCase()}`, 160, 130)
       ctx.font = "bold 10px sans-serif"
       ctx.fillStyle = "#a7f3d0"
       ctx.fillText("SNAPSHOT SIMULATION SUCCESS", 160, 165)
-      setCapturedPhoto(canvas.toDataURL("image/jpeg"))
+      const dataUrl = canvas.toDataURL("image/jpeg")
+      if (activeVerifyStep === "face") {
+        setCapturedPhoto(dataUrl)
+        setActiveVerifyStep("id")
+      } else {
+        setCapturedIdPhoto(dataUrl)
+        if (!isFinal) {
+          stopCamera()
+        }
+      }
     }
   }
 
@@ -156,7 +188,74 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
     const data = await res.json()
     setResult(data)
     setPhase("result")
+    stopCamera()
   }, [assessment, answers, id, startedAt, sessionId])
+
+  // Live face feedback to proctor during final exam
+  useEffect(() => {
+    if (phase !== "taking" || !isFinal || !sessionId) return
+
+    let activeStream: MediaStream | null = streamRef.current
+    
+    const ensureCamera = async () => {
+      if (!activeStream) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } })
+          streamRef.current = stream
+          activeStream = stream
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream
+            videoRef.current.play().catch(() => {})
+          }
+        } catch (err) {
+          console.error("Failed to restore camera during taking:", err)
+        }
+      } else {
+        if (videoRef.current && videoRef.current.srcObject !== activeStream) {
+          videoRef.current.srcObject = activeStream
+          videoRef.current.play().catch(() => {})
+        }
+      }
+    }
+
+    ensureCamera()
+
+    const interval = setInterval(async () => {
+      if (videoRef.current) {
+        try {
+          const canvas = document.createElement("canvas")
+          canvas.width = 160
+          canvas.height = 120
+          const ctx = canvas.getContext("2d")
+          if (ctx) {
+            ctx.drawImage(videoRef.current, 0, 0, 160, 120)
+            const snapshot = canvas.toDataURL("image/jpeg", 0.6)
+            await fetch(`/api/assessments/${id}/session/feed`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sessionId, snapshot })
+            })
+          }
+        } catch (err) {
+          console.error("Failed to push live webcam snap:", err)
+        }
+      }
+    }, 10000)
+
+    return () => {
+      clearInterval(interval)
+    }
+  }, [phase, isFinal, sessionId, id])
+
+  // Sync stream to video ref whenever rendering phases or camera states change
+  useEffect(() => {
+    if (videoRef.current && streamRef.current) {
+      if (videoRef.current.srcObject !== streamRef.current) {
+        videoRef.current.srcObject = streamRef.current
+        videoRef.current.play().catch(() => {})
+      }
+    }
+  }, [cameraActive, phase])
 
   // Countdown timer
   useEffect(() => {
@@ -168,11 +267,12 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
 
   // Browser Lock: Fullscreen and Focus/Visibility violations detection
   useEffect(() => {
-    if (phase !== "taking" || !sessionId || assessment?.type !== "FINAL_EXAM") return
+    if (phase !== "taking") return
 
     let warningCount = 0
 
     const flagSession = async (reason: string) => {
+      if (!sessionId) return
       try {
         await fetch(`/api/assessments/${id}/session`, {
           method: "PATCH",
@@ -192,17 +292,22 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
       }
     }
 
-
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
         warningCount++
         flagSession(`Tab/window switched — lost focus (Violation #${warningCount})`)
+        if (isFinal) {
+          setIsFsLocked(true)
+        }
       }
     }
 
     const handleBlur = () => {
       warningCount++
       flagSession(`Window lost focus (Violation #${warningCount})`)
+      if (isFinal) {
+        setIsFsLocked(true)
+      }
     }
 
     document.addEventListener("fullscreenchange", handleFullscreenChange)
@@ -214,11 +319,25 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       window.removeEventListener("blur", handleBlur)
     }
-  }, [phase, sessionId, assessment?.type, id])
+  }, [phase, sessionId, id, isFinal])
+
+  // Prevent closing, reloading or navigating away from tab during active exam
+  useEffect(() => {
+    if (phase !== "taking") return
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = "Exam in progress! Leaving this page will abandon or submit your active attempt."
+      return e.returnValue
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [phase])
 
   // Prevent copying, cutting, pasting, and context menu (right-click)
   useEffect(() => {
-    if (phase !== "taking" || assessment?.type !== "FINAL_EXAM") return
+    if (phase !== "taking") return
 
     const blockEvent = (e: Event) => e.preventDefault()
 
@@ -233,11 +352,11 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
       document.removeEventListener("paste", blockEvent)
       document.removeEventListener("contextmenu", blockEvent)
     }
-  }, [phase, assessment?.type])
+  }, [phase])
 
   // Block Developer Tools and standard cheats shortcuts
   useEffect(() => {
-    if (phase !== "taking" || assessment?.type !== "FINAL_EXAM") return
+    if (phase !== "taking") return
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "F12") {
@@ -277,7 +396,10 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
       const res = await fetch(`/api/assessments/${id}/session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identityPhoto: capturedPhoto || undefined })
+        body: JSON.stringify({
+          identityPhoto: capturedPhoto || undefined,
+          idPhoto: capturedIdPhoto || undefined
+        })
       })
       if (res.ok) {
         const data = await res.json()
@@ -308,7 +430,6 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
   const progress = total > 0 ? (answered / total) * 100 : 0
 
   const isPractice = assessment?.type === "PRACTICE_EXAM"
-  const isFinal = assessment?.type === "FINAL_EXAM"
   const attemptsLeft = assessment?.attempts != null ? assessment.attempts - attemptCount : null
   const canRetake = isPractice || (isFinal && (attemptsLeft === null || attemptsLeft > 0))
 
@@ -345,7 +466,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
           <div className="space-y-2">
             <h2 className="text-xl font-bold text-gray-900 font-mono">Exam Lockout Protocol</h2>
             <p className="text-sm text-gray-500 leading-relaxed">
-              Exiting fullscreen mode is a security violation. This attempt has been logged and sent to your proctor. You must re-enter fullscreen mode to continue.
+              Tab switching, leaving the exam window, or exiting full-screen mode is a security violation. Going to other tabs (including reviewer materials) is prohibited. This violation has been logged and sent to your proctor. You must re-enter full-screen mode to resume.
             </p>
           </div>
           <Button
@@ -385,9 +506,9 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
             <div className="grid grid-cols-2 gap-4">
               {[
                 { label: "Questions", value: assessment.questions.length },
-                { label: "Passing Score", value: `${assessment.passingScore}%` },
-                { label: "Time Limit", value: assessment.timeLimit ? `${assessment.timeLimit} min` : "No limit" },
-                { label: "Attempts", value: isPractice ? "Unlimited" : (assessment.attempts ?? 1) },
+                ...(assessment.type !== "REVIEWER" && assessment.type !== "RULES_GUIDELINES" ? [{ label: "Passing Score", value: `${assessment.passingScore}%` }] : []),
+                ...(assessment.type !== "REVIEWER" && assessment.type !== "RULES_GUIDELINES" ? [{ label: "Time Limit", value: assessment.timeLimit ? `${assessment.timeLimit} min` : "No limit" }] : []),
+                ...(assessment.type !== "REVIEWER" && assessment.type !== "RULES_GUIDELINES" ? [{ label: "Attempts", value: isPractice ? "Unlimited" : (assessment.attempts ?? 1) }] : []),
               ].map((s, i) => (
                 <div key={i} className="p-3 rounded-xl bg-gray-50">
                   <p className="text-xs text-gray-400 font-medium">{s.label}</p>
@@ -400,66 +521,181 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
               <p className="text-sm text-gray-600 bg-gray-50 rounded-xl p-3">{assessment.description}</p>
             )}
 
+            {assessment.materialUrl && (
+              <>
+                <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-100 rounded-xl shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-emerald-100 text-emerald-700 flex items-center justify-center rounded-lg font-bold text-xs uppercase shrink-0">
+                      {assessment.materialName?.split(".").pop() ?? "FILE"}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-800">Study Material Attached</p>
+                      <p className="text-xs text-gray-500 truncate">{assessment.materialName}</p>
+                    </div>
+                  </div>
+                  <Button size="sm" onClick={() => setMaterialViewerOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs gap-1.5">
+                    <Eye className="h-3.5 w-3.5" /> View Material
+                  </Button>
+                </div>
+
+                {/* Inline Material Viewer Dialog */}
+                <Dialog open={materialViewerOpen} onOpenChange={setMaterialViewerOpen}>
+                  <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
+                    <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-gray-100">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="h-8 w-8 bg-emerald-100 text-emerald-700 flex items-center justify-center rounded-lg font-bold text-[10px] uppercase shrink-0">
+                          {assessment.materialName?.split(".").pop() ?? "FILE"}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-800 truncate">{assessment.materialName}</p>
+                          <p className="text-[10px] text-gray-400">Study Material</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button asChild variant="outline" size="sm" className="rounded-xl text-xs gap-1.5 h-8">
+                          <a href={assessment.materialUrl} download>
+                            <Download className="h-3 w-3" /> Download
+                          </a>
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setMaterialViewerOpen(false)} className="rounded-xl h-8 w-8 p-0">
+                          <XIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex-1 bg-gray-900 relative" style={{ height: 'calc(90vh - 56px)' }}>
+                      {assessment.materialName?.toLowerCase().endsWith('.pdf') ? (
+                        <iframe
+                          src={assessment.materialUrl}
+                          className="w-full h-full border-0"
+                          title="Material Viewer"
+                        />
+                      ) : (
+                        <iframe
+                          src={`https://docs.google.com/gview?url=${encodeURIComponent(window.location.origin + assessment.materialUrl)}&embedded=true`}
+                          className="w-full h-full border-0"
+                          title="Material Viewer"
+                          onError={() => {}}
+                        />
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </>
+            )}
+
             {isFinal && (
               <>
                 <div className="flex gap-2 p-3 rounded-xl bg-rose-50 border border-rose-100">
                   <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
-                  <div className="text-sm text-rose-700">
-                    <strong>Final Exam:</strong> Passing this exam will automatically issue your certificate.
-                    {attemptsLeft !== null && <span> You have <strong>{attemptsLeft}</strong> attempt{attemptsLeft !== 1 ? "s" : ""} remaining.</span>}
+                  <div className="text-sm text-rose-700 space-y-1">
+                    <div>
+                      <strong>Final Exam Protocol:</strong> Passing this exam will automatically issue your certificate.
+                      {attemptsLeft !== null && <span> You have <strong>{attemptsLeft}</strong> attempt{attemptsLeft !== 1 ? "s" : ""} remaining.</span>}
+                    </div>
+                    <div className="text-xs text-rose-600 font-medium">
+                      🔒 <strong>Strict Page &amp; Tab Lockout:</strong> Tab switching, leaving the exam window, or attempting to open reviewer materials is strictly monitored. Switching tabs will lock the exam page and trigger a real-time proctor alert.
+                    </div>
                   </div>
                 </div>
 
                 <Card className="border border-gray-100 bg-gray-50/50 rounded-2xl overflow-hidden shadow-inner">
                   <CardHeader className="pb-2 bg-gray-50 border-b border-gray-100">
-                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-gray-800">
-                      <Camera className="h-4 w-4 text-emerald-600" /> Identity Screening Verification
+                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-gray-800 justify-between">
+                      <div className="flex items-center gap-2">
+                        <Camera className="h-4 w-4 text-emerald-600" /> Identity Screening Verification
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                        {!capturedPhoto ? "Step 1 of 2: Face Snap" : !capturedIdPhoto ? "Step 2 of 2: ID Upload" : "Complete"}
+                      </div>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-4 space-y-4">
-                    {!capturedPhoto ? (
-                      <div className="flex flex-col items-center gap-4">
-                        {cameraActive ? (
-                          <div className="relative w-[320px] h-[240px] bg-black rounded-xl overflow-hidden border-2 border-emerald-500 shadow-md">
-                            <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
-                            <div className="absolute bottom-3 left-0 right-0 flex justify-center">
-                              <Button size="sm" onClick={capturePhoto} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-xl shadow-lg">
-                                Capture snapshot photo 📸
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="w-full text-center py-6 border border-dashed border-gray-300 rounded-2xl bg-white space-y-3">
-                            <Camera className="h-8 w-8 text-gray-300 mx-auto" />
-                            <div className="space-y-1">
-                              <p className="text-xs font-bold text-gray-700">Webcam snap is required to start</p>
-                              <p className="text-[11px] text-gray-400 max-w-xs mx-auto">Please allow camera access in your browser, or simulate photo capture to proceed.</p>
-                            </div>
-                            <div className="flex gap-2 justify-center">
-                              <Button size="sm" onClick={startCamera} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs">
-                                Enable Camera
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={simulateMockPhoto} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl text-xs">
-                                Simulate Snap
-                              </Button>
-                            </div>
-                          </div>
-                        )}
+                    {/* Step indicator */}
+                    <div className="grid grid-cols-2 gap-2 text-center pb-2 border-b border-gray-200/50">
+                      <div className={`py-1.5 rounded-lg text-xs font-bold ${!capturedPhoto ? "bg-emerald-600 text-white shadow-sm" : "bg-emerald-100 text-emerald-800"}`}>
+                        1. Face Snapshot {!capturedPhoto ? "📷" : "✅"}
                       </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="relative w-[320px] h-[240px] rounded-xl overflow-hidden border-2 border-emerald-500 shadow-md">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={capturedPhoto} alt="Snapshot preview" className="w-full h-full object-cover" />
-                          <span className="absolute top-3 left-3 bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md">
-                            VERIFIED
-                          </span>
-                        </div>
-                        <Button size="sm" variant="outline" onClick={() => setCapturedPhoto(null)} className="border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl text-xs">
-                          <RefreshCw className="h-3 w-3 mr-1" /> Retake Photo
-                        </Button>
+                      <div className={`py-1.5 rounded-lg text-xs font-bold ${capturedPhoto && !capturedIdPhoto ? "bg-emerald-600 text-white shadow-sm" : capturedIdPhoto ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-400"}`}>
+                        2. Government ID {capturedIdPhoto ? "✅" : "💳"}
                       </div>
-                    )}
+                    </div>
+
+                     {/* Camera view / Snapped photos display */}
+                     <div className="flex flex-col items-center gap-4 w-full">
+                        <div className={`relative w-[320px] h-[240px] bg-black rounded-xl overflow-hidden border-2 border-emerald-500 shadow-md ${cameraActive && (!capturedPhoto || !capturedIdPhoto) ? 'block' : 'hidden'}`}>
+                          <video 
+                            ref={videoRefCallback} 
+                            className="w-full h-full object-cover scale-x-[-1]" 
+                            autoPlay 
+                            playsInline 
+                            muted 
+                          />
+                         <div className="absolute bottom-3 left-0 right-0 flex justify-center">
+                           <Button size="sm" onClick={capturePhoto} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-xl shadow-lg font-bold">
+                             Capture {!capturedPhoto ? "Face Snapshot" : "ID Card Snap"} 📸
+                           </Button>
+                         </div>
+                       </div>
+
+                       <div className="w-full space-y-4">
+                         {/* Snapshots previews if captured */}
+                         <div className="flex flex-wrap gap-4 justify-center">
+                           {capturedPhoto && (
+                             <div className="flex flex-col items-center gap-1.5">
+                               <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Candidate Face</span>
+                               <div className="relative w-[150px] h-[112px] rounded-xl overflow-hidden border border-emerald-200 shadow">
+                                 {/* eslint-disable-next-line @next/next/no-img-element */}
+                                 <img src={capturedPhoto} alt="Face snap" className="w-full h-full object-cover" />
+                                 <button onClick={() => { setCapturedPhoto(null); setCapturedIdPhoto(null); setActiveVerifyStep("face"); }} className="absolute top-1.5 right-1.5 bg-rose-600 hover:bg-rose-700 text-white p-1 rounded-full shadow">
+                                   <XIcon className="h-3 w-3" />
+                                 </button>
+                               </div>
+                             </div>
+                           )}
+
+                           {capturedIdPhoto && (
+                             <div className="flex flex-col items-center gap-1.5">
+                               <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Government ID</span>
+                               <div className="relative w-[150px] h-[112px] rounded-xl overflow-hidden border border-emerald-200 shadow">
+                                 {/* eslint-disable-next-line @next/next/no-img-element */}
+                                 <img src={capturedIdPhoto} alt="ID snap" className="w-full h-full object-cover" />
+                                 <button onClick={() => setCapturedIdPhoto(null)} className="absolute top-1.5 right-1.5 bg-rose-600 hover:bg-rose-700 text-white p-1 rounded-full shadow">
+                                   <XIcon className="h-3 w-3" />
+                                 </button>
+                               </div>
+                             </div>
+                           )}
+                         </div>
+
+                         {/* Controls if camera not active */}
+                         {(!cameraActive || (capturedPhoto && capturedIdPhoto)) && (!capturedPhoto || !capturedIdPhoto) && (
+                           <div className="w-full text-center py-6 border border-dashed border-gray-300 rounded-2xl bg-white space-y-3">
+                             <Camera className="h-8 w-8 text-gray-300 mx-auto" />
+                             <div className="space-y-1">
+                               <p className="text-xs font-bold text-gray-700">
+                                 {!capturedPhoto ? "Webcam face snap is required" : "Government ID scan is required"}
+                               </p>
+                               <p className="text-[11px] text-gray-400 max-w-xs mx-auto">
+                                 Please grant webcam permissions or simulate capture to continue.
+                               </p>
+                             </div>
+                             <div className="flex gap-2 justify-center">
+                               <Button size="sm" onClick={startCamera} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold">
+                                 Enable Webcam
+                               </Button>
+                               <Button size="sm" variant="outline" onClick={simulateMockPhoto} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl text-xs font-medium">
+                                 Simulate Snap
+                               </Button>
+                             </div>
+                             {cameraError && (
+                               <p className="text-[10px] text-rose-500 font-medium px-4">
+                                 ⚠️ Could not access webcam. Please verify browser permissions, or click "Simulate Snap" to bypass for testing.
+                               </p>
+                             )}
+                           </div>
+                         )}
+                       </div>
+                    </div>
                   </CardContent>
                 </Card>
               </>
@@ -480,13 +716,13 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
             ) : (
               <Button
                 onClick={startExam}
-                disabled={!canRetake || (isFinal && !capturedPhoto)}
+                disabled={!canRetake || (isFinal && (!capturedPhoto || !capturedIdPhoto))}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-11 font-semibold"
               >
                 {!canRetake 
                   ? "No attempts remaining" 
-                  : (isFinal && !capturedPhoto) 
-                    ? "Verify Identity to Unlock" 
+                  : (isFinal && (!capturedPhoto || !capturedIdPhoto)) 
+                    ? "Verify Identity & ID to Unlock" 
                     : "Start Exam"}
               </Button>
             )}
@@ -694,13 +930,31 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
           </AlertDialogContent>
         </AlertDialog>
 
-        <FloatingCalculator show={isPractice || isFinal} />
+        <FloatingCalculator show={true} />
         <ExamChat
           sessionId={sessionId}
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}
-          show={isFinal}
+          show={true}
         />
+
+        {isFinal && (
+          <div className="fixed bottom-4 right-4 z-50 w-44 bg-slate-900 border-2 border-emerald-500 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="relative aspect-video w-full bg-black">
+              <video 
+                ref={videoRefCallback} 
+                className="w-full h-full object-cover scale-x-[-1]" 
+                autoPlay 
+                playsInline 
+                muted 
+              />
+              <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full">
+                <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                <span className="text-[8px] font-black text-white uppercase tracking-wider">Proctor Live</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -717,20 +971,49 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
 
   // ── RESULT ─────────────────────────────────────────────
   if (phase === "result" && result) {
-    const passed = result.passed
+    const isReviewer = assessment?.type === "REVIEWER"
+    const passed = isReviewer ? true : result.passed
     const pendingReview = result.hasOpenEnded
+    const scoresPendingRelease = result.scoresReleased === false
+
+    if (scoresPendingRelease) {
+      return (
+        <div className="max-w-2xl mx-auto space-y-5">
+          <Card className="border-0 shadow-xl overflow-hidden">
+            <div className="h-2 w-full bg-gradient-to-r from-blue-400 to-indigo-500" />
+            <CardContent className="p-8 text-center space-y-5">
+              <div className="w-20 h-20 rounded-full mx-auto flex items-center justify-center shadow-lg bg-gradient-to-br from-blue-500 to-indigo-600">
+                <Clock className="h-10 w-10 text-white animate-spin" style={{ animationDuration: "6s" }} />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black text-gray-900">Assessment Submitted Successfully</h2>
+                <p className="text-sm text-gray-500 max-w-md mx-auto leading-relaxed">
+                  Your answers have been securely logged. The instructor has configured this assessment to release scores at a later time. You will be notified once they are available.
+                </p>
+              </div>
+              <div className="pt-4 flex justify-center">
+                <Button onClick={() => router.push("/dashboard/assessments")} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
+                  Back to Assessments
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
+
     return (
       <div className="max-w-2xl mx-auto space-y-5">
         <Card className={`border-0 shadow-xl overflow-hidden`}>
-          <div className={`h-2 w-full ${pendingReview ? "bg-gradient-to-r from-amber-400 to-orange-500" : passed ? "bg-gradient-to-r from-emerald-400 to-teal-500" : "bg-gradient-to-r from-red-400 to-rose-500"}`} />
+          <div className={`h-2 w-full ${pendingReview ? "bg-gradient-to-r from-amber-400 to-orange-500" : isReviewer ? "bg-gradient-to-r from-blue-400 to-indigo-500" : passed ? "bg-gradient-to-r from-emerald-400 to-teal-500" : "bg-gradient-to-r from-red-400 to-rose-500"}`} />
           <CardContent className="p-8 text-center space-y-4">
-            <div className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center shadow-lg ${pendingReview ? "bg-gradient-to-br from-amber-400 to-orange-500" : passed ? "bg-gradient-to-br from-emerald-500 to-teal-600" : "bg-gradient-to-br from-red-500 to-rose-600"}`}>
-              {pendingReview ? <ClipboardList className="h-10 w-10 text-white" /> : passed ? <CheckCircle className="h-10 w-10 text-white" /> : <XCircle className="h-10 w-10 text-white" />}
+            <div className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center shadow-lg ${pendingReview ? "bg-gradient-to-br from-amber-400 to-orange-500" : isReviewer ? "bg-gradient-to-br from-blue-500 to-indigo-600" : passed ? "bg-gradient-to-br from-emerald-500 to-teal-600" : "bg-gradient-to-br from-red-500 to-rose-600"}`}>
+              {pendingReview ? <ClipboardList className="h-10 w-10 text-white" /> : isReviewer ? <CheckCircle className="h-10 w-10 text-white" /> : passed ? <CheckCircle className="h-10 w-10 text-white" /> : <XCircle className="h-10 w-10 text-white" />}
             </div>
             <div>
               <h2 className="text-3xl font-black text-gray-900">{result.score.toFixed(1)}%</h2>
-              <p className={`text-lg font-bold mt-1 ${pendingReview ? "text-amber-600" : passed ? "text-emerald-600" : "text-red-500"}`}>
-                {pendingReview ? "Pending Review" : passed ? "Passed!" : "Not Passed"}
+              <p className={`text-lg font-bold mt-1 ${pendingReview ? "text-amber-600" : isReviewer ? "text-blue-600" : passed ? "text-emerald-600" : "text-red-500"}`}>
+                {pendingReview ? "Pending Review" : isReviewer ? "Review Completed!" : passed ? "Passed!" : "Not Passed"}
               </p>
               <p className="text-sm text-gray-400 mt-1">
                 {result.earnedPoints} / {result.totalPoints} points · Attempt #{result.attempt}
@@ -747,13 +1030,15 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
             )}
 
             <div className="grid grid-cols-2 gap-3 text-left">
-              <div className="p-3 rounded-xl bg-gray-50">
-                <p className="text-xs text-gray-400">Passing Score</p>
-                <p className="font-bold text-gray-900">{assessment.passingScore}%</p>
-              </div>
-              <div className="p-3 rounded-xl bg-gray-50">
-                <p className="text-xs text-gray-400">Your Score</p>
-                <p className={`font-bold ${passed ? "text-emerald-600" : "text-red-500"}`}>{result.score.toFixed(1)}%</p>
+              {!isReviewer && (
+                <div className="p-3 rounded-xl bg-gray-50">
+                  <p className="text-xs text-gray-400">Passing Score</p>
+                  <p className="font-bold text-gray-900">{assessment.passingScore}%</p>
+                </div>
+              )}
+              <div className={`p-3 rounded-xl bg-gray-50 ${isReviewer ? "col-span-2 text-center" : ""}`}>
+                <p className="text-xs text-gray-400">{isReviewer ? "Review Score" : "Your Score"}</p>
+                <p className={`font-bold ${isReviewer ? "text-blue-600" : passed ? "text-emerald-600" : "text-red-500"}`}>{result.score.toFixed(1)}%</p>
               </div>
             </div>
 

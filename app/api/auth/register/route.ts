@@ -14,11 +14,11 @@ const registerSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, password, firstName, lastName, role } = registerSchema.parse(body)
+    const { email, password, firstName, lastName } = registerSchema.parse(body)
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email: email.toLowerCase().trim() }
     })
 
     if (existingUser) {
@@ -28,17 +28,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if email is whitelisted/pre-approved
+    const preApproved = await prisma.preApprovedEmail.findUnique({
+      where: { email: email.toLowerCase().trim() }
+    })
+
+    if (!preApproved) {
+      return NextResponse.json(
+        { error: "This email is not pre-approved for registration. Please contact your administrator." },
+        { status: 403 }
+      )
+    }
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Create user
+    // Create user with pre-approved role
     const user = await prisma.user.create({
       data: {
-        email,
+        email: email.toLowerCase().trim(),
         password: hashedPassword,
         firstName,
         lastName,
-        role,
+        role: preApproved.role,
       },
       select: {
         id: true,
@@ -49,6 +61,11 @@ export async function POST(request: NextRequest) {
         createdAt: true,
       }
     })
+
+    // Consume the pre-approved slot
+    await prisma.preApprovedEmail.delete({
+      where: { id: preApproved.id },
+    }).catch(() => null)
 
     return NextResponse.json({
       message: "User created successfully",

@@ -126,7 +126,7 @@ export function NextScrollSection() {
                 </Button>
               </Link>
               <Link href="#programs">
-                <Button variant="outline" className="border-white text-white hover:bg-white hover:text-emerald-600 font-semibold px-8 py-3 transition-all duration-300">
+                <Button variant="ghost" className="border-2 border-white text-white hover:bg-white hover:text-emerald-600 font-semibold px-8 py-3 transition-all duration-300">
                   View All Programs
                 </Button>
               </Link>

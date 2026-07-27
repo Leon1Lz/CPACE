@@ -74,9 +74,11 @@ export const authOptions: NextAuthOptions = {
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.userId as string },
-            select: { activeSessionToken: true }
+            select: { activeSessionToken: true, isActive: true }
           })
-          if (!dbUser || dbUser.activeSessionToken !== token.sessionToken) {
+          if (!dbUser || !dbUser.isActive) {
+            token.error = "UserSuspended"
+          } else if (dbUser.activeSessionToken !== token.sessionToken) {
             token.error = "SessionExpired"
           }
         } catch (error) {

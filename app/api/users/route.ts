@@ -15,9 +15,24 @@ export async function GET(request: Request) {
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"))
     const limit = Math.min(100, parseInt(searchParams.get("limit") ?? "20"))
     const skip = (page - 1) * limit
+    const search = searchParams.get("search") || ""
+    const role = searchParams.get("role") || "ALL"
 
-    const [users, total] = await Promise.all([
+    const where: any = {}
+    if (role !== "ALL") {
+      where.role = role
+    }
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: "insensitive" } },
+        { lastName: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+      ]
+    }
+
+    const [users, total, adminCount, instructorCount, proctorCount, learnerCount, dbTotal] = await Promise.all([
       prisma.user.findMany({
+        where,
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
@@ -27,9 +42,27 @@ export async function GET(request: Request) {
           _count: { select: { enrollments: true, certificates: true } },
         },
       }),
+      prisma.user.count({ where }),
+      prisma.user.count({ where: { role: "ADMIN" } }),
+      prisma.user.count({ where: { role: "INSTRUCTOR" } }),
+      prisma.user.count({ where: { role: "PROCTOR" } }),
+      prisma.user.count({ where: { role: "LEARNER" } }),
       prisma.user.count(),
     ])
-    return NextResponse.json({ data: users, total, page, limit, totalPages: Math.ceil(total / limit) })
+    return NextResponse.json({
+      data: users,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      counts: {
+        total: dbTotal,
+        admin: adminCount,
+        instructor: instructorCount,
+        proctor: proctorCount,
+        learner: learnerCount,
+      }
+    })
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 })
   }

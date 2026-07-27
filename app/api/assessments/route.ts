@@ -16,6 +16,8 @@ export async function GET(request: Request) {
     const limit = Math.min(100, parseInt(searchParams.get("limit") ?? "50"))
     const skip = (page - 1) * limit
 
+    const courseId = searchParams.get("courseId") ?? undefined
+
     let where: any = {}
     let extraInclude: any = {}
 
@@ -24,6 +26,10 @@ export async function GET(request: Request) {
       extraInclude = { results: { where: { userId: user.id }, select: { id: true, score: true, passed: true, completedAt: true } } }
     } else if (user.role === "INSTRUCTOR") {
       where = { course: { instructorId: user.id } }
+    }
+
+    if (courseId) {
+      where.courseId = courseId
     }
 
     const commonInclude = {
@@ -36,6 +42,25 @@ export async function GET(request: Request) {
       prisma.assessment.findMany({ where, include: commonInclude, orderBy: { createdAt: "desc" }, skip, take: limit }),
       prisma.assessment.count({ where }),
     ])
+
+    if (user.role === "LEARNER") {
+      const processed = assessments.map((a: any) => {
+        const released = a.releaseScores !== false || (a.scoresReleasedAt && new Date() >= new Date(a.scoresReleasedAt))
+        if (!released && a.results) {
+          return {
+            ...a,
+            results: a.results.map((r: any) => ({
+              ...r,
+              score: null,
+              passed: null,
+              scoresPending: true,
+            })),
+          }
+        }
+        return a
+      })
+      return NextResponse.json({ data: processed, total, page, limit, totalPages: Math.ceil(total / limit) })
+    }
 
     return NextResponse.json({ data: assessments, total, page, limit, totalPages: Math.ceil(total / limit) })
   } catch (error) {
@@ -51,11 +76,21 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
     if (!user || user.role === "LEARNER") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-    const { title, description, type, courseId, timeLimit, passingScore, attempts } = await request.json()
+    const { title, description, type, courseId, timeLimit, passingScore, attempts, releaseScores, scoresReleasedAt } = await request.json()
     if (!title || !courseId) return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
 
     const assessment = await prisma.assessment.create({
-      data: { title, description, type: type || "REVIEWER", courseId, timeLimit, passingScore: passingScore || 70, attempts: attempts ?? null },
+      data: {
+        title,
+        description,
+        type: type || "REVIEWER",
+        courseId,
+        timeLimit,
+        passingScore: passingScore || 70,
+        attempts: attempts ?? null,
+        releaseScores: releaseScores !== false,
+        scoresReleasedAt: releaseScores ? null : (scoresReleasedAt ? new Date(scoresReleasedAt) : null),
+      },
       include: { course: { select: { id: true, title: true, category: true } } },
     })
     return NextResponse.json(assessment, { status: 201 })
