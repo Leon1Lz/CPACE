@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
+import { canManageCourse } from "@/lib/authorization"
 import { prisma } from "@/lib/prisma"
 
 export async function GET(request: Request) {
@@ -8,7 +9,7 @@ export async function GET(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
     const { searchParams } = new URL(request.url)
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
 
     if (user.role === "LEARNER") {
       where = { isPublished: true, course: { enrollments: { some: { userId: user.id } } } }
-      extraInclude = { results: { where: { userId: user.id }, select: { id: true, score: true, passed: true, completedAt: true } } }
+      extraInclude = { results: { where: { userId: user.id }, select: { id: true, score: true, passed: true, completedAt: true, gradedAt: true } } }
     } else if (user.role === "INSTRUCTOR") {
       where = { course: { instructorId: user.id } }
     }
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
 
     const commonInclude = {
       course: { select: { id: true, title: true, category: true } },
-      _count: { select: { questions: true, results: true } },
+      _count: { select: { questions: true, results: user.role === "LEARNER" ? { where: { userId: user.id } } : true } },
       ...extraInclude,
     }
 
@@ -46,15 +47,16 @@ export async function GET(request: Request) {
     if (user.role === "LEARNER") {
       const processed = assessments.map((a: any) => {
         const released = a.releaseScores !== false || (a.scoresReleasedAt && new Date() >= new Date(a.scoresReleasedAt))
-        if (!released && a.results) {
+        if (a.results) {
           return {
             ...a,
-            results: a.results.map((r: any) => ({
+            results: a.results.map((r: any) => (!released || !r.gradedAt) ? ({
               ...r,
               score: null,
               passed: null,
               scoresPending: true,
-            })),
+              gradingPending: !r.gradedAt,
+            }) : r),
           }
         }
         return a
@@ -73,11 +75,12 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
-    if (!user || user.role === "LEARNER") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
+    if (!user || (user.role !== "ADMIN" && user.role !== "INSTRUCTOR")) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const { title, description, type, courseId, timeLimit, passingScore, attempts, releaseScores, scoresReleasedAt } = await request.json()
     if (!title || !courseId) return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    if (!(await canManageCourse(user, courseId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const assessment = await prisma.assessment.create({
       data: {

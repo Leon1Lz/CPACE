@@ -23,7 +23,7 @@ export async function GET() {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email! },
+      where: { id: session.user.id },
       select: { id: true, firstName: true, lastName: true, email: true, phone: true, role: true, isActive: true, createdAt: true },
     })
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
@@ -38,7 +38,7 @@ export async function PATCH(request: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
     const body = await request.json()
@@ -86,7 +86,7 @@ export async function DELETE() {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
     // Check if user is course creator or instructor
@@ -118,4 +118,3 @@ export async function DELETE() {
     return NextResponse.json({ error: "Failed to delete account" }, { status: 500 })
   }
 }
-

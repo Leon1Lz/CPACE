@@ -54,6 +54,17 @@ export function stripTags(dirty: string): string {
   return DOMPurify.sanitize(dirty, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] })
 }
 
+/** Escape plain user text before interpolating it into an HTML email. */
+export function escapeHtmlText(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character]!)
+}
+
 /**
  * Sanitize and also enforce that external links open in a new tab safely.
  */

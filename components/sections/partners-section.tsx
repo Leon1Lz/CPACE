@@ -3,72 +3,11 @@
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Handshake, Award, Users, Building, Star, ArrowRight } from "lucide-react"
+import { cpaceStats } from "@/data/stats"
 
 export function PartnersSection() {
-  const partners = [
-    {
-      name: "San Beda University Manila",
-      logo: "🏛️",
-      description: "Educational partnership for microcredential opportunities",
-      type: "Academic Partner"
-    },
-    {
-      name: "Professional Regulatory Commission",
-      logo: "⚖️",
-      description: "Government regulatory compliance and certification",
-      type: "Government Partner"
-    },
-    {
-      name: "Philippine Chamber of Commerce",
-      logo: "🏢",
-      description: "Business development and industry collaboration",
-      type: "Industry Partner"
-    },
-    {
-      name: "Tech Innovation Hub",
-      logo: "💻",
-      description: "Digital transformation and technology solutions",
-      type: "Technology Partner"
-    },
-    {
-      name: "Global Education Network",
-      logo: "🌍",
-      description: "International education and certification standards",
-      type: "International Partner"
-    },
-    {
-      name: "Skills Development Authority",
-      logo: "📚",
-      description: "Workforce development and training programs",
-      type: "Training Partner"
-    }
-  ]
-
-  const stats = [
-    {
-      icon: <Building className="w-6 h-6" />,
-      value: "500+",
-      label: "Partner Organizations"
-    },
-    {
-      icon: <Users className="w-6 h-6" />,
-      value: "50K+",
-      label: "Professionals Trained"
-    },
-    {
-      icon: <Award className="w-6 h-6" />,
-      value: "1000+",
-      label: "Certifications Issued"
-    },
-    {
-      icon: <Star className="w-6 h-6" />,
-      value: "4.9/5",
-      label: "Partner Satisfaction"
-    }
-  ]
-
   return (
-    <section className="relative py-16 lg:py-20 bg-gradient-to-br from-slate-50 via-emerald-50/30 to-teal-50/30 overflow-hidden">
+    <section id="partners" className="relative py-16 lg:py-20 bg-gradient-to-br from-slate-50 via-emerald-50/30 to-teal-50/30 overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0">
         {/* Subtle Pattern */}
@@ -90,9 +29,7 @@ export function PartnersSection() {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="space-y-16">
           
-          
-          
-          {/* Partnership Programs - Reference Format with CPACE Style */}
+          {/* Partnership Programs */}
           <div className="space-y-12">
             {/* Institutional Partnerships */}
             <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-3xl p-8 lg:p-12 border border-emerald-100">
@@ -107,11 +44,11 @@ export function PartnersSection() {
                     Partner with Us for Institutional & Strategic Programs
                   </h3>
                   <p className="text-lg text-gray-600 leading-relaxed">
-                    Let's drive professional excellence. We welcome media, institutional, and diverse strategic partnerships that advance continuing education and empower careers. Let's create impactful opportunities together.
+                    Let&apos;s drive professional excellence. We welcome media, institutional, and diverse strategic partnerships that advance continuing education and empower careers. Let&apos;s create impactful opportunities together.
                   </p>
-                  <Link href="#contact">
+                  <Link href="/#contact">
                     <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                      Contact us
+                      Contact Us
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
@@ -125,29 +62,29 @@ export function PartnersSection() {
                         <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center mx-auto mb-3">
                           <Building className="w-6 h-6 text-white" />
                         </div>
-                        <div className="text-2xl font-bold text-gray-900">500+</div>
+                        <div className="text-2xl font-bold text-gray-900">{cpaceStats.institutionalPartners.value}</div>
                         <div className="text-sm text-gray-600">Partners</div>
                       </div>
                       <div className="text-center">
                         <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mx-auto mb-3">
                           <Users className="w-6 h-6 text-white" />
                         </div>
-                        <div className="text-2xl font-bold text-gray-900">50K+</div>
+                        <div className="text-2xl font-bold text-gray-900">{cpaceStats.certifiedProfessionals.value}</div>
                         <div className="text-sm text-gray-600">Professionals</div>
                       </div>
                       <div className="text-center">
                         <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mx-auto mb-3">
                           <Award className="w-6 h-6 text-white" />
                         </div>
-                        <div className="text-2xl font-bold text-gray-900">1000+</div>
+                        <div className="text-2xl font-bold text-gray-900">{cpaceStats.programsOffered.value}</div>
                         <div className="text-sm text-gray-600">Programs</div>
                       </div>
                       <div className="text-center">
                         <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center mx-auto mb-3">
                           <Star className="w-6 h-6 text-white" />
                         </div>
-                        <div className="text-2xl font-bold text-gray-900">4.9/5</div>
-                        <div className="text-sm text-gray-600">Rating</div>
+                        <div className="text-2xl font-bold text-gray-900">{cpaceStats.successRate.value}</div>
+                        <div className="text-sm text-gray-600">Success Rate</div>
                       </div>
                     </div>
                   </div>
@@ -167,7 +104,7 @@ export function PartnersSection() {
                     <img 
                       src="https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80"
                       alt="Branded Training Programs"
-                      className="w-full h-48 object-cover rounded-xl mb-6"
+                      className="w-full h-48 object-cover rounded-xl mb-6 shadow-sm"
                     />
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
@@ -199,11 +136,11 @@ export function PartnersSection() {
                     Develop Branded Training Programs Together
                   </h3>
                   <p className="text-lg text-gray-600 leading-relaxed">
-                    Join CPACE Philippines in crafting tailored, branded programs designed to elevate your organization's impact. Together, we develop customized initiatives that enhance professional skills and reinforce your brand, ensuring a strategic and mutually beneficial partnership.
+                    Join CPACE Philippines in crafting tailored, branded programs designed to elevate your organization&apos;s impact. Together, we develop customized initiatives that enhance professional skills and reinforce your brand, ensuring a strategic and mutually beneficial partnership.
                   </p>
-                  <Link href="#contact">
+                  <Link href="/#contact">
                     <Button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                      contact us
+                      Contact Us
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
@@ -212,7 +149,7 @@ export function PartnersSection() {
             </div>
           </div>
 
-                  </div>
+        </div>
       </div>
     </section>
   )

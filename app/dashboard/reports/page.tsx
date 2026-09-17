@@ -1,309 +1,78 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useSession } from "next-auth/react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import useSWR from "swr"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { BarChart3, Users, BookOpen, Award, TrendingUp, GraduationCap, CheckCircle, XCircle, Loader2, Download } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Loader2, Download, RefreshCw } from "lucide-react"
+import { parseReportRange, type ReportSummary } from "@/lib/reporting"
 
+async function fetchReport(url: string): Promise<ReportSummary> {
+  const response = await fetch(url, { cache: "no-store" })
+  const data = await response.json()
+  if (!response.ok) throw new Error(response.status === 401 ? "Your session expired. Please sign in again." : data.error || "Unable to load reports")
+  if (!data.summary || !Array.isArray(data.activity)) throw new Error("Incomplete report response. Please retry.")
+  return data
+}
+const rate = (value: number | null) => value === null ? "—" : `${value.toFixed(1)}%`
 export default function ReportsPage() {
-  const { data: session } = useSession()
-  const [data, setData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-
-  const role = session?.user?.role?.toLowerCase()
-
-  useEffect(() => {
-    fetch("/api/reports").then(r => r.json()).then(setData).finally(() => setLoading(false))
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-32">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-      </div>
-    )
+  const { data: session, status } = useSession()
+  const role = session?.user?.role?.toUpperCase()
+  const allowed = ["ADMIN", "INSTRUCTOR", "LEARNER"].includes(role ?? "")
+  const [filters, setFilters] = useState(() => {
+    const range = parseReportRange(new URLSearchParams())
+    return { start: range.start, end: range.end }
+  })
+  const [draft, setDraft] = useState(filters)
+  const [exporting, setExporting] = useState<string | null>(null)
+  const [exportError, setExportError] = useState("")
+  const query = new URLSearchParams(filters).toString()
+  const { data, error, isLoading, isValidating, mutate } = useSWR<ReportSummary>(allowed ? `/api/reports?${query}` : null, fetchReport)
+  const download = async (type: string) => {
+    setExporting(type); setExportError("")
+    try {
+      const response = await fetch(`/api/reports?${query}&export=${type}`, { cache: "no-store" })
+      if (!response.ok) { const result = await response.json(); throw new Error(result.error || "Export failed") }
+      if (!response.headers.get("content-type")?.includes("text/csv")) throw new Error("The export was not a CSV file")
+      const url = URL.createObjectURL(await response.blob())
+      const link = document.createElement("a")
+      link.href = url; link.download = `cpace-${type}-${filters.start}-${filters.end}.csv`
+      document.body.appendChild(link); link.click(); link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (failure) { setExportError(failure instanceof Error ? failure.message : "Export failed. Please retry.") }
+    finally { setExporting(null) }
   }
-
-  if (role === "admin") {
-    const usersByRole = data?.usersByRole ?? []
-    const enrollmentsByStatus = data?.enrollmentsByStatus ?? []
-    const topCourses = data?.topCourses ?? []
-    const avgScore = data?.assessmentResults?._avg?.score
-
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reports & Analytics</h1>
-          <p className="text-sm text-gray-500 mt-1">Platform-wide insights and statistics</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Users by Role */}
-          <Card className="border-0 shadow-md">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Users className="h-4 w-4 text-emerald-600" /> Users by Role
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {usersByRole.map((r: any) => {
-                const total = usersByRole.reduce((s: number, x: any) => s + x._count.id, 0)
-                const pct = total ? Math.round((r._count.id / total) * 100) : 0
-                const roleStyle: Record<string, { bar: string; badge: string }> = {
-                  ADMIN:      { bar: "bg-rose-500",    badge: "bg-rose-100 text-rose-700" },
-                  INSTRUCTOR: { bar: "bg-blue-500",    badge: "bg-blue-100 text-blue-700" },
-                  LEARNER:    { bar: "bg-emerald-500", badge: "bg-emerald-100 text-emerald-700" },
-                  PROCTOR:    { bar: "bg-violet-500",  badge: "bg-violet-100 text-violet-700" },
-                }
-                const style = roleStyle[r.role] ?? { bar: "bg-gray-400", badge: "bg-gray-100 text-gray-600" }
-                return (
-                  <div key={r.role} className="space-y-1.5">
-                    <div className="flex justify-between text-sm items-center">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${style.badge}`}>{r.role}</span>
-                      <span className="text-gray-500">{r._count.id} ({pct}%)</span>
-                    </div>
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full ${style.bar}`} style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                )
-              })}
-              {usersByRole.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No data</p>}
-            </CardContent>
-          </Card>
-
-          {/* Enrollments by Status */}
-          <Card className="border-0 shadow-md">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-blue-600" /> Enrollments by Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {enrollmentsByStatus.map((e: any) => {
-                const total = enrollmentsByStatus.reduce((s: number, x: any) => s + x._count.id, 0)
-                const pct = total ? Math.round((e._count.id / total) * 100) : 0
-                const colors: Record<string, string> = { ACTIVE: "text-emerald-600 bg-emerald-100", COMPLETED: "text-blue-600 bg-blue-100", DROPPED: "text-red-600 bg-red-100", SUSPENDED: "text-amber-600 bg-amber-100" }
-                return (
-                  <div key={e.status} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
-                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${colors[e.status] ?? "bg-gray-100 text-gray-600"}`}>{e.status}</span>
-                    <div className="text-right">
-                      <p className="font-bold text-gray-900">{e._count.id}</p>
-                      <p className="text-xs text-gray-400">{pct}%</p>
-                    </div>
-                  </div>
-                )
-              })}
-              {enrollmentsByStatus.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No data</p>}
-            </CardContent>
-          </Card>
-
-          {/* Top Courses */}
-          <Card className="border-0 shadow-md">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-violet-600" /> Top Courses by Enrollment
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {topCourses.length > 0 ? topCourses.map((c: any, i: number) => (
-                <div key={c.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
-                  <span className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-white text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-gray-900 truncate">{c.title}</p>
-                    <p className="text-xs text-gray-400">{c.category ?? "General"}</p>
-                  </div>
-                  <span className="text-sm font-bold text-gray-900 shrink-0">{c._count.enrollments}</span>
-                </div>
-              )) : <p className="text-sm text-gray-400 text-center py-4">No courses yet</p>}
-            </CardContent>
-          </Card>
-
-          {/* Assessment Summary */}
-          <Card className="border-0 shadow-md">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Award className="h-4 w-4 text-amber-600" /> Assessment Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-6">
-                <div className="text-5xl font-black text-gray-900 mb-1">
-                  {avgScore != null ? `${avgScore.toFixed(1)}%` : "—"}
-                </div>
-                <p className="text-sm text-gray-500">Average Assessment Score</p>
-                <p className="text-xs text-gray-400 mt-1">{data?.assessmentResults?._count?.id ?? 0} total attempts</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Detailed Data Export */}
-          <Card className="border-0 shadow-md md:col-span-2">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Download className="h-4 w-4 text-emerald-600" /> Detailed Data Export
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 h-11 justify-center border-gray-200 hover:border-emerald-500 rounded-xl"
-                onClick={() => window.open("/api/reports?export=users", "_blank")}
-              >
-                <Users className="h-4 w-4 text-gray-500" /> Export User Directory
-              </Button>
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 h-11 justify-center border-gray-200 hover:border-emerald-500 rounded-xl"
-                onClick={() => window.open("/api/reports?export=enrollments", "_blank")}
-              >
-                <TrendingUp className="h-4 w-4 text-gray-500" /> Export Enrollments
-              </Button>
-              <Button
-                variant="outline"
-                className="flex items-center gap-2 h-11 justify-center border-gray-200 hover:border-emerald-500 rounded-xl"
-                onClick={() => window.open("/api/reports?export=results", "_blank")}
-              >
-                <Award className="h-4 w-4 text-gray-500" /> Export Exam Results
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    )
-  }
-
-  if (role === "instructor") {
-    const courses = data?.courses ?? []
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Learner Progress</h1>
-          <p className="text-sm text-gray-500 mt-1">Track how your learners are progressing</p>
-        </div>
-        <div className="grid grid-cols-1 gap-4">
-          {courses.length > 0 ? courses.map((c: any) => {
-            const avgProgress = c.enrollments.length
-              ? c.enrollments.reduce((s: number, e: any) => s + e.progress, 0) / c.enrollments.length
-              : 0
-            const completed = c.enrollments.filter((e: any) => e.status === "COMPLETED").length
-            return (
-              <Card key={c.id} className="border-0 shadow-md">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="font-bold text-gray-900">{c.title}</h3>
-                      <p className="text-xs text-gray-400 mt-0.5">{c._count.enrollments} enrolled · {c._count.assessments} assessments</p>
-                    </div>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${c.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"}`}>{c.status}</span>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>Avg Progress</span><span>{avgProgress.toFixed(0)}%</span>
-                    </div>
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${avgProgress.toFixed(0)}%` }} />
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-500 mt-2">
-                      <span>Completed: <strong className="text-blue-600">{completed}</strong></span>
-                      <span>In Progress: <strong className="text-emerald-600">{c.enrollments.length - completed}</strong></span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          }) : (
-            <div className="text-center py-16 text-gray-400">
-              <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-20" />
-              <p className="text-sm">No courses to report yet</p>
-            </div>
-          )}
-        </div>
-
-        {/* Detailed Data Export */}
-        <Card className="border-0 shadow-md">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Download className="h-4 w-4 text-emerald-600" /> Detailed Data Export
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Button
-              variant="outline"
-              className="flex items-center gap-2 h-11 justify-center border-gray-200 hover:border-emerald-500 rounded-xl"
-              onClick={() => window.open("/api/reports?export=enrollments", "_blank")}
-            >
-              <TrendingUp className="h-4 w-4 text-gray-500" /> Export Course Enrollments
-            </Button>
-            <Button
-              variant="outline"
-              className="flex items-center gap-2 h-11 justify-center border-gray-200 hover:border-emerald-500 rounded-xl"
-              onClick={() => window.open("/api/reports?export=results", "_blank")}
-            >
-              <Award className="h-4 w-4 text-gray-500" /> Export Exam Results
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  // LEARNER
-  const enrollments = data?.enrollments ?? []
-  const results = data?.results ?? []
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">My Progress</h1>
-        <p className="text-sm text-gray-500 mt-1">Track your learning journey and assessment results</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="border-0 shadow-md">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <GraduationCap className="h-4 w-4 text-emerald-600" /> Course Progress
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {enrollments.length > 0 ? enrollments.map((e: any) => (
-              <div key={e.id} className="space-y-1.5">
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium text-gray-700 truncate max-w-[200px]">{e.course?.title}</span>
-                  <span className="text-gray-500 shrink-0 ml-2">{Math.round(e.progress)}%</span>
-                </div>
-                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.round(e.progress)}%` }} />
-                </div>
-              </div>
-            )) : <p className="text-sm text-gray-400 text-center py-4">No enrollments yet</p>}
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-md">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Award className="h-4 w-4 text-amber-600" /> Assessment Results
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {results.length > 0 ? results.map((r: any) => (
-              <div key={r.id} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{r.assessment?.title}</p>
-                  <p className="text-xs text-gray-400">{r.assessment?.course?.title}</p>
-                </div>
-                <div className="text-right flex items-center gap-2">
-                  {r.passed ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-red-400" />}
-                  <span className={`font-bold text-sm ${r.passed ? "text-emerald-600" : "text-red-500"}`}>{r.score?.toFixed(0)}%</span>
-                </div>
-              </div>
-            )) : <p className="text-sm text-gray-400 text-center py-4">No assessment results yet</p>}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  )
+  if (status === "loading") return <p role="status" className="py-20 text-center text-sm">Checking your session…</p>
+  if (!allowed) return <div className="space-y-3 py-20 text-center"><h1 className="text-xl font-bold">Reports unavailable</h1><p className="text-sm text-slate-500">{role === "PROCTOR" ? "Your assigned monitoring information is in Exam Monitor." : "Please sign in to view your reports."}</p><Button asChild><Link href={role === "PROCTOR" ? "/dashboard/proctor" : "/login"}>{role === "PROCTOR" ? "Open Exam Monitor" : "Sign in"}</Link></Button></div>
+  const metrics = data ? [
+    { title: "Enrollments", value: data.summary.enrollments, caption: `${data.summary.completed} currently completed` },
+    { title: "Completion rate", value: rate(data.summary.completionRate), caption: "Current status of the enrollment cohort" },
+    { title: "Pass rate", value: rate(data.summary.passRate), caption: `${data.summary.passed} / ${data.summary.gradedAttempts} eligible attempts` },
+    { title: "Average score", value: rate(data.summary.averageScore), caption: `${data.summary.attempts} total submitted attempts` },
+  ] : []
+  const max = Math.max(1, ...(data?.activity.map(point => point.value) ?? []))
+  return <div className="space-y-6">
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-700">CPACE / Analytics</p><h1 className="mt-1 text-2xl font-bold">{role === "LEARNER" ? "My learning report" : "Reports & Analytics"}</h1><p className="mt-2 text-sm text-slate-500">{role === "ADMIN" ? "Platform-wide" : role === "INSTRUCTOR" ? "Your assigned courses only" : "Your own learning only"} · Philippine time (UTC+8).</p></div><Button variant="outline" disabled={isValidating} onClick={() => void mutate()} className="gap-2"><RefreshCw className="h-4 w-4" />Refresh report</Button></div>
+    <form className="flex flex-wrap items-end gap-3 rounded-2xl border bg-white p-4" onSubmit={event => { event.preventDefault(); setFilters(draft); setExportError("") }}>
+      <label className="text-xs font-semibold text-slate-600">Start date<input type="date" required value={draft.start} onChange={event => setDraft(previous => ({ ...previous, start: event.target.value }))} className="mt-1 block rounded-lg border p-2" /></label>
+      <label className="text-xs font-semibold text-slate-600">End date<input type="date" required value={draft.end} onChange={event => setDraft(previous => ({ ...previous, end: event.target.value }))} className="mt-1 block rounded-lg border p-2" /></label>
+      <Button type="submit" className="bg-[#105C2E] text-white">Apply dates</Button><p className="text-xs text-slate-500">Up to 366 days. Default: last 30 days.</p>
+    </form>
+    {error ? <div role="alert" className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-5"><p className="text-sm text-amber-900">{error.message}</p><Button variant="outline" onClick={() => void mutate()}>Retry reports</Button><Link href="/login" className="ml-3 text-sm underline">Sign in again</Link></div>
+      : isLoading || !data ? <p role="status" className="flex items-center justify-center gap-2 py-16 text-sm"><Loader2 className="h-5 w-5 animate-spin" />Loading real report data…</p>
+      : <>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(metric => <Card key={metric.title} className="gap-0 rounded-2xl py-0"><CardContent className="p-5"><p className="text-xs font-semibold uppercase text-slate-500">{metric.title}</p><p className="my-3 text-3xl font-bold">{metric.value}</p><p className="text-xs text-slate-500">{metric.caption}</p></CardContent></Card>)}</div>
+        <p className="text-xs leading-relaxed text-slate-500">{data.range.start} to {data.range.end} · Completion: completed / all enrollments started in the range, including dropped/suspended. Pass rate counts finalized attempts, not unique learners. {data.summary.manualReviewSubmissions} submissions await manual grading and are excluded from score metrics. {role === "LEARNER" && "Unreleased scores and feedback are hidden and excluded from your score metrics."}</p>
+        <Card className="rounded-2xl"><CardHeader><CardTitle className="text-base">Daily enrollment activity</CardTitle></CardHeader><CardContent>
+          <div className="flex h-40 items-end gap-1 overflow-x-auto border-b border-slate-200" aria-label="Daily enrollment bar chart">{data.activity.map(point => <div key={point.date} className="flex h-full min-w-2 flex-1 items-end" title={`${point.date}: ${point.value} enrollments`}><div className="w-full rounded-t bg-emerald-600" style={{ height: `${point.value / max * 100}%` }} /></div>)}</div>
+          <p className="mt-2 text-xs text-slate-500">{data.summary.enrollments ? `${data.summary.enrollments} enrollments in this date range` : "No enrollments in this date range."}</p>
+          <details className="mt-3 text-xs text-slate-600"><summary className="cursor-pointer font-semibold">View exact daily counts</summary><div className="mt-2 max-h-48 overflow-y-auto"><table className="w-full text-left"><caption className="sr-only">Daily enrollment counts in Philippine time</caption><thead><tr><th scope="col">Date</th><th scope="col">Enrollments</th></tr></thead><tbody>{data.activity.map(point => <tr key={point.date}><td className="py-1">{point.date}</td><td>{point.value}</td></tr>)}</tbody></table></div></details>
+        </CardContent></Card>
+        <Card className="rounded-2xl"><CardHeader><CardTitle className="text-base">Course performance</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full min-w-[38rem] text-left text-xs"><caption className="sr-only">Course completion and attempt pass rates</caption><thead className="border-b text-slate-500"><tr>{["Course", "Enrollments", "Completed", "Completion rate", "Attempts", "Pass rate"].map(title => <th scope="col" key={title} className="p-3">{title}</th>)}</tr></thead><tbody>{data.courses.map(course => <tr key={course.id} className="border-b border-slate-100"><th scope="row" className="p-3 font-semibold">{course.title}</th><td className="p-3">{course.enrollments}</td><td className="p-3">{course.completed}</td><td className="p-3">{rate(course.completionRate)}</td><td className="p-3">{course.attempts}</td><td className="p-3">{rate(course.passRate)}</td></tr>)}</tbody></table></div>{!data.courses.length && <p className="py-6 text-center text-sm text-slate-500">No courses in your report scope.</p>}</CardContent></Card>
+        <Card className="rounded-2xl"><CardHeader><CardTitle className="text-base">Recent submissions</CardTitle></CardHeader><CardContent className="space-y-2">{data.results.length ? data.results.map(result => <div key={result.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 p-3"><div><p className="text-sm font-semibold">{result.title}</p><p className="text-xs text-slate-500">{result.courseTitle} · {new Date(result.completedAt).toLocaleString("en-PH", { timeZone: data.range.timeZone })}</p></div><p className="text-xs font-semibold text-slate-600">{result.manualReview ? "Awaiting manual grading" : role === "LEARNER" && !result.scoresReleased ? "Awaiting score release" : `${rate(result.score)} · ${result.passed ? "Passed" : "Not passed"}`}</p>{Boolean(result.feedback?.length) && <details className="w-full text-sm"><summary className="cursor-pointer font-semibold text-emerald-800">View instructor feedback</summary>{result.feedback?.map((answer, index) => <div key={index} className="mt-2 whitespace-pre-wrap break-words rounded-lg border p-3"><p className="font-medium">{answer.question} · {answer.points}/{answer.maximum} points</p><p className="text-slate-600">{answer.feedback || "No written feedback"}</p></div>)}</details>}</div>) : <p className="py-6 text-center text-sm text-slate-500">No submitted assessments in this date range.</p>}<p className="text-xs text-slate-500">Latest 20 submissions; metrics include all matching submissions.</p></CardContent></Card>
+        {role !== "LEARNER" && <Card className="rounded-2xl"><CardHeader><CardTitle className="text-base">Scoped CSV exports</CardTitle></CardHeader><CardContent><div className="flex flex-wrap gap-3">{(role === "ADMIN" ? ["users", "enrollments", "results"] : ["enrollments", "results"]).map(type => <Button key={type} variant="outline" disabled={Boolean(exporting)} onClick={() => void download(type)} className="gap-2"><Download className="h-4 w-4" />{exporting === type ? "Preparing…" : `Export ${type}`}</Button>)}</div><p className="mt-3 text-xs text-slate-500">Same dates and role scope. Directory: account creation dates; results: submission dates. Maximum 10,000 rows per file.</p>{exportError && <p role="alert" className="mt-3 text-sm text-rose-700">{exportError}</p>}</CardContent></Card>}
+      </>}
+  </div>
 }

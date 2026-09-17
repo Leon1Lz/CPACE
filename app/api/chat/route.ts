@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { canAccessExamSession, publishProctorSessionEvent } from "@/lib/proctor-access"
 import { triggerEvent, examChatChannel } from "@/lib/pusher"
 
 // GET /api/chat?sessionId=xxx — fetch messages for a session
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
     const sessionId = req.nextUrl.searchParams.get("sessionId")
     if (!sessionId) return NextResponse.json({ error: "sessionId required" }, { status: 400 })
 
-    const userRecord = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const userRecord = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!userRecord) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
     // Verify the user has access to this session (is the examinee OR is a proctor/admin)
@@ -23,10 +24,7 @@ export async function GET(req: NextRequest) {
     })
     if (!examSession) return NextResponse.json({ error: "Session not found" }, { status: 404 })
 
-    const hasAccess =
-      examSession.userId === userRecord.id ||
-      userRecord.role === "PROCTOR" ||
-      userRecord.role === "ADMIN"
+    const hasAccess = await canAccessExamSession(userRecord, sessionId)
 
     if (!hasAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
@@ -62,7 +60,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "sessionId and message required" }, { status: 400 })
     }
 
-    const userRecord = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const userRecord = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!userRecord) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
     // Verify access
@@ -77,10 +75,7 @@ export async function POST(req: NextRequest) {
     })
     if (!examSession) return NextResponse.json({ error: "Session not found" }, { status: 404 })
 
-    const hasAccess =
-      examSession.userId === userRecord.id ||
-      userRecord.role === "PROCTOR" ||
-      userRecord.role === "ADMIN"
+    const hasAccess = await canAccessExamSession(userRecord, sessionId)
 
     if (!hasAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
@@ -97,11 +92,11 @@ export async function POST(req: NextRequest) {
 
     // Trigger Pusher event in background
     try {
-      await triggerEvent(examChatChannel(sessionId), "new-message", chat as any)
+      await triggerEvent(examChatChannel(sessionId), "new-message", { ...chat })
 
       // Notify proctors if message is from examinee (LEARNER)
       if (userRecord.role === "LEARNER") {
-        await triggerEvent("private-proctor-notifications", "new-chat-message", {
+        await publishProctorSessionEvent(sessionId, "new-chat-message", {
           sessionId,
           message: chat.message,
           learnerName: `${userRecord.firstName} ${userRecord.lastName}`,

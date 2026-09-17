@@ -8,9 +8,11 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'CPACE Learning Portal - Wireframe',
-  description: 'Low-fidelity wireframe for CPACE Philippines Learning Management System',
-  generator: 'v0.app',
+  title: {
+    default: 'CPACE Philippines | Professional Advancement & Continuing Education',
+    template: '%s | CPACE Philippines',
+  },
+  description: 'CPACE Philippines — Professional development and continuing education learning management system.',
   icons: {
     icon: [
       {
@@ -28,6 +30,11 @@ export const metadata: Metadata = {
     ],
     apple: '/apple-icon.png',
   },
+  openGraph: {
+    type: 'website',
+    locale: 'en_PH',
+    siteName: 'CPACE Philippines',
+  },
 }
 
 export default function RootLayout({
@@ -36,8 +43,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="bg-background">
-      <body className="font-sans antialiased bg-background">
+    <html lang="en" className="bg-background scroll-smooth">
+      <body className="font-sans antialiased bg-background text-foreground min-h-screen">
         <SessionProvider>
           {children}
         </SessionProvider>

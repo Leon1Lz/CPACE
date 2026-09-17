@@ -8,7 +8,7 @@ export async function GET(request: Request) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user || (user.role !== "ADMIN" && user.role !== "INSTRUCTOR")) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const { searchParams } = new URL(request.url)
@@ -73,7 +73,7 @@ export async function PATCH(request: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const admin = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const admin = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!admin || admin.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const body = await request.json()
@@ -107,7 +107,7 @@ export async function DELETE(request: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const admin = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const admin = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!admin || admin.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const { ids } = await request.json()

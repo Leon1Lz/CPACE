@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { z } from "zod"
+
+const auditEntrySchema = z.object({
+  action: z.string().trim().min(1).max(80).regex(/^[A-Z0-9_:-]+$/),
+  category: z.enum(["STAFF", "EXAM_SECURITY"]),
+  details: z.union([z.string().max(2000), z.record(z.unknown())]).optional(),
+})
 
 // GET — fetch paginated audit logs for staff / admins / proctors
 export async function GET(request: NextRequest) {
@@ -9,7 +16,7 @@ export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user || user.role === "LEARNER") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
@@ -61,25 +68,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    let actorId: string | undefined
-    let actorName: string | undefined
-    let actorEmail: string | undefined
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (user.role === "LEARNER") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-    if (session?.user?.email) {
-      const user = await prisma.user.findUnique({ where: { email: session.user.email } })
-      if (user) {
-        actorId = user.id
-        actorName = `${user.firstName} ${user.lastName}`
-        actorEmail = user.email
-      }
-    }
-
-    const body = await request.json()
-    const { action, category, details } = body
-
-    if (!action || !category) {
-      return NextResponse.json({ error: "action and category are required" }, { status: 400 })
-    }
+    const { action, category, details } = auditEntrySchema.parse(await request.json())
 
     const ipAddress =
       request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
@@ -88,9 +82,9 @@ export async function POST(request: NextRequest) {
 
     const auditLog = await prisma.auditLog.create({
       data: {
-        actorId,
-        actorName: actorName ?? body.actorName ?? "System",
-        actorEmail: actorEmail ?? body.actorEmail,
+        actorId: user.id,
+        actorName: `${user.firstName} ${user.lastName}`,
+        actorEmail: user.email,
         action,
         category,
         details: typeof details === "object" ? JSON.stringify(details) : details,
@@ -100,6 +94,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(auditLog)
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: "Invalid audit entry" }, { status: 400 })
+    }
     console.error("Audit log POST error:", err)
     return NextResponse.json({ error: "Failed to record audit log" }, { status: 500 })
   }

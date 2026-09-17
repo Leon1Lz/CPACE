@@ -2,6 +2,9 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { getEnrollmentActivity } from "@/lib/reporting-data"
+import { parseReportRange, reportDay } from "@/lib/reporting"
+import { getProctorSessionScope } from "@/lib/proctor-access"
 
 // Helper: count records created this week vs last week
 async function weekTrend(
@@ -31,16 +34,18 @@ export async function GET() {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const userRecord = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const userRecord = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!userRecord) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
     const role = userRecord.role
 
     if (role === "ADMIN") {
+      const now = new Date()
+      const activityRange = parseReportRange(new URLSearchParams({ end: reportDay(now), start: reportDay(new Date(now.getTime() - 6 * 86400000)) }), now)
       const [
         totalUsers, totalCourses, totalEnrollments, totalCertificates,
         recentEnrollments,
-        userTrend, courseTrend, enrollmentTrend, certTrend,
+        userTrend, courseTrend, enrollmentTrend, certTrend, enrollmentActivity,
       ] = await Promise.all([
         prisma.user.count(),
         prisma.course.count(),
@@ -58,9 +63,10 @@ export async function GET() {
         weekTrend(prisma.course),
         weekTrend(prisma.enrollment, {}, "enrolledAt"),
         weekTrend(prisma.certificate),
+        getEnrollmentActivity(activityRange),
       ])
       return NextResponse.json({
-        role, totalUsers, totalCourses, totalEnrollments, totalCertificates, recentEnrollments,
+        role, totalUsers, totalCourses, totalEnrollments, totalCertificates, recentEnrollments, enrollmentActivity,
         trends: {
           users: userTrend,
           courses: courseTrend,
@@ -71,7 +77,7 @@ export async function GET() {
     }
 
     if (role === "INSTRUCTOR") {
-      const [myCourses, recentSubmissions] = await Promise.all([
+      const [myCourses, recentSubmissions, pendingGrading] = await Promise.all([
         prisma.course.findMany({
           where: { instructorId: userRecord.id },
           include: { _count: { select: { enrollments: true } } },
@@ -86,9 +92,9 @@ export async function GET() {
             assessment: { select: { title: true, course: { select: { title: true } } } },
           },
         }),
+        prisma.assessmentResult.count({ where: { completedAt: { not: null }, gradedAt: null, assessment: { course: { instructorId: userRecord.id }, questions: { some: { type: { in: ["SHORT_ANSWER", "ESSAY"] } } } } } }),
       ])
       const totalLearners = myCourses.reduce((sum, c) => sum + c._count.enrollments, 0)
-      const pendingGrading = recentSubmissions.filter(r => !r.completedAt).length
 
       // Trend: new learners enrolled in instructor's courses this week vs last
       const now = new Date()
@@ -113,14 +119,15 @@ export async function GET() {
 
     // PROCTOR
     if (role === "PROCTOR") {
+      const scope = await getProctorSessionScope(userRecord)
       const today = new Date(); today.setHours(0, 0, 0, 0)
       const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
 
       const [activeSessions, todaySessions, flaggedSessions, yesterdaySessions] = await Promise.all([
-        prisma.examSession.count({ where: { status: "IN_PROGRESS" } }),
-        prisma.examSession.count({ where: { startedAt: { gte: today } } }),
-        prisma.examSession.count({ where: { flagged: true } }),
-        prisma.examSession.count({ where: { startedAt: { gte: yesterday, lt: today } } }),
+        prisma.examSession.count({ where: { AND: [scope, { status: "IN_PROGRESS" }] } }),
+        prisma.examSession.count({ where: { AND: [scope, { startedAt: { gte: today } }] } }),
+        prisma.examSession.count({ where: { AND: [scope, { flagged: true }] } }),
+        prisma.examSession.count({ where: { AND: [scope, { startedAt: { gte: yesterday, lt: today } }] } }),
       ])
       const sessionPct = yesterdaySessions === 0 ? (todaySessions > 0 ? 100 : null) : Math.round(((todaySessions - yesterdaySessions) / yesterdaySessions) * 100)
 

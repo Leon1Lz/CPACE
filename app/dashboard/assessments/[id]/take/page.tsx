@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, use, useRef } from "react"
+import { useAssessmentAutosave } from "@/lib/use-assessment-autosave"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,17 +24,30 @@ import {
 
 import { FloatingCalculator } from "@/components/ui/floating-calculator"
 import { ExamChat } from "@/components/ui/exam-chat"
+import { ExamMotionMonitor, type MotionViolation } from "@/components/proctoring/exam-motion-monitor"
+import { LearnerVideoBroadcaster } from "@/components/proctoring/learner-video-broadcaster"
 
-type Option = { id: string; text: string; isCorrect: boolean; order: number }
+type Option = { id: string; text: string; isCorrect?: boolean; order: number }
 type Question = { id: string; question: string; type: string; points: number; order: number; options: Option[] }
 type Assessment = {
   id: string; title: string; description: string; type: string
   timeLimit: number | null; attempts: number | null; passingScore: number
+  startsAt?: string | null; endsAt?: string | null
   course: { id: string; title: string }
   questions: Question[]
   _count: { results: number }
   materialUrl?: string | null
   materialName?: string | null
+  motionDetectionEnabled?: boolean
+  detectFaceAbsence?: boolean
+  detectMultipleFaces?: boolean
+  detectGaze?: boolean
+  detectPosture?: boolean
+  detectionHoldMs?: number
+  detectionCooldownMs?: number
+  evidenceCaptureEnabled?: boolean
+  evidenceRetentionDays?: number
+  requireProctoringConsent?: boolean
 }
 
 type AnswerMap = Record<string, { selectedOptionId?: string; content?: string }>
@@ -47,27 +61,57 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
 
   const [assessment, setAssessment] = useState<Assessment | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [phase, setPhase] = useState<"intro" | "taking" | "submitting" | "result">("intro")
   const [current, setCurrent] = useState(0)
   const [answers, setAnswers] = useState<AnswerMap>({})
   const [startedAt, setStartedAt] = useState<string>("")
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
+  const [deadlineAt, setDeadlineAt] = useState<string | null>(null)
   const [flagged, setFlagged] = useState<Set<string>>(new Set())
   const [confirmSubmit, setConfirmSubmit] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [attemptCount, setAttemptCount] = useState(0)
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const autosave = useAssessmentAutosave(id, sessionId, answers, phase === "taking")
+  const submissionInFlight = useRef(false)
   
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null)
   const [capturedIdPhoto, setCapturedIdPhoto] = useState<string | null>(null)
   const [activeVerifyStep, setActiveVerifyStep] = useState<"face" | "id">("face")
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraError, setCameraError] = useState(false)
+  const [proctoringConsent, setProctoringConsent] = useState(false)
+  const [calibrationStatus, setCalibrationStatus] = useState<"idle" | "checking" | "passed" | "warning">("idle")
+  const [calibrationMessage, setCalibrationMessage] = useState("Run the camera check before starting your exam.")
+  const [startingExam, setStartingExam] = useState(false)
+  const [startError, setStartError] = useState("")
   const [isFsLocked, setIsFsLocked] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [materialViewerOpen, setMaterialViewerOpen] = useState(false)
   const isFinal = assessment?.type === "FINAL_EXAM"
+
+  const flagExamSession = useCallback(async (reason: string) => {
+    if (!sessionId) return
+    try {
+      const response = await fetch(`/api/assessments/${id}/session`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, flagged: true, flagReason: reason }),
+      })
+      if (!response.ok) throw new Error("Session flag request failed")
+    } catch (error) {
+      console.error("Failed to flag session:", error)
+    }
+  }, [id, sessionId])
+
+  const handleMotionViolation = useCallback((violation: MotionViolation) => {
+    void flagExamSession(
+      `[${violation.severity.toUpperCase()}] ${violation.type}: ${violation.description} (${violation.duration}s)`,
+    )
+  }, [flagExamSession])
 
   const videoRefCallback = useCallback((el: HTMLVideoElement | null) => {
     videoRef.current = el
@@ -150,11 +194,53 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
         setActiveVerifyStep("id")
       } else {
         setCapturedIdPhoto(dataUrl)
+        setCalibrationStatus("passed")
+        setCalibrationMessage("Simulation camera check passed for testing.")
         if (!isFinal) {
           stopCamera()
         }
       }
     }
+  }
+
+  const runCalibration = async () => {
+    setCalibrationStatus("checking")
+    setCalibrationMessage("Checking camera, framing, and lighting…")
+    if (!streamRef.current) await startCamera()
+
+    window.setTimeout(() => {
+      const video = videoRef.current
+      const track = streamRef.current?.getVideoTracks()[0]
+      if (!video || !track || track.readyState !== "live" || video.readyState < 2) {
+        setCalibrationStatus("warning")
+        setCalibrationMessage("Camera is not ready. Allow camera access, keep this tab visible, and try again.")
+        return
+      }
+
+      const canvas = document.createElement("canvas")
+      canvas.width = 80
+      canvas.height = 60
+      const ctx = canvas.getContext("2d", { willReadFrequently: true })
+      if (!ctx) return
+      ctx.drawImage(video, 0, 0, 80, 60)
+      const pixels = ctx.getImageData(0, 0, 80, 60).data
+      let brightness = 0
+      for (let index = 0; index < pixels.length; index += 4) {
+        brightness += (pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3
+      }
+      brightness /= pixels.length / 4
+
+      if (brightness < 40) {
+        setCalibrationStatus("warning")
+        setCalibrationMessage("The image is too dark. Face a light source and run the check again.")
+      } else if (brightness > 225) {
+        setCalibrationStatus("warning")
+        setCalibrationMessage("The image is overexposed. Reduce direct light and run the check again.")
+      } else {
+        setCalibrationStatus("passed")
+        setCalibrationMessage("Camera and lighting check passed. Keep your face centered during the exam.")
+      }
+    }, 900)
   }
 
   useEffect(() => {
@@ -167,28 +253,42 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
 
 
   useEffect(() => {
-    fetch(`/api/assessments/${id}`).then(r => r.json()).then(data => {
+    fetch(`/api/assessments/${id}`).then(async r => {
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error || "Unable to load this assessment")
+      return data
+    }).then(data => {
       setAssessment(data)
       setAttemptCount(data._count?.results ?? 0)
-    }).finally(() => setLoading(false))
+    }).catch(error => setLoadError(error instanceof Error ? error.message : "Unable to load this assessment")).finally(() => setLoading(false))
   }, [id])
 
   const handleSubmit = useCallback(async () => {
-    if (!assessment) return
+    if (!assessment || submissionInFlight.current) return
+    submissionInFlight.current = true
+    setSubmitError(null)
     setPhase("submitting")
     const payload = assessment.questions.map(q => ({
       questionId: q.id,
       ...answers[q.id],
     }))
-    const res = await fetch(`/api/assessments/${id}/submit`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answers: payload, startedAt, sessionId }),
-    })
-    const data = await res.json()
-    setResult(data)
-    setPhase("result")
-    stopCamera()
+    try {
+      const res = await fetch(`/api/assessments/${id}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers: payload, startedAt, sessionId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Assessment submission was not saved")
+      setResult(data)
+      setPhase("result")
+      stopCamera()
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Submission failed. Your answers are still available; please retry.")
+      setPhase("taking")
+    } finally {
+      submissionInFlight.current = false
+    }
   }, [assessment, answers, id, startedAt, sessionId])
 
   // Live face feedback to proctor during final exam
@@ -233,19 +333,24 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
             await fetch(`/api/assessments/${id}/session/feed`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ sessionId, snapshot })
+              body: JSON.stringify({
+                sessionId,
+                snapshot,
+                cameraStatus: streamRef.current?.getVideoTracks()[0]?.readyState === "live" ? "CONNECTED" : "DISCONNECTED",
+                detectorStatus: assessment.motionDetectionEnabled === false ? "DISABLED" : "ACTIVE",
+              })
             })
           }
         } catch (err) {
           console.error("Failed to push live webcam snap:", err)
         }
       }
-    }, 10000)
+    }, 3000)
 
     return () => {
       clearInterval(interval)
     }
-  }, [phase, isFinal, sessionId, id])
+  }, [phase, isFinal, sessionId, id, assessment?.motionDetectionEnabled])
 
   // Sync stream to video ref whenever rendering phases or camera states change
   useEffect(() => {
@@ -260,10 +365,13 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
   // Countdown timer
   useEffect(() => {
     if (phase !== "taking" || timeLeft === null) return
-    if (timeLeft <= 0) { handleSubmit(); return }
-    const t = setTimeout(() => setTimeLeft(s => (s ?? 0) - 1), 1000)
+    if (timeLeft <= 0) {
+      if (!submitError) void handleSubmit()
+      return
+    }
+    const t = setTimeout(() => setTimeLeft(deadlineAt ? Math.max(0, Math.ceil((new Date(deadlineAt).getTime() - Date.now()) / 1000)) : null), 1000)
     return () => clearTimeout(t)
-  }, [phase, timeLeft, handleSubmit])
+  }, [phase, timeLeft, handleSubmit, submitError, deadlineAt])
 
   // Browser Lock: Fullscreen and Focus/Visibility violations detection
   useEffect(() => {
@@ -387,10 +495,9 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
 
 
   const startExam = async () => {
-    const now = new Date().toISOString()
-    setStartedAt(now)
-    if (assessment?.timeLimit) setTimeLeft(assessment.timeLimit * 60)
-    setPhase("taking")
+    setStartingExam(true)
+    setStartError("")
+    let trackingReady = false
     // Create ExamSession so proctor can monitor
     try {
       const res = await fetch(`/api/assessments/${id}/session`, {
@@ -398,12 +505,19 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           identityPhoto: capturedPhoto || undefined,
-          idPhoto: capturedIdPhoto || undefined
+          idPhoto: capturedIdPhoto || undefined,
+          proctoringConsent,
         })
       })
       if (res.ok) {
         const data = await res.json()
         setSessionId(data.sessionId)
+        setStartedAt(data.startedAt)
+        setAnswers(data.answers ?? {})
+        autosave.restore(data.version ?? 0, data.answers ?? {})
+        setDeadlineAt(data.deadlineAt ?? null)
+        setTimeLeft(data.deadlineAt ? Math.max(0, Math.ceil((new Date(data.deadlineAt).getTime() - Date.now()) / 1000)) : null)
+        trackingReady = true
 
         // Request Fullscreen for Final Exam
         if (assessment?.type === "FINAL_EXAM") {
@@ -413,10 +527,20 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
             console.error("Fullscreen request failed:", fullscreenError)
           }
         }
+      } else {
+        const result = await res.json().catch(() => ({}))
+        throw new Error(result.error || "Unable to start the monitored exam session")
       }
-    } catch (_) {
-      // Non-blocking — exam continues even if session tracking fails
+    } catch (error) {
+      setStartError(error instanceof Error ? error.message : "Unable to start the monitored exam session")
+      setStartingExam(false)
+      return
     }
+
+    if (!isFinal || trackingReady) {
+      setPhase("taking")
+    }
+    setStartingExam(false)
   }
 
   const formatTime = (secs: number) => {
@@ -453,7 +577,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
   }
 
   if (!assessment) {
-    return <div className="text-center py-20 text-gray-400">Assessment not found.</div>
+    return <div className="text-center py-20"><p role="alert" className="mx-auto max-w-lg text-gray-500">{loadError || "Assessment not found."}</p><Button onClick={() => router.push("/dashboard/learning-paths")} className="mt-4 rounded-xl bg-[#105C2E] hover:bg-[#0B4523]">View my learning paths</Button></div>
   }
 
   if (isFsLocked && isFinal) {
@@ -506,6 +630,8 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
             <div className="grid grid-cols-2 gap-4">
               {[
                 { label: "Questions", value: assessment.questions.length },
+                ...(assessment.startsAt ? [{ label: "Opens", value: new Date(assessment.startsAt).toLocaleString() }] : []),
+                ...(assessment.endsAt ? [{ label: "New attempts close", value: new Date(assessment.endsAt).toLocaleString() }] : []),
                 ...(assessment.type !== "REVIEWER" && assessment.type !== "RULES_GUIDELINES" ? [{ label: "Passing Score", value: `${assessment.passingScore}%` }] : []),
                 ...(assessment.type !== "REVIEWER" && assessment.type !== "RULES_GUIDELINES" ? [{ label: "Time Limit", value: assessment.timeLimit ? `${assessment.timeLimit} min` : "No limit" }] : []),
                 ...(assessment.type !== "REVIEWER" && assessment.type !== "RULES_GUIDELINES" ? [{ label: "Attempts", value: isPractice ? "Unlimited" : (assessment.attempts ?? 1) }] : []),
@@ -698,6 +824,41 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                     </div>
                   </CardContent>
                 </Card>
+
+                <Card className="border border-emerald-100 bg-emerald-50/40 rounded-2xl shadow-none">
+                  <CardContent className="p-4 space-y-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900">Camera check &amp; proctoring privacy</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-gray-600">
+                        Your camera is shared with authorized proctors during this exam. Automated motion alerts are indicators only and require human review before any action is taken.
+                        {assessment.evidenceCaptureEnabled !== false
+                          ? ` Flagged-event evidence may be retained for up to ${assessment.evidenceRetentionDays ?? 30} days.`
+                          : " Evidence snapshots are disabled for this assessment."}
+                      </p>
+                    </div>
+
+                    <div className={`rounded-xl border p-3 text-xs ${calibrationStatus === "passed" ? "border-emerald-200 bg-white text-emerald-700" : calibrationStatus === "warning" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-gray-200 bg-white text-gray-600"}`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <span>{calibrationMessage}</span>
+                        <Button type="button" size="sm" variant="outline" onClick={runCalibration} disabled={calibrationStatus === "checking"} className="shrink-0 rounded-lg text-xs">
+                          {calibrationStatus === "checking" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Run Camera Check"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {assessment.requireProctoringConsent !== false && (
+                      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={proctoringConsent}
+                          onChange={(event) => setProctoringConsent(event.target.checked)}
+                          className="mt-0.5 h-4 w-4 accent-emerald-600"
+                        />
+                        <span>I understand and consent to live proctoring, automated motion analysis, and the evidence policy described above.</span>
+                      </label>
+                    )}
+                  </CardContent>
+                </Card>
               </>
             )}
 
@@ -714,17 +875,25 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                 No questions have been added yet.
               </div>
             ) : (
+              <div className="space-y-2">
+              {startError && <p className="rounded-xl bg-rose-50 p-3 text-center text-xs font-semibold text-rose-600">{startError}</p>}
               <Button
                 onClick={startExam}
-                disabled={!canRetake || (isFinal && (!capturedPhoto || !capturedIdPhoto))}
+                disabled={startingExam || !canRetake || (isFinal && (!capturedPhoto || !capturedIdPhoto || calibrationStatus !== "passed" || (assessment.requireProctoringConsent !== false && !proctoringConsent)))}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-11 font-semibold"
               >
+                {startingExam ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {!canRetake 
                   ? "No attempts remaining" 
-                  : (isFinal && (!capturedPhoto || !capturedIdPhoto)) 
-                    ? "Verify Identity & ID to Unlock" 
-                    : "Start Exam"}
+                  : (isFinal && (!capturedPhoto || !capturedIdPhoto))
+                    ? "Verify Identity & ID to Unlock"
+                    : (isFinal && calibrationStatus !== "passed")
+                      ? "Pass Camera Check to Unlock"
+                      : (isFinal && assessment.requireProctoringConsent !== false && !proctoringConsent)
+                        ? "Accept Proctoring Consent to Unlock"
+                        : "Start Exam"}
               </Button>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -767,6 +936,8 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
 
+        {submitError && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{submitError} Your answers have been kept on this page. Use Submit to retry.</p>}
+        <p role="status" aria-live="polite" className="text-xs text-slate-600">{autosave.status}. The server enforces your original deadline. After time ends, only answers saved before the deadline are graded; unsaved changes cannot be recovered.</p>
         {/* Progress bar */}
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-gray-400">
@@ -807,6 +978,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                       return (
                         <button
                           key={opt.id}
+                          disabled={timeLeft !== null && timeLeft <= 0}
                           onClick={() => setAnswers(prev => ({ ...prev, [q.id]: { selectedOptionId: opt.id } }))}
                           className={`w-full text-left px-4 py-3 rounded-xl border-2 text-sm transition-all duration-150 font-medium ${
                             selected
@@ -824,8 +996,9 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                   </div>
                 )}
 
-                {q.type === "SHORT_ANSWER" && (
+                {(q.type === "SHORT_ANSWER" || q.type === "ESSAY") && (
                   <textarea
+                    disabled={timeLeft !== null && timeLeft <= 0}
                     className="w-full ml-10 border border-gray-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400"
                     rows={4}
                     placeholder="Type your answer here..."
@@ -938,22 +1111,22 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
           show={true}
         />
 
+        <LearnerVideoBroadcaster sessionId={sessionId} stream={streamRef.current} />
+
         {isFinal && (
-          <div className="fixed bottom-4 right-4 z-50 w-44 bg-slate-900 border-2 border-emerald-500 rounded-2xl overflow-hidden shadow-2xl">
-            <div className="relative aspect-video w-full bg-black">
-              <video 
-                ref={videoRefCallback} 
-                className="w-full h-full object-cover scale-x-[-1]" 
-                autoPlay 
-                playsInline 
-                muted 
-              />
-              <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full">
-                <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                <span className="text-[8px] font-black text-white uppercase tracking-wider">Proctor Live</span>
-              </div>
-            </div>
-          </div>
+          <ExamMotionMonitor
+            enabled={cameraActive && !!sessionId && assessment.motionDetectionEnabled !== false}
+            videoRef={videoRefCallback}
+            onViolation={handleMotionViolation}
+            config={{
+              holdMs: assessment.detectionHoldMs,
+              cooldownMs: assessment.detectionCooldownMs,
+              detectFaceAbsence: assessment.detectFaceAbsence,
+              detectMultipleFaces: assessment.detectMultipleFaces,
+              detectGaze: assessment.detectGaze,
+              detectPosture: assessment.detectPosture,
+            }}
+          />
         )}
       </div>
     )
@@ -973,12 +1146,13 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
   if (phase === "result" && result) {
     const isReviewer = assessment?.type === "REVIEWER"
     const passed = isReviewer ? true : result.passed
-    const pendingReview = result.hasOpenEnded
+    const pendingReview = result.gradingPending ?? result.hasOpenEnded
     const scoresPendingRelease = result.scoresReleased === false
 
     if (scoresPendingRelease) {
       return (
         <div className="max-w-2xl mx-auto space-y-5">
+          {result.timedOut && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Time ended. Your last server-saved answers were submitted; changes not saved before the deadline were not accepted.</p>}
           <Card className="border-0 shadow-xl overflow-hidden">
             <div className="h-2 w-full bg-gradient-to-r from-blue-400 to-indigo-500" />
             <CardContent className="p-8 text-center space-y-5">
@@ -988,7 +1162,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
               <div className="space-y-2">
                 <h2 className="text-2xl font-black text-gray-900">Assessment Submitted Successfully</h2>
                 <p className="text-sm text-gray-500 max-w-md mx-auto leading-relaxed">
-                  Your answers have been securely logged. The instructor has configured this assessment to release scores at a later time. You will be notified once they are available.
+                  {pendingReview ? "Your written answers are awaiting instructor grading. You will be notified after review; scores follow the assessment's release policy." : "Your answers have been securely logged. Scores are held until the instructor releases them."}
                 </p>
               </div>
               <div className="pt-4 flex justify-center">
@@ -1004,6 +1178,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
 
     return (
       <div className="max-w-2xl mx-auto space-y-5">
+        {result.timedOut && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Time ended. Your last server-saved answers were submitted; changes not saved before the deadline were not accepted.</p>}
         <Card className={`border-0 shadow-xl overflow-hidden`}>
           <div className={`h-2 w-full ${pendingReview ? "bg-gradient-to-r from-amber-400 to-orange-500" : isReviewer ? "bg-gradient-to-r from-blue-400 to-indigo-500" : passed ? "bg-gradient-to-r from-emerald-400 to-teal-500" : "bg-gradient-to-r from-red-400 to-rose-500"}`} />
           <CardContent className="p-8 text-center space-y-4">
@@ -1079,34 +1254,23 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold text-gray-900 flex items-center gap-2">
                 <ClipboardList className="h-4 w-4 text-emerald-600" />
-                Answer Review
+                Submission Review
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {assessment.questions.map((q, i) => {
                 const userAnswer = answers[q.id]
-                const selectedOpt = q.options.find(o => o.id === userAnswer?.selectedOptionId)
-                const correctOpt  = q.options.find(o => o.isCorrect)
-                const isCorrect   = selectedOpt?.isCorrect === true
                 const hasMultiChoice = q.type === "MULTIPLE_CHOICE" || q.type === "TRUE_FALSE"
 
                 return (
-                  <div key={q.id} className={`p-4 rounded-2xl border-2 ${
-                    !userAnswer ? "border-gray-100 bg-gray-50" :
-                    isCorrect   ? "border-emerald-200 bg-emerald-50" :
-                                  "border-red-200 bg-red-50"
-                  }`}>
+                  <div key={q.id} className="p-4 rounded-2xl border-2 border-gray-100 bg-gray-50">
                     <div className="flex items-start gap-3 mb-3">
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 mt-0.5 ${
-                        !userAnswer ? "bg-gray-200 text-gray-500" :
-                        isCorrect   ? "bg-emerald-500 text-white" :
-                                      "bg-red-500 text-white"
-                      }`}>{i + 1}</span>
+                      <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 mt-0.5 bg-gray-200 text-gray-600">{i + 1}</span>
                       <p className="text-sm font-medium text-gray-800 leading-relaxed">{q.question}</p>
                       <span className="ml-auto shrink-0">
-                        {!userAnswer ? <span className="text-xs text-gray-400 font-medium">Not answered</span>
-                          : isCorrect ? <CheckCircle className="h-5 w-5 text-emerald-500" />
-                                      : <XCircle className="h-5 w-5 text-red-500" />}
+                        {!userAnswer
+                          ? <span className="text-xs text-gray-400 font-medium">Not answered</span>
+                          : <CheckCircle className="h-5 w-5 text-sky-500" />}
                       </span>
                     </div>
 
@@ -1114,23 +1278,17 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                       <div className="ml-9 space-y-1.5">
                         {q.options.map(opt => {
                           const isSelected = opt.id === userAnswer?.selectedOptionId
-                          const isRight    = opt.isCorrect
                           return (
                             <div key={opt.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium ${
-                              isRight && isSelected ? "bg-emerald-200 text-emerald-800" :
-                              isRight              ? "bg-emerald-100 text-emerald-700" :
-                              isSelected && !isRight ? "bg-red-100 text-red-700 line-through" :
-                                                       "text-gray-500"
+                              isSelected ? "bg-sky-100 text-sky-800" : "text-gray-500"
                             }`}>
                               <span className={`w-4 h-4 rounded-full border flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                                isRight ? "border-emerald-500 bg-emerald-500 text-white" :
-                                isSelected ? "border-red-400 bg-red-400 text-white" :
-                                             "border-gray-300"
+                                isSelected ? "border-sky-500 bg-sky-500 text-white" : "border-gray-300"
                               }`}>
-                                {isRight ? "✓" : isSelected ? "✗" : ""}
+                                {isSelected ? "✓" : ""}
                               </span>
                               {opt.text}
-                              {isRight && <span className="ml-auto text-emerald-600 font-semibold">Correct</span>}
+                              {isSelected && <span className="ml-auto text-sky-700 font-semibold">Your answer</span>}
                             </div>
                           )
                         })}

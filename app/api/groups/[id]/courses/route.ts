@@ -2,20 +2,23 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { canManageCourse, canManageGroup } from "@/lib/authorization"
 
 // POST — assign a course to group + batch enroll all current members
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user || user.role === "LEARNER" || user.role === "PROCTOR") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const { id: groupId } = await params
+    if (!(await canManageGroup(user, groupId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     const { courseId } = await request.json()
     if (!courseId) return NextResponse.json({ error: "courseId is required" }, { status: 400 })
+    if (!(await canManageCourse(user, courseId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     // Assign course to group
     await prisma.groupCourse.create({ data: { groupId, courseId } })
@@ -40,13 +43,16 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user || user.role === "LEARNER" || user.role === "PROCTOR") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const { id: groupId } = await params
+    if (!(await canManageGroup(user, groupId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     const { courseId } = await request.json()
+    if (!courseId) return NextResponse.json({ error: "courseId is required" }, { status: 400 })
+    if (!(await canManageCourse(user, courseId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     await prisma.groupCourse.deleteMany({ where: { groupId, courseId } })
     return NextResponse.json({ success: true })
   } catch {

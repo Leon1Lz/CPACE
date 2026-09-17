@@ -35,6 +35,8 @@ model User {
   groupMemberships  GroupMember[]
   chatsSent         ExamChat[]       @relation("ChatSender")
   notifications     Notification[]
+  learningPathsCreated LearningPath[] @relation("LearningPathCreator")
+  proctorAssignments ProctorAssignment[]
 
   @@map("users")
 }
@@ -74,6 +76,8 @@ model Course {
   assessments  Assessment[]
   certificates Certificate[]
   groups       GroupCourse[]
+  learningPathSteps LearningPathStep[]
+  proctorAssignments ProctorAssignment[]
 
   @@map("courses")
 }
@@ -144,6 +148,8 @@ model Group {
 
   members     GroupMember[]
   courses     GroupCourse[]
+  learningPaths LearningPathGroup[]
+  proctorAssignments ProctorAssignment[]
 
   @@map("groups")
 }
@@ -175,6 +181,22 @@ model GroupCourse {
 }
 
 // Assessment model
+model ProctorAssignment {
+  id String @id @default(cuid())
+  proctorId String
+  proctor User @relation(fields: [proctorId], references: [id], onDelete: Cascade)
+  courseId String
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  groupId String?
+  group Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  scopeKey String
+  createdAt DateTime @default(now())
+
+  @@unique([proctorId, courseId, scopeKey])
+  @@index([proctorId])
+  @@map("proctor_assignments")
+}
+
 model Assessment {
   id           String         @id @default(cuid())
   title        String
@@ -186,8 +208,22 @@ model Assessment {
   isPublished  Boolean        @default(false)
   releaseScores Boolean       @default(true)
   scoresReleasedAt DateTime?
+  startsAt DateTime?
+  endsAt DateTime?
+  bankLockedAt DateTime?
+  questionVersion Int @default(0)
   materialUrl  String?
   materialName String?
+  motionDetectionEnabled Boolean @default(true)
+  detectFaceAbsence       Boolean @default(true)
+  detectMultipleFaces     Boolean @default(true)
+  detectGaze              Boolean @default(true)
+  detectPosture           Boolean @default(true)
+  detectionHoldMs         Int     @default(2500)
+  detectionCooldownMs     Int     @default(12000)
+  evidenceCaptureEnabled  Boolean @default(true)
+  evidenceRetentionDays   Int     @default(30)
+  requireProctoringConsent Boolean @default(true)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
@@ -198,6 +234,7 @@ model Assessment {
   questions    Question[]
   results      AssessmentResult[]
   examSessions ExamSession[]
+  learningPathSteps LearningPathStep[]
 
   @@map("assessments")
 }
@@ -210,6 +247,62 @@ enum AssessmentType {
   QUIZ             // Short in-module quiz
   ASSIGNMENT       // Submitted work
   SURVEY           // Feedback/survey
+}
+
+model LearningPath {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creatorId String
+  creator   User @relation("LearningPathCreator", fields: [creatorId], references: [id])
+  steps     LearningPathStep[]
+  groups    LearningPathGroup[]
+
+  @@map("learning_paths")
+}
+
+enum LearningPathStepType {
+  COURSE
+  ASSESSMENT
+}
+
+model LearningPathStep {
+  id          String               @id @default(cuid())
+  type        LearningPathStepType
+  title       String?
+  description String?
+  order       Int
+  isRequired  Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+
+  pathId String
+  path   LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  assessmentId String?
+  assessment   Assessment? @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([pathId, order])
+  @@map("learning_path_steps")
+}
+
+model LearningPathGroup {
+  id         String   @id @default(cuid())
+  assignedAt DateTime @default(now())
+
+  pathId String
+  path   LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  groupId String
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([pathId, groupId])
+  @@map("learning_path_groups")
 }
 
 // Assessment questions
@@ -259,6 +352,7 @@ model Answer {
   content    String // User's answer text
   isCorrect  Boolean?
   points     Float  @default(0)
+  feedback   String?
   createdAt  DateTime @default(now())
 
   // Relations
@@ -279,6 +373,8 @@ model AssessmentResult {
   attempt     Int       @default(1)
   startedAt   DateTime  @default(now())
   completedAt DateTime?
+  gradedAt DateTime?
+  gradedById String?
   createdAt   DateTime  @default(now())
 
   // Relations
@@ -292,6 +388,7 @@ model AssessmentResult {
   examSession ExamSession?
 
   @@map("assessment_results")
+  @@index([gradedAt])
 }
 
 // Live exam session — tracked per learner attempt for proctors
@@ -299,6 +396,8 @@ model ExamSession {
   id           String    @id @default(cuid())
   status       ExamSessionStatus @default(IN_PROGRESS)
   startedAt    DateTime  @default(now())
+  deadlineAt   DateTime?
+  identityVerifiedAt DateTime?
   submittedAt  DateTime?
   flagged      Boolean   @default(false)
   flagReason   String?
@@ -306,6 +405,13 @@ model ExamSession {
   userAgent    String?
   identityPhoto String?
   idPhoto       String?
+  consentAt     DateTime?
+  consentVersion String?
+  lastHeartbeatAt DateTime?
+  cameraStatus  String?
+  detectorStatus String?
+  draftAnswers Json @default("{}")
+  draftVersion Int @default(0)
 
   // Relations
   userId       String
@@ -315,6 +421,7 @@ model ExamSession {
   resultId     String?    @unique
   result       AssessmentResult? @relation(fields: [resultId], references: [id])
   chats        ExamChat[]
+  proctoringEvents ProctoringEvent[]
 
   @@map("exam_sessions")
 }
@@ -324,6 +431,41 @@ enum ExamSessionStatus {
   SUBMITTED
   ABANDONED
   FLAGGED
+}
+
+enum ProctoringEventSeverity {
+  WARNING
+  HIGH
+}
+
+enum ProctoringEventReviewStatus {
+  PENDING
+  REVIEWED
+  FALSE_POSITIVE
+  CONFIRMED
+  ESCALATED
+}
+
+model ProctoringEvent {
+  id               String                       @id @default(cuid())
+  type             String
+  severity         ProctoringEventSeverity
+  description      String
+  duration         Float?
+  evidenceSnapshot String?
+  reviewStatus     ProctoringEventReviewStatus @default(PENDING)
+  reviewNotes      String?
+  reviewedAt       DateTime?
+  reviewedById     String?
+  reviewedByName   String?
+  createdAt        DateTime                     @default(now())
+
+  sessionId String
+  session   ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@index([reviewStatus])
+  @@map("proctoring_events")
 }
 
 // Certificate model

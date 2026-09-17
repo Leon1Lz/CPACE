@@ -11,6 +11,9 @@ export async function GET(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const viewer = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true } })
+    if (!viewer) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (viewer.role === "PROCTOR") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
@@ -18,11 +21,15 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const search = searchParams.get("search")
 
-    const where: any = {}
+    const where: any = viewer.role === "LEARNER"
+      ? { status: "PUBLISHED", enrollments: { some: { userId: viewer.id } } }
+      : viewer.role === "INSTRUCTOR"
+        ? { instructorId: viewer.id }
+        : {}
     
     if (category) where.category = category
     if (level) where.level = level
-    if (status) where.status = status
+    if (status && viewer.role !== "LEARNER") where.status = status
 
     if (search) {
       where.OR = [
@@ -44,9 +51,9 @@ export async function GET(request: NextRequest) {
     const [courses, total, dbTotal, publishedTotal, enrollmentTotal] = await Promise.all([
       prisma.course.findMany({ where, include, orderBy: { createdAt: 'desc' }, skip, take: limit }),
       prisma.course.count({ where }),
-      prisma.course.count(),
-      prisma.course.count({ where: { status: "PUBLISHED" } }),
-      prisma.enrollment.count(),
+      prisma.course.count({ where }),
+      prisma.course.count({ where: { ...where, status: "PUBLISHED" } }),
+      prisma.enrollment.count(viewer.role === "LEARNER" ? { where: { userId: viewer.id } } : undefined),
     ])
 
     return NextResponse.json({
@@ -79,7 +86,7 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email! }
+      where: { id: session.user.id }
     })
 
     if (!user) {

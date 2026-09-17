@@ -17,6 +17,8 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        const normalizedEmail = credentials.email.trim().toLowerCase()
+
         if (!prisma) {
           console.error('Prisma client not available for authentication')
           return null
@@ -24,7 +26,7 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: {
-            email: credentials.email
+            email: normalizedEmail
           }
         })
 
@@ -69,31 +71,43 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role
         token.userId = user.id
         token.sessionToken = (user as any).sessionToken
-      } else if (token.userId) {
+      } else if (typeof token.userId === "string" && token.userId.length > 0) {
         // Only run check on subsequent requests to avoid redundant DB query at login
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.userId as string },
-            select: { activeSessionToken: true, isActive: true }
+            select: { activeSessionToken: true, isActive: true, email: true, firstName: true, lastName: true, role: true }
           })
           if (!dbUser || !dbUser.isActive) {
             token.error = "UserSuspended"
           } else if (dbUser.activeSessionToken !== token.sessionToken) {
             token.error = "SessionExpired"
+          } else {
+            token.email = dbUser.email
+            token.name = `${dbUser.firstName} ${dbUser.lastName}`
+            token.role = dbUser.role
           }
         } catch (error) {
           console.error("Error verifying active session token:", error)
+          // A session whose revocation state cannot be verified must fail closed.
+          token.error = "SessionVerificationFailed"
         }
+      } else {
+        token.error = "SessionVerificationFailed"
       }
       return token
     },
     async session({ session, token }) {
+      if (token.error || typeof token.userId !== "string" || !token.userId) {
+        // A revoked or suspended JWT must not remain an authenticated server
+        // session. Protected API routes already reject a null session.
+        return null as unknown as typeof session
+      }
       if (token) {
         session.user.id = token.userId as string
         session.user.role = token.role as string
-        if (token.error) {
-          (session as any).error = token.error
-        }
+        session.user.email = token.email ?? ""
+        session.user.name = token.name ?? ""
       }
       return session
     }

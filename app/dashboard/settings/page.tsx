@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { User, Lock, Bell, Shield, CheckCircle, Loader2, AlertCircle } from "lucide-react"
+import { User, Lock, Shield, CheckCircle, Loader2, AlertCircle } from "lucide-react"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -105,8 +105,8 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-sm text-gray-500 mt-1">Manage your account and preferences</p>
+        <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
+        <p className="text-sm text-gray-500 mt-1">Manage your profile, password, and account</p>
       </div>
 
       {/* Profile */}
@@ -196,31 +196,6 @@ export default function SettingsPage() {
           <Button onClick={handlePasswordChange} disabled={pwSaving || !pwForm.currentPassword || !pwForm.newPassword} variant="outline" className="rounded-xl border-blue-200 text-blue-700 hover:bg-blue-50">
             {pwSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Lock className="h-4 w-4 mr-2" />} Update Password
           </Button>
-        </CardContent>
-      </Card>
-
-      {/* Notifications */}
-      <Card className="border-0 shadow-md">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <Bell className="h-4 w-4 text-amber-600" /> Notifications
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {[
-            { label: "Email notifications for new enrollments", checked: true },
-            { label: "Email notifications for assessment results", checked: true },
-            { label: "Certificate issued notifications", checked: true },
-            { label: "Course updates and announcements", checked: false },
-          ].map((item, i) => (
-            <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-gray-50">
-              <span className="text-sm text-gray-700">{item.label}</span>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" defaultChecked={item.checked} className="sr-only peer" />
-                <div className="w-10 h-5 bg-gray-200 peer-focus:ring-2 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500" />
-              </label>
-            </div>
-          ))}
         </CardContent>
       </Card>
 

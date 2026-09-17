@@ -15,6 +15,7 @@ import {
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import Link from "next/link"
 import { SafeHtml } from "@/components/ui/safe-html"
+import { calculateModuleProgress } from "@/lib/learning-path-progress"
 
 type Module = {
   id: string
@@ -74,10 +75,16 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const [materialViewerOpen, setMaterialViewerOpen] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/courses/${id}?modules=true`).then(r => r.json()),
+      fetch(`/api/courses/${id}?modules=true`).then(async r => {
+        const data = await r.json()
+        if (!r.ok) throw new Error(data.error || "Unable to load this course")
+        return data
+      }),
       fetch(`/api/enrollments?courseId=${id}`).then(r => r.ok ? r.json() : null),
     ]).then(([courseData, enrollData]) => {
       if (courseData?.id) {
@@ -89,27 +96,33 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
         setEnrollment(enrollData)
         setCompletedIds(new Set(enrollData.completedModules ?? []))
       }
-    }).finally(() => setLoading(false))
+    }).catch(error => setLoadError(error instanceof Error ? error.message : "Unable to load this course")).finally(() => setLoading(false))
   }, [id])
 
   const markComplete = async (moduleId: string) => {
     if (completedIds.has(moduleId) || saving) return
     setSaving(true)
+    setSaveError(null)
     try {
       const newCompleted = new Set([...completedIds, moduleId])
-      setCompletedIds(newCompleted)
       // Update progress
-      const progressPct = course ? Math.round((newCompleted.size / course.modules.length) * 100) : 0
-      await fetch(`/api/enrollments?courseId=${id}`, {
+      const progressPct = course ? calculateModuleProgress(newCompleted.size, course.modules.length) : 0
+      const response = await fetch(`/api/enrollments?courseId=${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ completedModules: [...newCompleted], progress: progressPct }),
       })
+      const update = await response.json()
+      if (!response.ok) throw new Error(update.error || "Module completion was not saved")
+      setCompletedIds(new Set(update.completedModules))
+      setEnrollment(previous => previous ? { ...previous, progress: update.progress, status: update.status, completedModules: update.completedModules } : previous)
       // Auto-advance to next module
       if (course) {
         const idx = course.modules.findIndex(m => m.id === moduleId)
         if (idx < course.modules.length - 1) setActiveModule(course.modules[idx + 1])
       }
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Module completion was not saved. Please retry.")
     } finally { setSaving(false) }
   }
 
@@ -125,7 +138,8 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
     return (
       <div className="text-center py-20">
         <BookOpen className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-        <p className="text-gray-500">Course not found.</p>
+        <p role="alert" className="mx-auto max-w-lg text-gray-500">{loadError || "Course not found."}</p>
+        <Button asChild className="mt-4 mr-2 rounded-xl bg-[#105C2E] hover:bg-[#0B4523]"><Link href="/dashboard/learning-paths">View my learning paths</Link></Button>
         <Button asChild variant="outline" className="mt-4 rounded-xl" size="sm">
           <Link href="/dashboard/courses">← Back to Courses</Link>
         </Button>
@@ -135,7 +149,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
 
   const totalModules = course.modules.length
   const completedCount = completedIds.size
-  const progress = totalModules > 0 ? Math.round((completedCount / totalModules) * 100) : 0
+  const progress = calculateModuleProgress(completedCount, totalModules)
   const activeIdx = activeModule ? course.modules.findIndex(m => m.id === activeModule.id) : -1
 
   const levelColors: Record<string, string> = {
@@ -146,6 +160,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
+      {saveError && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{saveError}</p>}
       {/* Back + Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4">

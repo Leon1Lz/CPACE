@@ -47,8 +47,8 @@ const config: Config = {
         }
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        heading: ["Inter", "system-ui", "sans-serif"],
+        sans: ["Geist", "Geist Fallback", "system-ui", "sans-serif"],
+        heading: ["Geist", "Geist Fallback", "system-ui", "sans-serif"],
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",

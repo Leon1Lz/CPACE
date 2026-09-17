@@ -143,7 +143,7 @@ export function RegisterForm() {
             value={formData.password}
             onChange={(e) => handleChange("password", e.target.value)}
             required
-            minLength={6}
+            minLength={8}
             className={`${inputClass} pr-10`}
           />
           <button type="button" onClick={() => setShowPassword(!showPassword)}

@@ -67,47 +67,57 @@ export function NextScrollSection() {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center space-y-8">
           {/* Main Heading */}
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
-            <span className="block text-gray-900">Skills Development That</span>
-            <span className="block bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-              Employers & Businesses Value
-            </span>
-          </h1>
-
-          {/* Subheading */}
-          <h2 className="text-xl md:text-2xl font-semibold text-gray-700">
-            Professional Advancement & Continuing Education with CPACE Philippines
-          </h2>
+          <div className="space-y-4 max-w-3xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-emerald-100/80 text-emerald-800 rounded-full text-xs font-semibold uppercase tracking-wider">
+              <Award className="w-3.5 h-3.5" />
+              Comprehensive Programs
+            </div>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
+              <span className="block text-gray-900">Skills Development That</span>
+              <span className="block bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                Employers & Businesses Value
+              </span>
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Professional Advancement & Continuing Education with CPACE Philippines
+            </p>
+          </div>
 
           {/* Services Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mt-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mt-12 text-left">
             {services.map((service, index) => (
-              <div 
+              <Link 
+                href="/services" 
                 key={index} 
-                className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden border border-gray-100"
+                className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1.5 overflow-hidden border border-gray-100 flex flex-col justify-between"
               >
                 <div className="p-6 lg:p-8">
                   {/* Icon */}
-                  <div className={`w-16 h-16 bg-gradient-to-br ${service.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                  <div className={`w-14 h-14 bg-gradient-to-br ${service.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-md`}>
                     <div className="text-white">
                       {service.icon}
                     </div>
                   </div>
                   
                   {/* Title */}
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">
+                  <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-emerald-700 transition-colors">
                     {service.title}
                   </h3>
                   
                   {/* Description */}
-                  <p className="text-gray-600 leading-relaxed">
+                  <p className="text-gray-600 leading-relaxed text-sm">
                     {service.description}
                   </p>
+                </div>
+
+                <div className="px-6 lg:px-8 pb-6 pt-2 flex items-center text-sm font-semibold text-emerald-600 group-hover:text-emerald-700">
+                  <span>Learn More</span>
+                  <span className="ml-2 transform group-hover:translate-x-1.5 transition-transform duration-200">→</span>
                 </div>
                 
                 {/* Hover Effect Bottom Border */}
                 <div className={`h-1 bg-gradient-to-r ${service.color} transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300`}></div>
-              </div>
+              </Link>
             ))}
           </div>
 
@@ -120,12 +130,12 @@ export function NextScrollSection() {
               Join thousands of professionals who have transformed their careers with our industry-recognized programs and expert-led training.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="#contact">
+              <Link href="/#contact">
                 <Button className="bg-white text-emerald-600 hover:bg-gray-100 font-semibold px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                   Get Started Today
                 </Button>
               </Link>
-              <Link href="#programs">
+              <Link href="/services">
                 <Button variant="ghost" className="border-2 border-white text-white hover:bg-white hover:text-emerald-600 font-semibold px-8 py-3 transition-all duration-300">
                   View All Programs
                 </Button>

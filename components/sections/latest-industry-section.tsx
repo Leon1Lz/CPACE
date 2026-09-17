@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Calendar, ArrowRight, MessageCircle, Newspaper, Users, Zap, Globe, Mail, Send, CheckCircle, TrendingUp, Loader2 } from "lucide-react"
+import { articlesData, type Article } from "@/data/articles"
+import { ArticleImage } from "@/components/ui/article-image"
 
 const iconMap: Record<string, React.ReactNode> = {
   users: <Users className="w-4 h-4" />,
@@ -16,8 +18,10 @@ export function LatestIndustrySection() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [submitted, setSubmitted] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const [articles, setArticles] = useState<any[]>([])
+  const [articles, setArticles] = useState<Article[]>(articlesData)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -25,7 +29,20 @@ export function LatestIndustrySection() {
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          setArticles(data)
+          const managedArticles = data.map((article) => {
+            const matchingArticle = articlesData.find((item) => item.slug === article.slug)
+            return {
+              ...article,
+              image: matchingArticle?.image || article.image,
+              comments: article.comments ?? 0,
+              createdAt: article.createdAt ?? new Date().toISOString(),
+            }
+          }) as Article[]
+          const managedSlugs = new Set(managedArticles.map((article) => article.slug))
+          setArticles([
+            ...managedArticles,
+            ...articlesData.filter((article) => !managedSlugs.has(article.slug)),
+          ])
         }
       })
       .catch((err) => console.error("Error fetching articles:", err))
@@ -35,9 +52,26 @@ export function LatestIndustrySection() {
   const featured = articles.find(a => a.featured) || articles[0]
   const rest = articles.filter(a => a.id !== featured?.id).slice(0, 6)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSubmitted(true)
+    setIsSubmitting(true)
+    setErrorMessage(null)
+    try {
+      const response = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Unable to subscribe right now.")
+      setSubmitted(true)
+      setName("")
+      setEmail("")
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to subscribe right now.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -100,10 +134,12 @@ export function LatestIndustrySection() {
                 <div className="group relative bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300">
                   <div className="grid grid-cols-1 lg:grid-cols-2">
                     <div className="relative h-64 lg:h-auto min-h-[280px]">
-                      <img
+                      <ArticleImage
                         src={featured.image}
                         alt={featured.title}
-                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        priority
+                        sizes="(max-width: 1024px) 100vw, 50vw"
+                        className="group-hover:scale-105 transition-transform duration-500"
                       />
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/20 lg:bg-gradient-to-l lg:from-transparent lg:to-black/20"></div>
                       <div className="absolute top-4 left-4">
@@ -147,17 +183,17 @@ export function LatestIndustrySection() {
               {/* Articles Grid */}
               {rest.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {rest.map((article, index) => (
+                  {rest.map((article) => (
                     <article
                       key={article.id}
                       className="group bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
                     >
                       {/* Image */}
                       <div className="relative h-44 overflow-hidden">
-                        <img
+                        <ArticleImage
                           src={article.image}
                           alt={article.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          className="group-hover:scale-110 transition-transform duration-500"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
                         <div className="absolute top-3 left-3">
@@ -268,7 +304,7 @@ export function LatestIndustrySection() {
                   <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
                     <CheckCircle className="w-8 h-8 text-emerald-400" />
                   </div>
-                  <h4 className="text-xl font-bold text-white">You're subscribed!</h4>
+                  <h4 className="text-xl font-bold text-white">You&apos;re subscribed!</h4>
                   <p className="text-white/60">Thank you for subscribing to the CPACE Philippines newsletter.</p>
                 </div>
               ) : (
@@ -303,11 +339,13 @@ export function LatestIndustrySection() {
                   </div>
                   <Button
                     type="submit"
+                    disabled={isSubmitting}
                     className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold py-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02] text-base"
                   >
-                    <Send className="mr-2 w-4 h-4" />
-                    Submit
+                    {isSubmitting ? <Loader2 className="mr-2 w-4 h-4 animate-spin" /> : <Send className="mr-2 w-4 h-4" />}
+                    {isSubmitting ? "Subscribing..." : "Submit"}
                   </Button>
+                  {errorMessage && <p className="text-rose-300 text-sm text-center">{errorMessage}</p>}
                   <p className="text-white/40 text-xs text-center">
                     We respect your privacy. Unsubscribe at any time.
                   </p>

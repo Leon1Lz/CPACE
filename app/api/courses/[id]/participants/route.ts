@@ -2,18 +2,20 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { canManageCourse } from "@/lib/authorization"
 
 // GET — all enrolled participants for a course with scores & progress
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user || user.role === "LEARNER" || user.role === "PROCTOR") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const { id: courseId } = await params
+    if (!(await canManageCourse(user, courseId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const enrollments = await prisma.enrollment.findMany({
       where: { courseId },

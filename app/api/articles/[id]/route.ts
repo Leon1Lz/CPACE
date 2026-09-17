@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { sanitizeHtml, stripTags } from "@/lib/sanitize"
 
 // Helper to generate slug from title
 function generateSlug(title: string): string {
@@ -49,7 +50,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
@@ -67,9 +68,9 @@ export async function PATCH(
     const { title, excerpt, content, category, categoryColor, iconName, image, featured } = body
 
     const updateData: any = {}
-    if (title !== undefined) updateData.title = title
-    if (excerpt !== undefined) updateData.excerpt = excerpt
-    if (content !== undefined) updateData.content = content
+    if (title !== undefined) updateData.title = stripTags(String(title)).slice(0, 200)
+    if (excerpt !== undefined) updateData.excerpt = stripTags(String(excerpt)).slice(0, 1000)
+    if (content !== undefined) updateData.content = sanitizeHtml(String(content))
     if (category !== undefined) updateData.category = category
     if (categoryColor !== undefined) updateData.categoryColor = categoryColor
     if (iconName !== undefined) updateData.iconName = iconName
@@ -77,7 +78,7 @@ export async function PATCH(
     if (featured !== undefined) updateData.featured = !!featured
 
     if (body.slug !== undefined) {
-      let baseSlug = generateSlug(body.slug)
+      const baseSlug = generateSlug(body.slug)
       if (baseSlug && baseSlug !== existingArticle.slug) {
         // Ensure new slug is unique
         let slug = baseSlug
@@ -92,7 +93,7 @@ export async function PATCH(
       }
     } else if (title !== undefined && title !== existingArticle.title) {
       // Auto-update slug if title changed and slug wasn't explicitly edited
-      let baseSlug = generateSlug(title)
+      const baseSlug = generateSlug(title)
       if (baseSlug) {
         let slug = baseSlug
         let count = 1
@@ -130,7 +131,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }

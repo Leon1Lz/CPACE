@@ -1,0 +1,2 @@
+ALTER TABLE "exam_sessions" ADD COLUMN "draftAnswers" JSONB NOT NULL DEFAULT '{}',
+ADD COLUMN "draftVersion" INTEGER NOT NULL DEFAULT 0;

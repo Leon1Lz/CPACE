@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
+import { canManageCourse } from "@/lib/authorization"
 import { prisma } from "@/lib/prisma"
+import { getLearningPathBlocker } from "@/lib/learning-path-access"
+import { z } from "zod"
+import { calculateModuleProgress } from "@/lib/learning-path-progress"
+
+const progressUpdateSchema = z.object({
+  completedModules: z.array(z.string().min(1).max(100)).max(2000),
+  progress: z.number().min(0).max(100).optional(),
+}).strict()
 
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
     const courseId = req.nextUrl.searchParams.get("courseId")
@@ -43,24 +52,45 @@ export async function PATCH(req: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
     const courseId = req.nextUrl.searchParams.get("courseId")
     if (!courseId) return NextResponse.json({ error: "courseId required" }, { status: 400 })
 
-    const { completedModules, progress } = await req.json()
+    if (user.role !== "LEARNER") return NextResponse.json({ error: "Learner enrollment required" }, { status: 403 })
+    const { completedModules } = progressUpdateSchema.parse(await req.json())
+    const enrollment = await prisma.enrollment.findUnique({
+      where: { userId_courseId: { userId: user.id, courseId } },
+      select: { status: true, completedModules: true, completedAt: true, course: { select: { status: true } } },
+    })
+    if (!enrollment) return NextResponse.json({ error: "Not enrolled" }, { status: 404 })
+    if (!["ACTIVE", "COMPLETED"].includes(enrollment.status) || enrollment.course.status !== "PUBLISHED") {
+      return NextResponse.json({ error: "Course enrollment is not available" }, { status: 403 })
+    }
+    const blocker = await getLearningPathBlocker(user.id, { courseId })
+    if (blocker) return NextResponse.json(blocker, { status: 403 })
+    const modules = await prisma.courseModule.findMany({ where: { courseId, isPublished: true }, select: { id: true } })
+    const validModuleIds = new Set(modules.map(module => module.id))
+    if (!modules.length || completedModules.some(moduleId => !validModuleIds.has(moduleId))) {
+      return NextResponse.json({ error: "Only published modules from this course can be completed" }, { status: 400 })
+    }
+    const verifiedModules = Array.from(new Set([...enrollment.completedModules, ...completedModules])).filter(moduleId => validModuleIds.has(moduleId))
+    const progress = enrollment.status === "COMPLETED" ? 100 : calculateModuleProgress(verifiedModules.length, modules.length)
+    const nextStatus = progress >= 100 ? "COMPLETED" : "ACTIVE"
 
     const updated = await prisma.enrollment.updateMany({
       where: { userId: user.id, courseId },
       data: {
-        completedModules: completedModules ?? undefined,
-        progress: progress ?? undefined,
-        status: progress >= 100 ? "COMPLETED" : "ACTIVE",
+        completedModules: verifiedModules,
+        progress,
+        status: nextStatus,
+        completedAt: nextStatus === "COMPLETED" ? enrollment.completedAt || new Date() : null,
       },
     })
-    return NextResponse.json(updated)
-  } catch {
+    return NextResponse.json({ ...updated, progress, status: nextStatus, completedModules: verifiedModules })
+  } catch (error) {
+    if (error instanceof z.ZodError) return NextResponse.json({ error: "Invalid module completion update" }, { status: 400 })
     return NextResponse.json({ error: "Failed to update enrollment" }, { status: 500 })
   }
 }
@@ -71,13 +101,14 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const admin = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const admin = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!admin || (admin.role !== "ADMIN" && admin.role !== "INSTRUCTOR")) {
       return NextResponse.json({ error: "Forbidden - self-enrollment disabled" }, { status: 403 })
     }
 
     const { userId, courseId } = await request.json()
     if (!userId || !courseId) return NextResponse.json({ error: "userId and courseId are required" }, { status: 400 })
+    if (!(await canManageCourse(admin, courseId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     // Check course exists and is published
     const course = await prisma.course.findUnique({ where: { id: courseId } })
@@ -127,7 +158,7 @@ export async function DELETE(request: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
     const { courseId } = await request.json()

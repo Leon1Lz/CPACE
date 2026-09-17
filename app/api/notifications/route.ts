@@ -9,7 +9,7 @@ export async function GET() {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
     const dbNotifs = await prisma.notification.findMany({
@@ -52,7 +52,7 @@ export async function PATCH(request: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
     const body = await request.json()
@@ -82,4 +82,3 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Failed to update notifications" }, { status: 500 })
   }
 }
-

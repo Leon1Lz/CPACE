@@ -5,7 +5,7 @@
  * Supports sending emails via SMTP (Nodemailer), Resend API, or logging to console in development.
  */
 
-import nodemailer from "nodemailer"
+import nodemailer, { type Transporter } from "nodemailer"
 import { Resend } from "resend"
 
 const resendApiKey = process.env.RESEND_API_KEY
@@ -21,7 +21,7 @@ const smtpSecure = process.env.SMTP_SECURE === "true"
 const fromEmail = process.env.EMAIL_FROM || "onboarding@resend.dev"
 
 // Create nodemailer transporter if SMTP_HOST is defined
-let transporter: nodemailer.Transporter | null = null
+let transporter: Transporter | null = null
 if (smtpHost) {
   transporter = nodemailer.createTransport({
     host: smtpHost,
@@ -39,11 +39,13 @@ export async function sendEmail({
   subject,
   html,
   text,
+  sensitive = false,
 }: {
   to: string
   subject: string
   html: string
   text?: string
+  sensitive?: boolean
 }) {
   try {
     // 1. Prioritize SMTP if SMTP_HOST is configured
@@ -77,6 +79,10 @@ export async function sendEmail({
     }
 
     // 3. Fall back to Simulation (Console Logging) in development / local mode
+    if (sensitive) {
+      console.warn("Sensitive email was not logged because no mail provider is configured.")
+      return { success: false, simulated: true }
+    }
     console.log(`\n==========================================`)
     console.log(`✉️  EMAIL SIMULATION (No SMTP or Resend configured)`)
     console.log(`👉 To:      ${to}`)
@@ -122,7 +128,7 @@ export async function sendPasswordResetEmail(email: string, token: string) {
     </div>
   `
 
-  return sendEmail({ to: email, subject, html, text })
+  return sendEmail({ to: email, subject, html, text, sensitive: true })
 }
 
 /**

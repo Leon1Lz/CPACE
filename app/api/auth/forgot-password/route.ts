@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
     }
 
     const { email } = await req.json()
-    if (!email) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 })
+    if (typeof email !== "string" || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: "A valid email is required" }, { status: 400 })
     }
 
     const user = await prisma.user.findUnique({
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
 
     // Generate token
     const token = crypto.randomBytes(32).toString("hex")
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex")
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour expiration
 
     // Delete any old password reset tokens for this email
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
     await prisma.passwordResetToken.create({
       data: {
         email: user.email,
-        token,
+        token: tokenHash,
         expiresAt,
       },
     })
@@ -51,18 +52,8 @@ export async function POST(req: NextRequest) {
     // Send email via Resend
     await sendPasswordResetEmail(user.email, token)
 
-    // Generate reset URL for local console output
-    const resetUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/reset-password?token=${token}`
-
-    // Print to console for easy developer access
-    console.log(`\n==========================================`)
-    console.log(`🔑 PASSWORD RESET LINK REQUESTED FOR: ${user.email}`)
-    console.log(`👉 Link: ${resetUrl}`)
-    console.log(`==========================================\n`)
-
     return NextResponse.json({
       message: "If an account exists, a password reset link has been generated.",
-      debugUrl: resetUrl,
     })
   } catch (error) {
     console.error("Forgot password API error:", error)

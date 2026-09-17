@@ -17,6 +17,7 @@ import {
 import Link from "next/link"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
+import { localDateTime } from "@/lib/assessment-schedule"
 
 type Option = { id?: string; text: string; isCorrect: boolean }
 type Question = {
@@ -38,9 +39,22 @@ type Assessment = {
   passingScore: number
   releaseScores?: boolean
   scoresReleasedAt?: string | Date | null
+  startsAt?: string | null
+  endsAt?: string | null
+  bankLockedAt?: string | null
   _count?: { questions: number }
   materialUrl?: string | null
   materialName?: string | null
+  motionDetectionEnabled?: boolean
+  detectFaceAbsence?: boolean
+  detectMultipleFaces?: boolean
+  detectGaze?: boolean
+  detectPosture?: boolean
+  detectionHoldMs?: number
+  detectionCooldownMs?: number
+  evidenceCaptureEnabled?: boolean
+  evidenceRetentionDays?: number
+  requireProctoringConsent?: boolean
 }
 
 const TYPE_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
@@ -63,6 +77,7 @@ export default function ManageQuestionsPage() {
   const [courses, setCourses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -85,6 +100,18 @@ export default function ManageQuestionsPage() {
     description: "",
     releaseScores: true,
     scoresReleasedAt: "",
+    startsAt: "",
+    endsAt: "",
+    motionDetectionEnabled: true,
+    detectFaceAbsence: true,
+    detectMultipleFaces: true,
+    detectGaze: true,
+    detectPosture: true,
+    detectionHoldMs: "2500",
+    detectionCooldownMs: "12000",
+    evidenceCaptureEnabled: true,
+    evidenceRetentionDays: "30",
+    requireProctoringConsent: true,
   })
   const [editSaving, setEditSaving] = useState(false)
   const [uploadingMaterial, setUploadingMaterial] = useState(false)
@@ -172,6 +199,18 @@ export default function ManageQuestionsPage() {
         description: assessment.description || "",
         releaseScores: assessment.releaseScores !== false,
         scoresReleasedAt: formattedDate,
+        startsAt: localDateTime(assessment.startsAt),
+        endsAt: localDateTime(assessment.endsAt),
+        motionDetectionEnabled: assessment.motionDetectionEnabled !== false,
+        detectFaceAbsence: assessment.detectFaceAbsence !== false,
+        detectMultipleFaces: assessment.detectMultipleFaces !== false,
+        detectGaze: assessment.detectGaze !== false,
+        detectPosture: assessment.detectPosture !== false,
+        detectionHoldMs: String(assessment.detectionHoldMs ?? 2500),
+        detectionCooldownMs: String(assessment.detectionCooldownMs ?? 12000),
+        evidenceCaptureEnabled: assessment.evidenceCaptureEnabled !== false,
+        evidenceRetentionDays: String(assessment.evidenceRetentionDays ?? 30),
+        requireProctoringConsent: assessment.requireProctoringConsent !== false,
       })
     }
   }, [assessment])
@@ -184,21 +223,30 @@ export default function ManageQuestionsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...editForm,
+          ...Object.fromEntries(Object.entries(editForm).filter(([key]) => key !== "courseId")),
+          startsAt: editForm.startsAt ? new Date(editForm.startsAt).toISOString() : null,
+          endsAt: editForm.endsAt ? new Date(editForm.endsAt).toISOString() : null,
           timeLimit: editForm.timeLimit ? parseInt(editForm.timeLimit) : null,
           passingScore: parseFloat(editForm.passingScore),
           attempts: isUnlimited ? null : parseInt(editForm.attempts),
           releaseScores: editForm.releaseScores,
           scoresReleasedAt: editForm.releaseScores ? null : (editForm.scoresReleasedAt ? new Date(editForm.scoresReleasedAt) : null),
+          detectionHoldMs: Math.max(1000, parseInt(editForm.detectionHoldMs) || 2500),
+          detectionCooldownMs: Math.max(3000, parseInt(editForm.detectionCooldownMs) || 12000),
+          evidenceRetentionDays: Math.max(1, parseInt(editForm.evidenceRetentionDays) || 30),
         }),
       })
       if (res.ok) {
         const updated = await res.json()
         setAssessment(prev => prev ? { ...prev, ...updated } : updated)
         setEditOpen(false)
+      } else {
+        const failure = await res.json()
+        alert(failure.error ?? "Unable to save assessment settings.")
       }
     } catch (err) {
       console.error("Failed to update assessment details:", err)
+      alert("Unable to save assessment settings. Please try again.")
     } finally {
       setEditSaving(false)
     }
@@ -207,6 +255,7 @@ export default function ManageQuestionsPage() {
   const needsOptions = form.type === "MULTIPLE_CHOICE" || form.type === "TRUE_FALSE"
 
   const resetForm = () => {
+    setEditingQuestionId(null)
     setForm({ question: "", type: "MULTIPLE_CHOICE", points: "1", options: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()] })
     setError("")
   }
@@ -235,29 +284,38 @@ export default function ManageQuestionsPage() {
     if (needsOptions && form.options.some(o => !o.text.trim())) { setError("All option fields must have text"); return }
 
     setSaving(true)
-    const res = await fetch(`/api/assessments/${assessmentId}/questions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        question: form.question,
-        type: form.type,
-        points: parseFloat(form.points) || 1,
-        options: needsOptions ? form.options : undefined,
-      }),
-    })
-    const data = await res.json()
-    setSaving(false)
-    if (!res.ok) { setError(data.error ?? "Failed to save question"); return }
-    setQuestions(prev => [...prev, data])
-    setOpen(false)
-    resetForm()
+    try {
+      const res = await fetch(`/api/assessments/${assessmentId}/questions${editingQuestionId ? `/${editingQuestionId}` : ""}`, {
+        method: editingQuestionId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: form.question,
+          type: form.type,
+          points: Number(form.points),
+          options: needsOptions ? form.options.map(({ text, isCorrect }) => ({ text, isCorrect })) : undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error ?? "Failed to save question"); return }
+      setQuestions(prev => editingQuestionId ? prev.map(question => question.id === editingQuestionId ? data : question) : [...prev, data])
+      setOpen(false)
+      resetForm()
+    } catch {
+      setError("Question could not be saved. Your edits are still here; please retry.")
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleDelete = async (qId: string) => {
+    if (!confirm("Delete this question? This is allowed only before attempts begin.")) return
     setDeletingId(qId)
-    await fetch(`/api/assessments/${assessmentId}/questions/${qId}`, { method: "DELETE" })
-    setQuestions(prev => prev.filter(q => q.id !== qId))
-    setDeletingId(null)
+    try {
+      const response = await fetch(`/api/assessments/${assessmentId}/questions/${qId}`, { method: "DELETE" })
+      if (!response.ok) { const failure = await response.json(); alert(failure.error ?? "Unable to delete question."); return }
+      setQuestions(prev => prev.filter(q => q.id !== qId))
+    } catch { alert("Question was not deleted. Please retry.") }
+    finally { setDeletingId(null) }
   }
 
   const totalPoints = questions.reduce((s, q) => s + q.points, 0)
@@ -364,7 +422,7 @@ export default function ManageQuestionsPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Type</Label>
-                  <Select value={editForm.type} onValueChange={v => setEditForm(p => ({ ...p, type: v }))}>
+                  <Select value={editForm.type} disabled={Boolean(assessment?.bankLockedAt)} onValueChange={v => setEditForm(p => ({ ...p, type: v }))}>
                     <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="REVIEWER">Reviewer</SelectItem>
@@ -376,7 +434,7 @@ export default function ManageQuestionsPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Course</Label>
-                  <Select value={editForm.courseId} onValueChange={v => setEditForm(p => ({ ...p, courseId: v }))}>
+                  <Select value={editForm.courseId} disabled>
                     <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select course" /></SelectTrigger>
                     <SelectContent>
                       {courses.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
@@ -387,11 +445,11 @@ export default function ManageQuestionsPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label>Time Limit (min)</Label>
-                      <Input type="number" placeholder="No limit" value={editForm.timeLimit} onChange={e => setEditForm(p => ({ ...p, timeLimit: e.target.value }))} className="rounded-xl" />
+                      <Input type="number" disabled={Boolean(assessment?.bankLockedAt)} placeholder="No limit" value={editForm.timeLimit} onChange={e => setEditForm(p => ({ ...p, timeLimit: e.target.value }))} className="rounded-xl" />
                     </div>
                     <div className="space-y-1.5">
                       <Label>Passing Score (%)</Label>
-                      <Input type="number" value={editForm.passingScore} onChange={e => setEditForm(p => ({ ...p, passingScore: e.target.value }))} className="rounded-xl" />
+                      <Input type="number" disabled={Boolean(assessment?.bankLockedAt)} value={editForm.passingScore} onChange={e => setEditForm(p => ({ ...p, passingScore: e.target.value }))} className="rounded-xl" />
                     </div>
                   </div>
                 )}
@@ -401,6 +459,18 @@ export default function ManageQuestionsPage() {
                     <Input type="number" min="1" value={editForm.attempts} onChange={e => setEditForm(p => ({ ...p, attempts: e.target.value }))} className="rounded-xl" />
                   </div>
                 )}
+                <div className="space-y-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                  <p className="text-sm font-semibold text-emerald-800">Assessment availability</p>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="assessment-start">Start date and time</Label>
+                    <Input id="assessment-start" type="datetime-local" value={editForm.startsAt} onChange={event => setEditForm(previous => ({ ...previous, startsAt: event.target.value }))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="assessment-end">End date and time</Label>
+                    <Input id="assessment-end" type="datetime-local" value={editForm.endsAt} onChange={event => setEditForm(previous => ({ ...previous, endsAt: event.target.value }))} />
+                  </div>
+                  <p className="text-xs text-emerald-800">Times use your device timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone}). Leave blank for no boundary. End time closes new attempts; existing attempts may resume and finish under their timer.</p>
+                </div>
                 {/* Score Release Policy settings */}
                 {editForm.type !== "REVIEWER" && (
                   <div className="space-y-3 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
@@ -431,6 +501,32 @@ export default function ManageQuestionsPage() {
                         </p>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {editForm.type === "FINAL_EXAM" && (
+                  <div className="space-y-3 p-4 bg-emerald-50/60 border border-emerald-100 rounded-2xl">
+                    <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">AI Proctoring Controls</p>
+                    {[
+                      ["motionDetectionEnabled", "Enable motion detection"],
+                      ["detectFaceAbsence", "Detect missing face"],
+                      ["detectMultipleFaces", "Detect multiple faces"],
+                      ["detectGaze", "Detect looking away"],
+                      ["detectPosture", "Detect posture changes"],
+                      ["evidenceCaptureEnabled", "Capture incident evidence"],
+                      ["requireProctoringConsent", "Require learner consent"],
+                    ].map(([key, label]) => (
+                      <div key={key} className="flex items-center justify-between gap-4">
+                        <Label className="text-xs text-gray-700">{label}</Label>
+                        <Checkbox checked={Boolean(editForm[key as keyof typeof editForm])} onCheckedChange={(value) => setEditForm((previous) => ({ ...previous, [key]: Boolean(value) }))} />
+                      </div>
+                    ))}
+                    <div className="grid grid-cols-3 gap-2 border-t border-emerald-100 pt-3">
+                      <div className="space-y-1"><Label className="text-[10px]">Hold (ms)</Label><Input type="number" min="1000" value={editForm.detectionHoldMs} onChange={(event) => setEditForm((previous) => ({ ...previous, detectionHoldMs: event.target.value }))} className="h-8 rounded-lg text-xs" /></div>
+                      <div className="space-y-1"><Label className="text-[10px]">Cooldown (ms)</Label><Input type="number" min="3000" value={editForm.detectionCooldownMs} onChange={(event) => setEditForm((previous) => ({ ...previous, detectionCooldownMs: event.target.value }))} className="h-8 rounded-lg text-xs" /></div>
+                      <div className="space-y-1"><Label className="text-[10px]">Retention (days)</Label><Input type="number" min="1" value={editForm.evidenceRetentionDays} onChange={(event) => setEditForm((previous) => ({ ...previous, evidenceRetentionDays: event.target.value }))} className="h-8 rounded-lg text-xs" /></div>
+                    </div>
+                    <p className="text-[9px] leading-relaxed text-emerald-700/70">Detector alerts require human review. Evidence is retained only for the configured period.</p>
                   </div>
                 )}
 
@@ -555,8 +651,9 @@ export default function ManageQuestionsPage() {
           </DialogTrigger>
           <DialogContent className="rounded-2xl max-w-[calc(100%-2rem)] sm:max-w-xl md:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Add Question</DialogTitle>
+              <DialogTitle>{editingQuestionId ? "Edit Question" : "Add Question"}</DialogTitle>
             </DialogHeader>
+            {editingQuestionId && <p className="text-xs text-gray-600">Edit text, type, points, options, and the correct answer. Editing is locked once attempts exist to protect saved answers and historical scores.</p>}
             <div className="space-y-4 mt-2">
               {/* Type selector */}
               <div className="space-y-1.5">
@@ -806,6 +903,12 @@ export default function ManageQuestionsPage() {
                       </div>
                     )}
                   </div>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    setEditingQuestionId(q.id)
+                    setForm({ question: q.question, type: q.type, points: String(q.points), options: q.options.map(option => ({ text: option.text, isCorrect: option.isCorrect })) })
+                    setError("")
+                    setOpen(true)
+                  }}>Edit</Button>
                   <button
                     onClick={() => handleDelete(q.id)}
                     disabled={deletingId === q.id}

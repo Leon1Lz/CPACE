@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { canManageAssessment } from "@/lib/authorization"
+import { withEditableAssessment, AssessmentIntegrityError } from "@/lib/assessment-integrity"
 
 // Expected CSV columns:
 // question, type, points, option_a, option_b, option_c, option_d, correct_answer
@@ -66,16 +68,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user || user.role === "LEARNER" || user.role === "PROCTOR") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const { id: assessmentId } = await params
+    if (!(await canManageAssessment(user, assessmentId))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
 
     const formData = await request.formData()
     const file = formData.get("file") as File | null
     if (!file) return NextResponse.json({ error: "No file uploaded" }, { status: 400 })
+    if (file.size > 2 * 1024 * 1024) return NextResponse.json({ error: "CSV must be 2 MB or smaller" }, { status: 413 })
 
     const text = await file.text()
     const rows = parseCSV(text)
@@ -89,13 +95,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (errors.length > 0) return NextResponse.json({ error: "Validation failed", details: errors }, { status: 400 })
 
     // Get current question count for ordering
-    const existingCount = await prisma.question.count({ where: { assessmentId } })
+    const created = await withEditableAssessment(assessmentId, async tx => {
+    const existingCount = await tx.question.count({ where: { assessmentId } })
 
     // Bulk create questions
-    const created = await Promise.all(
+    return Promise.all(
       rows.map((row, i) => {
         const q = rowToQuestion(row, existingCount + i + 1)
-        return prisma.question.create({
+        return tx.question.create({
           data: {
             question: q.question,
             type: q.type,
@@ -110,9 +117,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         })
       })
     )
+    })
 
     return NextResponse.json({ imported: created.length, questions: created }, { status: 201 })
   } catch (error) {
+    if (error instanceof AssessmentIntegrityError) return NextResponse.json({ error: error.message }, { status: error.status })
     console.error("CSV import error:", error)
     return NextResponse.json({ error: "Failed to import CSV" }, { status: 500 })
   }

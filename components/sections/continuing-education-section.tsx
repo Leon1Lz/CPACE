@@ -1,7 +1,10 @@
 "use client"
 
+/* eslint-disable react/no-unescaped-entities */
+
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
+import Link from "next/link"
 import { ChevronDown, ChevronUp, BookOpen, Users, Award, TrendingUp, Target, Lightbulb } from "lucide-react"
 
 export function ContinuingEducationSection() {
@@ -29,11 +32,6 @@ export function ContinuingEducationSection() {
       <div className="absolute bottom-16 right-16 w-28 h-28 bg-gradient-to-br from-teal-400/30 to-emerald-400/30 rounded-full blur-2xl animate-pulse delay-2000"></div>
       <div className="absolute bottom-24 left-8 w-20 h-20 bg-gradient-to-br from-green-400/25 to-emerald-400/25 rounded-full blur-2xl animate-pulse delay-500"></div>
 
-      {/* Enhanced Green Side Visual Elements */}
-      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-48 h-80 bg-gradient-to-r from-emerald-300/20 to-transparent rounded-r-full"></div>
-      <div className="absolute right-0 top-1/3 w-40 h-56 bg-gradient-to-l from-green-300/20 to-transparent rounded-l-full"></div>
-      <div className="absolute top-0 left-1/4 w-32 h-32 bg-gradient-to-br from-teal-300/15 to-transparent rounded-full blur-3xl"></div>
-
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Left Column - Content */}
@@ -45,13 +43,13 @@ export function ContinuingEducationSection() {
             </div>
 
             {/* Enhanced Main Heading */}
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
               <span className="block text-gray-900">Continuing Education &</span>
               <span className="block bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                 Professional Certifications
               </span>
               <span className="block text-gray-900">in the Philippines</span>
-            </h1>
+            </h2>
 
             {/* Enhanced Content */}
             <div className="space-y-3 lg:space-y-4">
@@ -101,7 +99,7 @@ export function ContinuingEducationSection() {
               <div className="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-emerald-100">
                 <div className="aspect-[4/3] relative">
                   <img 
-                    src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80"
+                    src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
                     alt="Professional Education"
                     className="w-full h-full object-cover"
                   />
@@ -211,12 +209,16 @@ export function ContinuingEducationSection() {
                     Join thousands of professionals who have advanced their careers with our industry-recognized certification programs.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                      Explore Programs
-                    </Button>
-                    <Button variant="outline" className="border-emerald-600 text-emerald-600 hover:bg-emerald-50 font-semibold px-8 py-3">
-                      Download Brochure
-                    </Button>
+                    <Link href="/services">
+                      <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                        Explore Programs
+                      </Button>
+                    </Link>
+                    <Link href="/#contact">
+                      <Button variant="outline" className="border-emerald-600 text-emerald-600 hover:bg-emerald-50 font-semibold px-8 py-3">
+                        Inquire Now
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               </div>

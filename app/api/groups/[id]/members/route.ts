@@ -2,18 +2,20 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { canManageGroup } from "@/lib/authorization"
 
 // POST — add members to group (by userIds, emails array, or raw email string) + batch enroll them in all group courses
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user || user.role === "LEARNER" || user.role === "PROCTOR") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const { id: groupId } = await params
+    if (!(await canManageGroup(user, groupId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     const body = await request.json() as { userIds?: string[]; emails?: string[]; rawEmails?: string }
 
     let targetUserIds: string[] = []
@@ -88,12 +90,13 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user || user.role === "LEARNER" || user.role === "PROCTOR") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const { id: groupId } = await params
+    if (!(await canManageGroup(user, groupId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     const { userId } = await request.json()
     await prisma.groupMember.deleteMany({ where: { groupId, userId } })
     return NextResponse.json({ success: true })

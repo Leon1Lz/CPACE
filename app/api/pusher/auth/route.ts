@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { canAccessExamSession } from "@/lib/proctor-access"
 import { getPusherServer } from "@/lib/pusher"
 
 /**
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     // Look up the user
     const userRecord = await prisma.user.findUnique({
-      where: { email: session.user.email! },
+      where: { id: session.user.id },
       select: { id: true, role: true },
     })
     if (!userRecord) {
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     let hasAccess = false
 
-    if (channelName === "private-proctor-notifications") {
+    if (channelName === `private-proctor-user-${userRecord.id}`) {
       hasAccess = userRecord.role === "PROCTOR" || userRecord.role === "ADMIN"
     } else {
       // Extract sessionId from channel name: "private-exam-session-{sessionId}"
@@ -58,10 +59,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Verify access: must be the examinee or a proctor/admin
-      hasAccess =
-        examSession.userId === userRecord.id ||
-        userRecord.role === "PROCTOR" ||
-        userRecord.role === "ADMIN"
+      hasAccess = await canAccessExamSession(userRecord, examSessionId)
     }
 
     if (!hasAccess) {

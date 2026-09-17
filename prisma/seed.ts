@@ -7,6 +7,7 @@ dotenv.config()
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  // Seed script runs locally during development only — allow self-signed certs
   ssl: { rejectUnauthorized: false },
 })
 const adapter = new PrismaPg(pool)
@@ -496,7 +497,7 @@ async function main() {
       category: "Partnership",
       categoryColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
       iconName: "users",
-      image: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      image: "/assets/articles/San Beda University - March 18.jpg",
       featured: true,
     },
     {
@@ -507,7 +508,7 @@ async function main() {
       category: "Industry Insights",
       categoryColor: "bg-blue-100 text-blue-700 border-blue-200",
       iconName: "trending-up",
-      image: "https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      image: "/assets/articles/Beyond the Paycheck.jpg",
       featured: false,
     },
     {
@@ -518,7 +519,7 @@ async function main() {
       category: "Events",
       categoryColor: "bg-violet-100 text-violet-700 border-violet-200",
       iconName: "zap",
-      image: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      image: "/assets/articles/Modernizing Finance.jpg",
       featured: false,
     },
     {
@@ -529,7 +530,7 @@ async function main() {
       category: "Events",
       categoryColor: "bg-violet-100 text-violet-700 border-violet-200",
       iconName: "zap",
-      image: "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      image: "/assets/articles/CHRO Philippines 2026.jpg",
       featured: false,
     },
     {
@@ -540,7 +541,7 @@ async function main() {
       category: "Partnership",
       categoryColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
       iconName: "users",
-      image: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      image: "/assets/articles/Gordon College  - Dec 12.jpg",
       featured: false,
     },
     {
@@ -551,7 +552,7 @@ async function main() {
       category: "Partnership",
       categoryColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
       iconName: "users",
-      image: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      image: "/assets/articles/BatStateU Dec 2_feature.jpg",
       featured: false,
     },
     {
@@ -562,7 +563,7 @@ async function main() {
       category: "Partnership",
       categoryColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
       iconName: "users",
-      image: "https://images.unsplash.com/photo-1577896851231-70ef18881754?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      image: "/assets/articles/NEMSU Nov 28.jpg",
       featured: false,
     },
     {
@@ -573,7 +574,7 @@ async function main() {
       category: "Technology",
       categoryColor: "bg-orange-100 text-orange-700 border-orange-200",
       iconName: "globe",
-      image: "https://images.unsplash.com/photo-1563986768609-322da13575f3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      image: "/assets/articles/CloudHQ Nov 25.jpg",
       featured: false,
     },
     {
@@ -584,7 +585,7 @@ async function main() {
       category: "Partnership",
       categoryColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
       iconName: "users",
-      image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      image: "/assets/articles/WLC.jpg",
       featured: false,
     },
   ]

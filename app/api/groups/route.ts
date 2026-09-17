@@ -8,12 +8,13 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user || user.role === "LEARNER" || user.role === "PROCTOR") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const groups = await prisma.group.findMany({
+      where: user.role === "ADMIN" ? undefined : { creatorId: user.id },
       include: {
         creator: { select: { firstName: true, lastName: true } },
         members: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true, role: true } } } },
@@ -34,13 +35,15 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user || user.role === "LEARNER" || user.role === "PROCTOR") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const { name, description } = await request.json()
-    if (!name?.trim()) return NextResponse.json({ error: "Group name is required" }, { status: 400 })
+    if (typeof name !== "string" || !name.trim() || name.length > 120 || (description != null && (typeof description !== "string" || description.length > 2000))) {
+      return NextResponse.json({ error: "Invalid group details" }, { status: 400 })
+    }
 
     const group = await prisma.group.create({
       data: { name: name.trim(), description: description?.trim() || null, creatorId: user.id },

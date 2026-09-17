@@ -6,6 +6,8 @@ import { Footer } from "@/components/layout/footer"
 import { Calendar, MessageCircle, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Newspaper } from "lucide-react"
 import Link from "next/link"
 import { SafeHtml } from "@/components/ui/safe-html"
+import { articlesData } from "@/data/articles"
+import { ArticleImage } from "@/components/ui/article-image"
 
 export default function ArticleDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
@@ -18,10 +20,21 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ slug: 
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          setArticles(data)
+          const managedArticles = data.map((article) => {
+            const matchingArticle = articlesData.find((item) => item.slug === article.slug)
+            return { ...article, image: matchingArticle?.image || article.image }
+          })
+          const databaseSlugs = new Set(managedArticles.map((article) => article.slug))
+          setArticles([
+            ...managedArticles,
+            ...articlesData.filter((article) => !databaseSlugs.has(article.slug)),
+          ])
         }
       })
-      .catch((err) => console.error("Error fetching articles:", err))
+      .catch((err) => {
+        console.error("Error fetching articles:", err)
+        setArticles(articlesData)
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -54,7 +67,7 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ slug: 
             <Newspaper className="w-12 h-12 mx-auto text-gray-300 stroke-[1.5]" />
             <h3 className="font-semibold text-gray-700">Article not found</h3>
             <p className="text-xs max-w-xs mx-auto">
-              We couldn't find the article you're looking for.
+              We couldn&apos;t find the article you&apos;re looking for.
             </p>
             <Link href="/insights" className="inline-block mt-4 text-emerald-600 font-semibold hover:underline">
               Go back to Insights
@@ -105,10 +118,11 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ slug: 
           <article className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
             {article.image && (
               <div className="relative h-[250px] md:h-[450px]">
-                <img
+                <ArticleImage
                   src={article.image}
                   alt={article.title}
-                  className="w-full h-full object-cover"
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 896px"
                 />
               </div>
             )}
@@ -168,7 +182,7 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ slug: 
       <Footer />
       
       {/* Styles for Prose container rendering */}
-      <style jsx global>{`
+      <style>{`
         .prose h1 {
           font-size: 2rem;
           font-weight: 800;

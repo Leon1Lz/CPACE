@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sanitizeHtml } from "@/lib/sanitize"
+import { canManageCourse } from "@/lib/authorization"
+import { getLearningPathBlocker } from "@/lib/learning-path-access"
 
 // GET /api/courses/[id]/modules — list all modules for a course
 export async function GET(
@@ -14,8 +16,18 @@ export async function GET(
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { id } = await params
+    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true } })
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const manager = await canManageCourse(user, id)
+    if (!manager) {
+      if (user.role !== "LEARNER") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      const enrollment = await prisma.enrollment.findUnique({ where: { userId_courseId: { userId: user.id, courseId: id } }, select: { id: true, status: true, course: { select: { status: true } } } })
+      if (!enrollment || !["ACTIVE", "COMPLETED"].includes(enrollment.status) || enrollment.course.status !== "PUBLISHED") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      const blocker = await getLearningPathBlocker(user.id, { courseId: id })
+      if (blocker) return NextResponse.json(blocker, { status: 403 })
+    }
     const modules = await prisma.courseModule.findMany({
-      where: { courseId: id },
+      where: { courseId: id, ...(manager ? {} : { isPublished: true }) },
       orderBy: { order: "asc" },
     })
     return NextResponse.json(modules)
@@ -33,12 +45,13 @@ export async function POST(
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user || (user.role !== "ADMIN" && user.role !== "INSTRUCTOR")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const { id } = await params
+    if (!(await canManageCourse(user, id))) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     const { title, description, content, videoUrl, duration } = await request.json()
 
     if (!title) return NextResponse.json({ error: "Title is required" }, { status: 400 })
@@ -51,7 +64,7 @@ export async function POST(
     })
     const order = (last?.order ?? 0) + 1
 
-    const module = await prisma.courseModule.create({
+    const createdModule = await prisma.courseModule.create({
       data: {
         title,
         description: description || null,
@@ -64,7 +77,7 @@ export async function POST(
       },
     })
 
-    return NextResponse.json(module, { status: 201 })
+    return NextResponse.json(createdModule, { status: 201 })
   } catch {
     return NextResponse.json({ error: "Failed to create module" }, { status: 500 })
   }
@@ -79,12 +92,13 @@ export async function PATCH(
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user || (user.role !== "ADMIN" && user.role !== "INSTRUCTOR")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const { id } = await params
+    if (!(await canManageCourse(user, id))) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     const { moduleId, ...updateData } = await request.json()
 
     if (!moduleId) return NextResponse.json({ error: "moduleId required" }, { status: 400 })

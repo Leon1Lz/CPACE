@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { canManageAssessment } from "@/lib/authorization"
+import { withEditableAssessment, AssessmentIntegrityError } from "@/lib/assessment-integrity"
 
 const optionSchema = z.object({
   text: z.string().min(1),
@@ -22,6 +24,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { id: assessmentId } = await params
+    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true } })
+    if (!user || !(await canManageAssessment(user, assessmentId))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
 
     const questions = await prisma.question.findMany({
       where: { assessmentId },
@@ -39,17 +45,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } })
-    if (!user || user.role === "LEARNER") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
+    if (!user || (user.role !== "ADMIN" && user.role !== "INSTRUCTOR")) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
     const { id: assessmentId } = await params
+    if (!(await canManageAssessment(user, assessmentId))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
     const body = await request.json()
     const { question, type, points, options } = questionSchema.parse(body)
 
     // Get current question count for order
-    const count = await prisma.question.count({ where: { assessmentId } })
+    const created = await withEditableAssessment(assessmentId, async tx => {
+    const count = await tx.question.count({ where: { assessmentId } })
 
-    const created = await prisma.question.create({
+    return tx.question.create({
       data: {
         question,
         type,
@@ -64,8 +74,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       },
       include: { options: { orderBy: { order: "asc" } } },
     })
+    })
     return NextResponse.json(created, { status: 201 })
   } catch (error) {
+    if (error instanceof AssessmentIntegrityError) return NextResponse.json({ error: error.message }, { status: error.status })
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid input", details: error.errors }, { status: 400 })
     }

@@ -4,76 +4,76 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Wireframe grayscale palette */
-  --background: oklch(0.98 0 0);
-  --foreground: oklch(0.2 0 0);
+  /* ── CPACE Emerald Brand Palette ── */
+  --background: oklch(0.985 0.002 155);
+  --foreground: oklch(0.185 0.02 160);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0 0);
+  --card-foreground: oklch(0.185 0.02 160);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0 0);
-  --primary: oklch(0.35 0 0);
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.92 0 0);
-  --secondary-foreground: oklch(0.25 0 0);
-  --muted: oklch(0.94 0 0);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.88 0 0);
-  --accent-foreground: oklch(0.2 0 0);
-  --destructive: oklch(0.55 0.15 25);
+  --popover-foreground: oklch(0.185 0.02 160);
+  --primary: oklch(0.52 0.14 160);
+  --primary-foreground: oklch(0.985 0.002 155);
+  --secondary: oklch(0.955 0.02 155);
+  --secondary-foreground: oklch(0.25 0.03 160);
+  --muted: oklch(0.955 0.015 155);
+  --muted-foreground: oklch(0.5 0.02 160);
+  --accent: oklch(0.88 0.04 155);
+  --accent-foreground: oklch(0.2 0.03 160);
+  --destructive: oklch(0.55 0.2 25);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.85 0 0);
-  --input: oklch(0.92 0 0);
-  --ring: oklch(0.6 0 0);
-  --chart-1: oklch(0.55 0 0);
-  --chart-2: oklch(0.65 0 0);
-  --chart-3: oklch(0.45 0 0);
-  --chart-4: oklch(0.75 0 0);
-  --chart-5: oklch(0.35 0 0);
-  --radius: 0.375rem;
-  --sidebar: oklch(0.96 0 0);
-  --sidebar-foreground: oklch(0.2 0 0);
-  --sidebar-primary: oklch(0.35 0 0);
-  --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.9 0 0);
-  --sidebar-accent-foreground: oklch(0.2 0 0);
-  --sidebar-border: oklch(0.85 0 0);
-  --sidebar-ring: oklch(0.6 0 0);
+  --border: oklch(0.9 0.015 155);
+  --input: oklch(0.92 0.01 155);
+  --ring: oklch(0.52 0.14 160);
+  --chart-1: oklch(0.52 0.14 160);
+  --chart-2: oklch(0.6 0.12 185);
+  --chart-3: oklch(0.48 0.1 230);
+  --chart-4: oklch(0.75 0.15 85);
+  --chart-5: oklch(0.55 0.18 300);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.975 0.01 155);
+  --sidebar-foreground: oklch(0.185 0.02 160);
+  --sidebar-primary: oklch(0.52 0.14 160);
+  --sidebar-primary-foreground: oklch(0.985 0.002 155);
+  --sidebar-accent: oklch(0.94 0.03 155);
+  --sidebar-accent-foreground: oklch(0.2 0.03 160);
+  --sidebar-border: oklch(0.9 0.015 155);
+  --sidebar-ring: oklch(0.52 0.14 160);
 }
 
 .dark {
-  /* Dark wireframe palette */
-  --background: oklch(0.15 0 0);
-  --foreground: oklch(0.92 0 0);
-  --card: oklch(0.18 0 0);
-  --card-foreground: oklch(0.92 0 0);
-  --popover: oklch(0.18 0 0);
-  --popover-foreground: oklch(0.92 0 0);
-  --primary: oklch(0.85 0 0);
-  --primary-foreground: oklch(0.15 0 0);
-  --secondary: oklch(0.25 0 0);
-  --secondary-foreground: oklch(0.9 0 0);
-  --muted: oklch(0.22 0 0);
-  --muted-foreground: oklch(0.6 0 0);
-  --accent: oklch(0.28 0 0);
-  --accent-foreground: oklch(0.92 0 0);
-  --destructive: oklch(0.45 0.15 25);
-  --destructive-foreground: oklch(0.92 0 0);
-  --border: oklch(0.3 0 0);
-  --input: oklch(0.25 0 0);
-  --ring: oklch(0.5 0 0);
-  --chart-1: oklch(0.65 0 0);
-  --chart-2: oklch(0.55 0 0);
-  --chart-3: oklch(0.75 0 0);
-  --chart-4: oklch(0.45 0 0);
-  --chart-5: oklch(0.8 0 0);
-  --sidebar: oklch(0.12 0 0);
-  --sidebar-foreground: oklch(0.92 0 0);
-  --sidebar-primary: oklch(0.85 0 0);
-  --sidebar-primary-foreground: oklch(0.15 0 0);
-  --sidebar-accent: oklch(0.22 0 0);
-  --sidebar-accent-foreground: oklch(0.92 0 0);
-  --sidebar-border: oklch(0.28 0 0);
-  --sidebar-ring: oklch(0.5 0 0);
+  /* ── CPACE Dark Mode ── */
+  --background: oklch(0.14 0.015 160);
+  --foreground: oklch(0.94 0.01 155);
+  --card: oklch(0.17 0.015 160);
+  --card-foreground: oklch(0.94 0.01 155);
+  --popover: oklch(0.17 0.015 160);
+  --popover-foreground: oklch(0.94 0.01 155);
+  --primary: oklch(0.7 0.14 160);
+  --primary-foreground: oklch(0.14 0.015 160);
+  --secondary: oklch(0.24 0.02 160);
+  --secondary-foreground: oklch(0.94 0.01 155);
+  --muted: oklch(0.22 0.015 160);
+  --muted-foreground: oklch(0.6 0.02 160);
+  --accent: oklch(0.27 0.03 160);
+  --accent-foreground: oklch(0.94 0.01 155);
+  --destructive: oklch(0.45 0.18 25);
+  --destructive-foreground: oklch(0.94 0 0);
+  --border: oklch(0.28 0.02 160);
+  --input: oklch(0.24 0.015 160);
+  --ring: oklch(0.7 0.14 160);
+  --chart-1: oklch(0.65 0.14 160);
+  --chart-2: oklch(0.6 0.12 185);
+  --chart-3: oklch(0.7 0.15 85);
+  --chart-4: oklch(0.55 0.18 300);
+  --chart-5: oklch(0.6 0.2 25);
+  --sidebar: oklch(0.12 0.015 160);
+  --sidebar-foreground: oklch(0.94 0.01 155);
+  --sidebar-primary: oklch(0.7 0.14 160);
+  --sidebar-primary-foreground: oklch(0.14 0.015 160);
+  --sidebar-accent: oklch(0.22 0.02 160);
+  --sidebar-accent-foreground: oklch(0.94 0.01 155);
+  --sidebar-border: oklch(0.26 0.02 160);
+  --sidebar-ring: oklch(0.7 0.14 160);
 }
 
 @theme inline {
@@ -117,11 +117,176 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* ── Base ── */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* ── Custom Animations ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(10px, -10px) scale(1.05); }
+  66% { transform: translate(-5px, 5px) scale(0.95); }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes count-up {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ── Utility Classes ── */
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(16, 185, 129, 0.08) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out both;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-drift {
+  animation: drift 8s ease-in-out infinite;
+}
+
+.animate-slide-down {
+  animation: slide-down 0.3s ease-out both;
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+.animate-count-up {
+  animation: count-up 0.5s ease-out both;
+}
+
+/* Staggered animation delays */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-700 { animation-delay: 700ms; }
+.delay-800 { animation-delay: 800ms; }
+
+/* ── Glassmorphism ── */
+.glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Landing-page partner marquees */
+@keyframes marquee-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes marquee-right {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+
+.animate-marquee-left { animation: marquee-left linear infinite; }
+.animate-marquee-right { animation: marquee-right linear infinite; }
+.animate-marquee-left:hover,
+.animate-marquee-right:hover { animation-play-state: paused; }
+
+/* CPACE portal branding is scoped so public landing styles remain unchanged. */
+.portal-shell {
+  --sidebar: #ffffff;
+  --sidebar-accent: #edf7f0;
+  --sidebar-accent-foreground: #105c2e;
+  --sidebar-border: #e5ece7;
+  --sidebar-primary: #105c2e;
+  --sidebar-ring: #105c2e;
+}
+
+.portal-main {
+  background: linear-gradient(135deg, #f0f7f2 0%, #f8faf9 35%, #f6f8fb 100%);
+}
+
+.portal-shell [data-slot="sidebar-menu-button"] {
+  min-height: 42px;
+}
+
+.portal-main [data-slot="card"] {
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgb(16 92 46 / 3%);
+}
+
+.portal-main [data-slot="table-head"] {
+  color: #607269;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.portal-main [data-slot="table-row"] {
+  border-color: #edf1ee;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-shell *, .portal-shell *::before, .portal-shell *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

@@ -2,28 +2,30 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { Facebook, Twitter, Linkedin, Mail, Phone, MapPin } from "lucide-react"
+import { Facebook, Instagram, Linkedin, Mail, Phone, MapPin } from "lucide-react"
 
 export function Footer() {
   const quickLinks = [
-    { name: "About Us", href: "#about" },
-    { name: "Certifications", href: "#certifications" },
-    { name: "Services", href: "#services" },
-    { name: "Contact", href: "#contact" }
+    { name: "About Us", href: "/about" },
+    { name: "Services & Certifications", href: "/services" },
+    { name: "Industry Insights", href: "/insights" },
+    { name: "Contact Us", href: "/#contact" }
   ]
 
   const programs = [
-    { name: "Professional Certifications", href: "#certifications" },
-    { name: "Business Consultancy", href: "#services" },
-    { name: "Corporate Training", href: "#services" },
-    { name: "Skills Development", href: "#services" }
+    { name: "Professional Certifications", href: "/services" },
+    { name: "Business Consultancy", href: "/services" },
+    { name: "Corporate Training", href: "/services" },
+    { name: "Skills Development", href: "/services" }
   ]
 
   const resources = [
-    { name: "Learning Portal", href: "/login" },
-    { name: "Career Resources", href: "#" },
-    { name: "Blog", href: "#" },
-    { name: "FAQ", href: "#" }
+    { name: "About CPACE", href: "/about" },
+    { name: "Insights & Articles", href: "/insights" },
+    { name: "Institutional Partnerships", href: "/#partners" },
+    { name: "Learning Portal (LMS)", href: "/login", external: false },
+    { name: "Create an Account", href: "/register", external: false },
+    { name: "Inquire Now", href: "/#contact" }
   ]
 
   return (
@@ -32,40 +34,57 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           {/* Company Info */}
           <div className="lg:col-span-2">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="relative w-24 h-12">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="relative w-11 h-11 rounded-full overflow-hidden shrink-0 shadow-md ring-2 ring-emerald-500/30">
                 <Image
-                  src="/logo.svg"
-                  alt="CPACE Logo"
+                  src="/cpace-icon.png"
+                  alt="CPACE Philippines Emblem"
                   fill
-                  className="object-contain"
+                  className="object-cover"
                 />
               </div>
+              <h3 className="text-xl font-bold text-white tracking-tight">
+                CPACE <span className="text-emerald-400">Philippines</span>
+              </h3>
             </div>
-            <p className="text-gray-300 mb-4 max-w-md">
+            <p className="text-gray-300 mb-4 max-w-md text-sm leading-relaxed">
               The Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines) 
               is dedicated to empowering professionals through quality education and certification programs.
             </p>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-gray-300">
-                <Phone className="h-4 w-4" />
-                <span>+63 2 8888 1234</span>
+            <div className="space-y-2.5 text-sm">
+              <div className="flex items-start gap-2 text-gray-300">
+                <MapPin className="h-4 w-4 text-emerald-400 mt-1 shrink-0" />
+                <span className="leading-snug">
+                  <strong className="text-white font-medium">Manila:</strong> Unit 1510 High Street South Corporate Plaza Tower 1, 26th St. Corner 9th Ave., BGC Taguig City, Philippines (1634)
+                </span>
+              </div>
+              <div className="flex items-start gap-2 text-gray-300">
+                <MapPin className="h-4 w-4 text-emerald-400 mt-1 shrink-0" />
+                <span className="leading-snug">
+                  <strong className="text-white font-medium">Dubai:</strong> StratEd Global – Level 41, Emirates Towers, Sheikh Zayed Rd, Dubai, UAE PO Box 31303
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-x-4 gap-y-1 pt-1">
+                <div className="flex items-center gap-2 text-gray-300">
+                  <Phone className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <a href="tel:+639562212400" className="hover:text-emerald-400 transition-colors">+63 956 221-2400 (PH)</a>
+                </div>
+                <div className="flex items-center gap-2 text-gray-300">
+                  <Phone className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <a href="tel:+971503489439" className="hover:text-emerald-400 transition-colors">+971 50 348 9439 (UAE)</a>
+                </div>
               </div>
               <div className="flex items-center gap-2 text-gray-300">
-                <Mail className="h-4 w-4" />
-                <span>info@cpaceph.com</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-300">
-                <MapPin className="h-4 w-4" />
-                <span>Makati City, Metro Manila</span>
+                <Mail className="h-4 w-4 text-emerald-400 shrink-0" />
+                <a href="mailto:info@cpaceph.com" className="hover:text-emerald-400 transition-colors">info@cpaceph.com</a>
               </div>
             </div>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
-            <ul className="space-y-2">
+            <h3 className="text-base font-semibold mb-4 text-emerald-400">Quick Links</h3>
+            <ul className="space-y-2 text-sm">
               {quickLinks.map((link) => (
                 <li key={link.name}>
                   <Link 
@@ -81,8 +100,8 @@ export function Footer() {
 
           {/* Programs */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Programs</h3>
-            <ul className="space-y-2">
+            <h3 className="text-base font-semibold mb-4 text-emerald-400">Programs</h3>
+            <ul className="space-y-2 text-sm">
               {programs.map((program) => (
                 <li key={program.name}>
                   <Link 
@@ -98,12 +117,14 @@ export function Footer() {
 
           {/* Resources */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Resources</h3>
-            <ul className="space-y-2">
+            <h3 className="text-base font-semibold mb-4 text-emerald-400">Resources</h3>
+            <ul className="space-y-2 text-sm">
               {resources.map((resource) => (
                 <li key={resource.name}>
                   <Link 
                     href={resource.href}
+                    target={resource.external ? "_blank" : undefined}
+                    rel={resource.external ? "noopener noreferrer" : undefined}
                     className="text-gray-300 hover:text-emerald-400 transition-colors"
                   >
                     {resource.name}
@@ -115,37 +136,42 @@ export function Footer() {
         </div>
 
         {/* Bottom Section */}
-        <div className="border-t border-gray-800 mt-8 pt-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="text-gray-400 text-sm mb-4 md:mb-0">
-              © 2024 CPACE Philippines. All rights reserved.
+        <div className="border-t border-gray-800 mt-10 pt-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="text-gray-400 text-sm">
+              © {new Date().getFullYear()} CPACE Philippines. All rights reserved.
             </div>
             
             {/* Social Links */}
             <div className="flex items-center space-x-6">
-              <a href="#" className="text-gray-400 hover:text-emerald-400 transition-colors">
+              <a 
+                href="https://www.facebook.com/cpaceph" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-gray-400 hover:text-emerald-400 transition-colors" 
+                aria-label="Facebook"
+              >
                 <Facebook className="h-5 w-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-emerald-400 transition-colors">
-                <Twitter className="h-5 w-5" />
+              <a 
+                href="https://www.instagram.com/cpacephilippines/" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-gray-400 hover:text-emerald-400 transition-colors" 
+                aria-label="Instagram"
+              >
+                <Instagram className="h-5 w-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-emerald-400 transition-colors">
+              <a 
+                href="https://ph.linkedin.com/company/cpaceph" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-gray-400 hover:text-emerald-400 transition-colors" 
+                aria-label="LinkedIn"
+              >
                 <Linkedin className="h-5 w-5" />
               </a>
             </div>
-          </div>
-          
-          {/* Legal Links */}
-          <div className="flex flex-wrap justify-center md:justify-start gap-6 mt-4">
-            <Link href="#" className="text-gray-400 hover:text-emerald-400 text-sm transition-colors">
-              Privacy Policy
-            </Link>
-            <Link href="#" className="text-gray-400 hover:text-emerald-400 text-sm transition-colors">
-              Terms of Service
-            </Link>
-            <Link href="#" className="text-gray-400 hover:text-emerald-400 text-sm transition-colors">
-              Cookie Policy
-            </Link>
           </div>
         </div>
       </div>

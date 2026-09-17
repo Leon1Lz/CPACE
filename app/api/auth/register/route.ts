@@ -5,7 +5,7 @@ import { z } from "zod"
 
 const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(8).max(128),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   role: z.enum(["ADMIN", "INSTRUCTOR", "LEARNER", "PROCTOR"]).default("LEARNER"),

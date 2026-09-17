@@ -2,7 +2,8 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Award, Briefcase, BookOpen, Users, TrendingUp, Presentation, ArrowRight, Star, Zap, GraduationCap, Globe, CheckCircle } from "lucide-react"
+import { Award, Briefcase, BookOpen, Users, TrendingUp, Presentation, ArrowRight, Star, Zap, GraduationCap, CheckCircle } from "lucide-react"
+import { cpaceStats } from "@/data/stats"
 
 const services = [
   {
@@ -15,7 +16,7 @@ const services = [
     number: "01",
     title: "Professional Certification",
     description: "Elevate your career with industry-recognized certifications designed to validate your expertise and boost your professional standing.",
-    href: "/services/professional-certification",
+    href: "/services",
   },
   {
     icon: <Briefcase className="w-7 h-7 text-white" />,
@@ -27,7 +28,7 @@ const services = [
     number: "02",
     title: "Business Consultancy",
     description: "Expert guidance for businesses seeking ISO certification, intellectual property protection, and seamless business registration processes.",
-    href: "/services/business-consultancy",
+    href: "/services",
   },
   {
     icon: <BookOpen className="w-7 h-7 text-white" />,
@@ -39,7 +40,7 @@ const services = [
     number: "03",
     title: "Certificate & Short Courses",
     description: "Acquire new skills or specialize in a field with our flexible diploma and targeted short courses.",
-    href: "/services/certificate-courses",
+    href: "/services",
   },
   {
     icon: <Users className="w-7 h-7 text-white" />,
@@ -51,7 +52,7 @@ const services = [
     number: "04",
     title: "Management Training",
     description: "Develop essential leadership qualities and strategic thinking to inspire teams and drive organizational success.",
-    href: "/services/management-training",
+    href: "/services",
   },
   {
     icon: <TrendingUp className="w-7 h-7 text-white" />,
@@ -63,7 +64,7 @@ const services = [
     number: "05",
     title: "Reskilling & Upskilling",
     description: "Enhance individual and organizational capabilities through our diverse and practical training programs.",
-    href: "/services/reskilling-upskilling",
+    href: "/services",
   },
   {
     icon: <Presentation className="w-7 h-7 text-white" />,
@@ -75,14 +76,14 @@ const services = [
     number: "06",
     title: "Seminars & Webinars",
     description: "Stay informed and connect with industry experts through our insightful seminars and online webinars.",
-    href: "/services/seminars-webinars",
+    href: "/services",
   },
 ]
 
 const stats = [
-  { value: "6+", label: "Service Categories", icon: <Zap className="w-5 h-5" /> },
-  { value: "50+", label: "Programs Available", icon: <BookOpen className="w-5 h-5" /> },
-  { value: "10K+", label: "Professionals Served", icon: <Users className="w-5 h-5" /> },
+  { value: cpaceStats.serviceCategories.value, label: cpaceStats.serviceCategories.label, icon: <Zap className="w-5 h-5" /> },
+  { value: cpaceStats.programsOffered.value, label: cpaceStats.programsOffered.label, icon: <BookOpen className="w-5 h-5" /> },
+  { value: cpaceStats.certifiedProfessionals.value, label: "Professionals Served", icon: <Users className="w-5 h-5" /> },
   { value: "100%", label: "Industry Recognized", icon: <Award className="w-5 h-5" /> },
 ]
 
@@ -127,7 +128,7 @@ export function ServicesSection() {
                 At CPACE Philippines, we provide strategic learning pathways, industry-recognized certifications, and innovative training programs designed to elevate your career and position you at the forefront of your field.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/register">
+                <Link href="/#contact">
                   <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-8 py-3 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
                     Get Started
                     <ArrowRight className="ml-2 w-4 h-4" />
@@ -159,7 +160,6 @@ export function ServicesSection() {
 
       {/* ── Services Grid ── */}
       <div className="relative py-20 lg:py-24 bg-gradient-to-br from-slate-50 via-white to-emerald-50/40">
-        {/* Background elements */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-emerald-100/60 to-transparent rounded-full blur-3xl"></div>
           <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-teal-100/60 to-transparent rounded-full blur-3xl"></div>
@@ -229,9 +229,9 @@ export function ServicesSection() {
                   <div className="h-px bg-gray-100 group-hover:bg-emerald-100 transition-colors duration-300"></div>
 
                   {/* CTA */}
-                  <Link href={service.href}>
-                    <button className={`flex items-center gap-2 text-sm font-semibold ${service.lightText} group/btn`}>
-                      Learn More
+                  <Link href="/#contact">
+                    <button className={`flex items-center gap-2 text-sm font-semibold ${service.lightText} group/btn cursor-pointer`}>
+                      Inquire Now
                       <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform duration-200" />
                     </button>
                   </Link>
@@ -259,7 +259,7 @@ export function ServicesSection() {
                 </div>
                 <h4 className="text-3xl font-bold text-white">Ready to Start Your Journey?</h4>
                 <p className="text-white/70 max-w-xl">
-                  Join thousands of professionals who have elevated their careers with CPACE Philippines' industry-recognized programs.
+                  Join thousands of professionals who have elevated their careers with CPACE Philippines&apos; industry-recognized programs.
                 </p>
                 <div className="flex flex-wrap gap-4 justify-center lg:justify-start pt-2">
                   {["Certified Programs", "Expert Instructors", "Flexible Schedule"].map((item) => (
@@ -277,9 +277,9 @@ export function ServicesSection() {
                     <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
                 </Link>
-                <Link href="/register">
+                <Link href="/#contact">
                   <Button variant="ghost" className="border-2 border-white/40 text-white hover:bg-white/10 hover:text-white font-semibold px-8 py-4 text-base whitespace-nowrap backdrop-blur-sm">
-                    Register Now
+                    Contact Us
                   </Button>
                 </Link>
               </div>
