@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import nodemailer from "nodemailer"
+import { getPublicFormSmtp, createPublicFormTransport } from "@/lib/public-form-smtp"
 import { z } from "zod"
 import { escapeHtmlText } from "@/lib/sanitize"
 import { getClientIp, rateLimit } from "@/lib/rate-limit"
@@ -23,35 +23,19 @@ export async function POST(request: Request) {
     const safeProgram = escapeHtmlText(program || "General Inquiry")
     const safeMessage = escapeHtmlText(message)
 
-    const host = process.env.SMTP_HOST
-    const port = parseInt(process.env.SMTP_PORT || "587", 10)
-    const user = process.env.SMTP_USER
-    const pass = process.env.SMTP_PASS
-    const secure = process.env.SMTP_SECURE === "true" || port === 465
+    const smtp = getPublicFormSmtp()
     const recipientEmail = process.env.CONTACT_EMAIL_TO || "info@cpaceph.com"
-    const fromEmail = process.env.CONTACT_EMAIL_FROM || user || `"CPACE Inquiries" <noreply@cpaceph.com>`
+    const fromEmail = process.env.CONTACT_EMAIL_FROM || smtp?.auth.user || '"CPACE" <noreply@cpaceph.com>'
 
-    // Do not echo contact PII into application logs when delivery is unavailable.
-    if (!host || !user || !pass) {
-      console.warn("SMTP credentials are not configured; contact submission was not emailed.")
-
-      return NextResponse.json({
-        success: true,
-        mock: true,
-        message: "Inquiry received successfully. (Note: Configure SMTP_HOST, SMTP_USER, SMTP_PASS in .env.local to send live emails)."
-      })
+    if (!smtp) {
+      console.warn("Public form delivery is unavailable: SMTP configuration is missing or invalid.")
+      return NextResponse.json(
+        { error: "We could not send your inquiry. Please contact info@cpaceph.com directly or try again later." },
+        { status: 503 },
+      )
     }
 
-    // Create Nodemailer Transporter
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: {
-        user,
-        pass,
-      },
-    })
+    const transporter = createPublicFormTransport(smtp)
 
     const submittedDate = new Date().toLocaleString("en-US", {
       timeZone: "Asia/Manila",
@@ -129,14 +113,18 @@ export async function POST(request: Request) {
     `
 
     // Send Main Notification Email to CPACE Admissions
-    await transporter.sendMail({
+    const delivery = await transporter.sendMail({
       from: fromEmail,
       to: recipientEmail,
-      replyTo: `${name} <${email}>`,
+      replyTo: { name, address: email },
       subject: `[New Inquiry] ${name} — ${program || "General Inquiry"}`,
       text: `New inquiry from ${name} (${email}, ${phone || "No phone"}):\n\nProgram: ${program || "General Inquiry"}\n\nMessage:\n${message}\n\nSubmitted on: ${submittedDate}`,
       html: htmlEmail,
     })
+
+    if (!delivery.accepted?.length || delivery.rejected?.length) {
+      throw new Error("The mail server did not accept the notification recipient")
+    }
 
     // Optionally send auto-acknowledgment to sender if SEND_AUTO_REPLY is true
     if (process.env.SEND_AUTO_REPLY === "true") {
@@ -184,8 +172,8 @@ export async function POST(request: Request) {
           text: `Dear ${name},\n\nThank you for reaching out to CPACE Philippines regarding ${program || "our programs"}. Our team will review your message and respond within 24-48 hours.\n\nBest regards,\nCPACE Philippines Team\ninfo@cpaceph.com`,
           html: acknowledgmentHtml,
         })
-      } catch (autoReplyErr) {
-        console.error("Auto-reply notice: Failed to deliver auto-reply to user, but main notification was sent.", autoReplyErr)
+      } catch {
+        console.error("Contact auto-reply failed; the main notification was accepted.")
       }
     }
 
@@ -193,9 +181,9 @@ export async function POST(request: Request) {
       success: true,
       message: "Your inquiry has been submitted and sent successfully.",
     })
-  } catch (error: any) {
-    console.error("Error sending contact email:", error)
-    if (error instanceof z.ZodError) return NextResponse.json({ error: "Invalid contact details" }, { status: 400 })
+  } catch (error: unknown) {
+    if (error instanceof z.ZodError || error instanceof SyntaxError) return NextResponse.json({ error: "Invalid contact details" }, { status: 400 })
+    console.error("Public form email delivery failed.")
     return NextResponse.json(
       {
         error: "Failed to send message. Please try again or contact us directly at info@cpaceph.com.",

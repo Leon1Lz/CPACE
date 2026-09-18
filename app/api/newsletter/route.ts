@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import nodemailer from "nodemailer"
+import { getPublicFormSmtp, createPublicFormTransport } from "@/lib/public-form-smtp"
 import { z } from "zod"
 import { escapeHtmlText } from "@/lib/sanitize"
 import { getClientIp, rateLimit } from "@/lib/rate-limit"
@@ -17,35 +17,19 @@ export async function POST(request: Request) {
     const safeName = escapeHtmlText(name || "Not provided")
     const safeEmail = escapeHtmlText(email)
 
-    const host = process.env.SMTP_HOST
-    const port = parseInt(process.env.SMTP_PORT || "587", 10)
-    const user = process.env.SMTP_USER
-    const pass = process.env.SMTP_PASS
-    const secure = process.env.SMTP_SECURE === "true" || port === 465
+    const smtp = getPublicFormSmtp()
     const recipientEmail = process.env.CONTACT_EMAIL_TO || "info@cpaceph.com"
-    const fromEmail = process.env.CONTACT_EMAIL_FROM || user || `"CPACE Newsletter" <noreply@cpaceph.com>`
+    const fromEmail = process.env.CONTACT_EMAIL_FROM || smtp?.auth.user || '"CPACE" <noreply@cpaceph.com>'
 
-    // Do not echo subscriber PII into application logs when delivery is unavailable.
-    if (!host || !user || !pass) {
-      console.warn("SMTP credentials are not configured; newsletter subscription was not emailed.")
-
-      return NextResponse.json({
-        success: true,
-        mock: true,
-        message: "Thank you for subscribing to our newsletter! (Configure SMTP in .env.local for live delivery)."
-      })
+    if (!smtp) {
+      console.warn("Public form delivery is unavailable: SMTP configuration is missing or invalid.")
+      return NextResponse.json(
+        { error: "We could not send your subscription request. Please contact info@cpaceph.com directly or try again later." },
+        { status: 503 },
+      )
     }
 
-    // Nodemailer Transporter
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: {
-        user,
-        pass,
-      },
-    })
+    const transporter = createPublicFormTransport(smtp)
 
     const submittedDate = new Date().toLocaleString("en-US", {
       timeZone: "Asia/Manila",
@@ -54,7 +38,7 @@ export async function POST(request: Request) {
     })
 
     // 1. Notification to CPACE Team
-    await transporter.sendMail({
+    const delivery = await transporter.sendMail({
       from: fromEmail,
       to: recipientEmail,
       subject: `[Newsletter Subscriber] ${name || email}`,
@@ -69,6 +53,10 @@ export async function POST(request: Request) {
         </div>
       `,
     })
+
+    if (!delivery.accepted?.length || delivery.rejected?.length) {
+      throw new Error("The mail server did not accept the notification recipient")
+    }
 
     // 2. Welcome auto-reply to Subscriber
     if (process.env.SEND_AUTO_REPLY === "true") {
@@ -90,8 +78,8 @@ export async function POST(request: Request) {
             </div>
           `,
         })
-      } catch (autoErr) {
-        console.error("Failed to send welcome email to subscriber:", autoErr)
+      } catch {
+        console.error("Newsletter welcome email failed; the main notification was accepted.")
       }
     }
 
@@ -99,9 +87,9 @@ export async function POST(request: Request) {
       success: true,
       message: "Thank you for subscribing to our newsletter!",
     })
-  } catch (error: any) {
-    console.error("Error subscribing to newsletter:", error)
-    if (error instanceof z.ZodError) return NextResponse.json({ error: "Invalid subscription details" }, { status: 400 })
+  } catch (error: unknown) {
+    if (error instanceof z.ZodError || error instanceof SyntaxError) return NextResponse.json({ error: "Invalid newsletter details" }, { status: 400 })
+    console.error("Public form email delivery failed.")
     return NextResponse.json(
       { error: "Failed to subscribe. Please try again." },
       { status: 500 }

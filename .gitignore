@@ -11,6 +11,7 @@ next.user-config.*
 .env
 .env.*
 .env*.local
+!.env.example
 
 # Common ignores
 node_modules
@@ -18,3 +19,7 @@ node_modules
 .DS_Store
 /lib/generated/prisma
 cpace-landing/
+
+# Next.js generated declarations and TypeScript build cache
+/next-env.d.ts
+*.tsbuildinfo

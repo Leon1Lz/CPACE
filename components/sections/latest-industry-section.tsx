@@ -1,5 +1,7 @@
 "use client"
 
+import { submitPublicForm } from "@/lib/public-form-client"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -57,13 +59,8 @@ export function LatestIndustrySection() {
     setIsSubmitting(true)
     setErrorMessage(null)
     try {
-      const response = await fetch("/api/newsletter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email }),
-      })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "Unable to subscribe right now.")
+      await submitPublicForm("/api/newsletter", { name, email })
+
       setSubmitted(true)
       setName("")
       setEmail("")
@@ -345,7 +342,7 @@ export function LatestIndustrySection() {
                     {isSubmitting ? <Loader2 className="mr-2 w-4 h-4 animate-spin" /> : <Send className="mr-2 w-4 h-4" />}
                     {isSubmitting ? "Subscribing..." : "Submit"}
                   </Button>
-                  {errorMessage && <p className="text-rose-300 text-sm text-center">{errorMessage}</p>}
+                  {errorMessage && <p role="alert" className="text-rose-300 text-sm text-center">{errorMessage}</p>}
                   <p className="text-white/40 text-xs text-center">
                     We respect your privacy. Unsubscribe at any time.
                   </p>

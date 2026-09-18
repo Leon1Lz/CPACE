@@ -1,5 +1,7 @@
 "use client"
 
+import { submitPublicForm } from "@/lib/public-form-client"
+
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -35,19 +37,7 @@ export function ContactSection() {
     setErrorMessage(null)
 
     try {
-      const response = await fetch("/api/contact", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to send message. Please try again.")
-      }
+      await submitPublicForm("/api/contact", formData)
 
       setSubmitted(true)
       setFormData({
@@ -57,8 +47,8 @@ export function ContactSection() {
         program: "Professional Certification",
         message: "",
       })
-    } catch (err: any) {
-      setErrorMessage(err.message || "An unexpected error occurred. Please try again or email us directly at info@cpaceph.com.")
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "An unexpected error occurred. Please try again or email us directly at info@cpaceph.com.")
     } finally {
       setIsSubmitting(false)
     }
@@ -189,7 +179,7 @@ export function ContactSection() {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 {errorMessage && (
-                  <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm">
+                  <div role="alert" className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm">
                     <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
                     <div className="space-y-1">
                       <p className="font-semibold">Unable to send message</p>
@@ -200,24 +190,28 @@ export function ContactSection() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Full Name *</label>
+                    <label htmlFor="contact-name" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Full Name *</label>
                     <input
                       type="text"
                       required
                       disabled={isSubmitting}
                       placeholder="Juan Dela Cruz"
+                      id="contact-name"
+                      maxLength={120}
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-50 transition-all"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Email Address *</label>
+                    <label htmlFor="contact-email" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Email Address *</label>
                     <input
                       type="email"
                       required
                       disabled={isSubmitting}
                       placeholder="juan@example.com"
+                      id="contact-email"
+                      maxLength={254}
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-50 transition-all"
@@ -227,19 +221,22 @@ export function ContactSection() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Contact Number</label>
+                    <label htmlFor="contact-phone" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Contact Number</label>
                     <input
                       type="tel"
                       disabled={isSubmitting}
                       placeholder="+63 912 345 6789"
+                      id="contact-phone"
+                      maxLength={40}
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-50 transition-all"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Program of Interest</label>
+                    <label htmlFor="contact-program" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Program of Interest</label>
                     <select
+                      id="contact-program"
                       value={formData.program}
                       disabled={isSubmitting}
                       onChange={(e) => setFormData({ ...formData, program: e.target.value })}
@@ -256,12 +253,14 @@ export function ContactSection() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Your Message / Inquiry *</label>
+                  <label htmlFor="contact-message" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Your Message / Inquiry *</label>
                   <textarea
                     rows={4}
                     required
                     disabled={isSubmitting}
                     placeholder="Tell us about your training requirements or questions..."
+                    id="contact-message"
+                    maxLength={5000}
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-50 transition-all"
