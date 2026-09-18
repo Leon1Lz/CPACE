@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, use, useRef } from "react"
 import { useAssessmentAutosave } from "@/lib/use-assessment-autosave"
+import { useAssessmentCamera } from "@/lib/use-assessment-camera"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -80,8 +81,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null)
   const [capturedIdPhoto, setCapturedIdPhoto] = useState<string | null>(null)
   const [activeVerifyStep, setActiveVerifyStep] = useState<"face" | "id">("face")
-  const [cameraActive, setCameraActive] = useState(false)
-  const [cameraError, setCameraError] = useState(false)
+  const { streamRef, cameraActive, cameraError, cameraStarting, startCamera, stopCamera } = useAssessmentCamera()
   const [proctoringConsent, setProctoringConsent] = useState(false)
   const [calibrationStatus, setCalibrationStatus] = useState<"idle" | "checking" | "passed" | "warning">("idle")
   const [calibrationMessage, setCalibrationMessage] = useState("Run the camera check before starting your exam.")
@@ -89,7 +89,6 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
   const [startError, setStartError] = useState("")
   const [isFsLocked, setIsFsLocked] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
   const [materialViewerOpen, setMaterialViewerOpen] = useState(false)
   const isFinal = assessment?.type === "FINAL_EXAM"
 
@@ -121,27 +120,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
         el.play().catch(() => {})
       }
     }
-  }, [])
-
-  const startCamera = async () => {
-    setCameraError(false)
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } })
-      streamRef.current = stream
-      setCameraActive(true)
-    } catch (err) {
-      console.error("Camera access failed:", err)
-      setCameraError(true)
-    }
-  }
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
-      streamRef.current = null
-    }
-    setCameraActive(false)
-  }
+  }, [streamRef])
 
   const capturePhoto = () => {
     if (videoRef.current) {
@@ -206,7 +185,11 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
   const runCalibration = async () => {
     setCalibrationStatus("checking")
     setCalibrationMessage("Checking camera, framing, and lighting…")
-    if (!streamRef.current) await startCamera()
+    if (!await startCamera()) {
+      setCalibrationStatus("warning")
+      setCalibrationMessage("Camera check could not run. Resolve the webcam error below and retry.")
+      return
+    }
 
     window.setTimeout(() => {
       const video = videoRef.current
@@ -243,13 +226,6 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
     }, 900)
   }
 
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop())
-      }
-    }
-  }, [])
 
 
   useEffect(() => {
@@ -289,36 +265,21 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
     } finally {
       submissionInFlight.current = false
     }
-  }, [assessment, answers, id, startedAt, sessionId])
+  }, [assessment, answers, id, startedAt, sessionId, stopCamera])
 
   // Live face feedback to proctor during final exam
   useEffect(() => {
     if (phase !== "taking" || !isFinal || !sessionId) return
 
-    let activeStream: MediaStream | null = streamRef.current
-    
+    let cancelled = false
     const ensureCamera = async () => {
-      if (!activeStream) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } })
-          streamRef.current = stream
-          activeStream = stream
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream
-            videoRef.current.play().catch(() => {})
-          }
-        } catch (err) {
-          console.error("Failed to restore camera during taking:", err)
-        }
-      } else {
-        if (videoRef.current && videoRef.current.srcObject !== activeStream) {
-          videoRef.current.srcObject = activeStream
-          videoRef.current.play().catch(() => {})
-        }
+      if (!await startCamera() || cancelled) return
+      if (videoRef.current && streamRef.current) {
+        videoRef.current.srcObject = streamRef.current
+        videoRef.current.play().catch(() => {})
       }
     }
-
-    ensureCamera()
+    void ensureCamera()
 
     const interval = setInterval(async () => {
       if (videoRef.current) {
@@ -348,9 +309,10 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
     }, 3000)
 
     return () => {
+      cancelled = true
       clearInterval(interval)
     }
-  }, [phase, isFinal, sessionId, id, assessment?.motionDetectionEnabled])
+  }, [phase, isFinal, sessionId, id, assessment?.motionDetectionEnabled, startCamera, streamRef])
 
   // Sync stream to video ref whenever rendering phases or camera states change
   useEffect(() => {
@@ -360,7 +322,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
         videoRef.current.play().catch(() => {})
       }
     }
-  }, [cameraActive, phase])
+  }, [cameraActive, phase, streamRef])
 
   // Countdown timer
   useEffect(() => {
@@ -495,6 +457,10 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
 
 
   const startExam = async () => {
+    if (isFinal && (!streamRef.current?.getVideoTracks().some(track => track.readyState === "live") || cameraError)) {
+      setStartError("A working webcam is required before starting the final exam. Enable your webcam and run the camera check.")
+      return
+    }
     setStartingExam(true)
     setStartError("")
     let trackingReady = false
@@ -806,18 +772,13 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                                </p>
                              </div>
                              <div className="flex gap-2 justify-center">
-                               <Button size="sm" onClick={startCamera} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold">
-                                 Enable Webcam
+                               <Button size="sm" onClick={() => { void startCamera() }} disabled={cameraStarting} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold">
+                                 {cameraStarting ? "Starting camera..." : "Enable Webcam"}
                                </Button>
                                <Button size="sm" variant="outline" onClick={simulateMockPhoto} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl text-xs font-medium">
                                  Simulate Snap
                                </Button>
                              </div>
-                             {cameraError && (
-                               <p className="text-[10px] text-rose-500 font-medium px-4">
-                                 ⚠️ Could not access webcam. Please verify browser permissions, or click "Simulate Snap" to bypass for testing.
-                               </p>
-                             )}
                            </div>
                          )}
                        </div>
@@ -837,10 +798,15 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                       </p>
                     </div>
 
+                    {cameraError && (
+                      <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+                        {cameraError}
+                      </div>
+                    )}
                     <div className={`rounded-xl border p-3 text-xs ${calibrationStatus === "passed" ? "border-emerald-200 bg-white text-emerald-700" : calibrationStatus === "warning" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-gray-200 bg-white text-gray-600"}`}>
                       <div className="flex items-center justify-between gap-3">
                         <span>{calibrationMessage}</span>
-                        <Button type="button" size="sm" variant="outline" onClick={runCalibration} disabled={calibrationStatus === "checking"} className="shrink-0 rounded-lg text-xs">
+                        <Button type="button" size="sm" variant="outline" onClick={runCalibration} disabled={calibrationStatus === "checking" || cameraStarting} className="shrink-0 rounded-lg text-xs">
                           {calibrationStatus === "checking" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Run Camera Check"}
                         </Button>
                       </div>
@@ -879,12 +845,14 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
               {startError && <p className="rounded-xl bg-rose-50 p-3 text-center text-xs font-semibold text-rose-600">{startError}</p>}
               <Button
                 onClick={startExam}
-                disabled={startingExam || !canRetake || (isFinal && (!capturedPhoto || !capturedIdPhoto || calibrationStatus !== "passed" || (assessment.requireProctoringConsent !== false && !proctoringConsent)))}
+                disabled={startingExam || !canRetake || (isFinal && (!cameraActive || !!cameraError || !capturedPhoto || !capturedIdPhoto || calibrationStatus !== "passed" || (assessment.requireProctoringConsent !== false && !proctoringConsent)))}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-11 font-semibold"
               >
                 {startingExam ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {!canRetake 
                   ? "No attempts remaining" 
+                  : (isFinal && (!cameraActive || cameraError))
+                    ? "Enable Webcam to Unlock"
                   : (isFinal && (!capturedPhoto || !capturedIdPhoto))
                     ? "Verify Identity & ID to Unlock"
                     : (isFinal && calibrationStatus !== "passed")
@@ -1111,6 +1079,14 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
           show={true}
         />
 
+        {isFinal && cameraError && (
+          <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <p>{cameraError}</p>
+            <Button type="button" variant="outline" disabled={cameraStarting} onClick={() => { void startCamera() }} className="mt-2">
+              {cameraStarting ? "Starting camera..." : "Retry camera"}
+            </Button>
+          </div>
+        )}
         <LearnerVideoBroadcaster sessionId={sessionId} stream={streamRef.current} />
 
         {isFinal && (
