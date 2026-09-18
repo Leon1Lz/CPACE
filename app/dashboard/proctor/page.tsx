@@ -111,8 +111,7 @@ function ProctorInlineChat({ sessionId, currentUserId, onWebcamSnapshot }: { ses
     const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || ""
     const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || ""
 
-    if (!pusherKey) {
-      console.warn("Pusher key missing in environment — falling back to polling.")
+    if (!pusherKey || !pusherCluster) {
       const interval = setInterval(() => {
         fetchMessages()
       }, 5000)

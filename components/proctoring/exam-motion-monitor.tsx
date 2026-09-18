@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AlertTriangle, Camera, CameraOff, ScanFace, ShieldCheck } from "lucide-react"
 
-type DetectorStatus = "idle" | "loading" | "active" | "error"
+export type DetectorStatus = "idle" | "loading" | "active" | "error"
 
 type FaceLandmarkerInstance = {
   detectForVideo: (
@@ -24,6 +24,7 @@ type Props = {
   enabled: boolean
   videoRef: (element: HTMLVideoElement | null) => void
   onViolation: (violation: MotionViolation) => void
+  onStatusChange?: (status: DetectorStatus) => void
   config?: {
     holdMs?: number
     cooldownMs?: number
@@ -37,7 +38,7 @@ type Props = {
 const HOLD_MS = 2500
 const COOLDOWN_MS = 12000
 
-export function ExamMotionMonitor({ enabled, videoRef, onViolation, config }: Props) {
+export function ExamMotionMonitor({ enabled, videoRef, onViolation, onStatusChange, config }: Props) {
   const holdMs = config?.holdMs ?? HOLD_MS
   const cooldownMs = config?.cooldownMs ?? COOLDOWN_MS
   const detectFaceAbsence = config?.detectFaceAbsence !== false
@@ -58,6 +59,10 @@ export function ExamMotionMonitor({ enabled, videoRef, onViolation, config }: Pr
   useEffect(() => {
     onViolationRef.current = onViolation
   }, [onViolation])
+
+  useEffect(() => {
+    onStatusChange?.(enabled ? status : "idle")
+  }, [enabled, status, onStatusChange])
 
   const setVideoRef = useCallback((element: HTMLVideoElement | null) => {
     localVideoRef.current = element

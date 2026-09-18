@@ -32,6 +32,21 @@ beforeEach(() => {
   mocks.create.mockResolvedValue({ id: "result" })
 })
 describe("server deadline enforcement", () => {
+  it.each([
+    [{ cameraStatus: "DISCONNECTED" }, "CAMERA_NOT_READY"],
+    [{ lastHeartbeatAt: null }, "LIVE_FEED_NOT_READY"],
+    [{ detectorStatus: "STARTING" }, "DETECTOR_NOT_READY"],
+  ])("explains why a live final session cannot submit", async (health, code) => {
+    mocks.assessment.mockResolvedValue({ ...exam, type: "FINAL_EXAM", requireProctoringConsent: true })
+    mocks.find.mockImplementation(async (query: { where: { status: string } }) => query.where.status === "SUBMITTED" ? null : {
+      ...active, deadlineAt: new Date(Date.now() + 60000), identityVerifiedAt: active.startedAt,
+      consentAt: active.startedAt, lastHeartbeatAt: new Date(), cameraStatus: "CONNECTED", detectorStatus: "ACTIVE", ...health,
+    })
+    const response = await submit(request({ sessionId: "session", answers: [] }), context)
+    expect(response.status).toBe(403)
+    expect(await response.json()).toMatchObject({ code })
+    expect(mocks.create).not.toHaveBeenCalled()
+  })
   it("late injected correct answers cannot change the saved wrong answer", async () => {
     const response = await submit(request({ sessionId: "session", startedAt: new Date().toISOString(), answers: [{ questionId: "q", selectedOptionId: "right" }] }), context)
     expect(response.status).toBe(200)

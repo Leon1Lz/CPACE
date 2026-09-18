@@ -1,55 +1,62 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
+import { z } from "zod"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { triggerEvent } from "@/lib/pusher"
 import { setLiveSnapshot } from "@/lib/exam-live-store"
 import { isSafeImageDataUrl } from "@/lib/authorization"
+import { MAX_LIVE_SNAPSHOT_BYTES } from "@/lib/exam-live-snapshot"
 
-// POST /api/assessments/[id]/session/feed
+const feedSchema = z.object({
+  sessionId: z.string().min(1).max(100),
+  snapshot: z.string().optional(),
+  cameraStatus: z.enum(["CONNECTED", "DISCONNECTED", "STARTING", "ERROR"]).default("CONNECTED"),
+  detectorStatus: z.enum(["ACTIVE", "STARTING", "LOADING", "ERROR", "DISABLED"]).default("ACTIVE"),
+}).strict()
+
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
     const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
-
     const { id: assessmentId } = await params
-    const body = await request.json()
-    const { sessionId, snapshot, cameraStatus = "CONNECTED", detectorStatus = "ACTIVE" } = body
+    const { sessionId, snapshot, cameraStatus, detectorStatus } = feedSchema.parse(await request.json())
 
-    if (!sessionId || !snapshot) {
-      return NextResponse.json({ error: "Missing sessionId or snapshot" }, { status: 400 })
+    if (snapshot !== undefined) {
+      // Size and content failures are distinct; tiny live JPEGs are legitimate.
+      const encoded = /^data:image\/(?:jpeg|png);base64,([A-Za-z0-9+/]+={0,2})$/.exec(snapshot)?.[1]
+      const padding = encoded?.endsWith("==") ? 2 : encoded?.endsWith("=") ? 1 : 0
+      const bytes = encoded ? Math.floor(encoded.length * 3 / 4) - padding : 0
+      if (snapshot.length > Math.ceil(MAX_LIVE_SNAPSHOT_BYTES / 3) * 4 + 23 || bytes > MAX_LIVE_SNAPSHOT_BYTES) {
+        return NextResponse.json({ error: "Snapshot exceeds the 512 KB limit" }, { status: 413 })
+      }
+      if (!isSafeImageDataUrl(snapshot, MAX_LIVE_SNAPSHOT_BYTES, 64)) {
+        return NextResponse.json({ error: "Snapshot must contain a valid JPEG or PNG frame" }, { status: 400 })
+      }
     }
-    if (!isSafeImageDataUrl(snapshot, 512 * 1024)) {
-      return NextResponse.json({ error: "Snapshot must be a JPEG or PNG no larger than 512 KB" }, { status: 413 })
+    if (cameraStatus === "CONNECTED" && !snapshot) {
+      return NextResponse.json({ error: "A connected camera must include a video frame" }, { status: 400 })
     }
 
-    // Verify session belongs to user and is IN_PROGRESS
-    const examSession = await prisma.examSession.findFirst({
-      where: { id: sessionId, userId: user.id, assessmentId, status: "IN_PROGRESS" }
+    // Health-only heartbeats report disconnected/loading devices without fabricating a frame.
+    const updated = await prisma.examSession.updateMany({
+      where: { id: sessionId, userId: user.id, assessmentId, status: "IN_PROGRESS" },
+      data: { lastHeartbeatAt: new Date(), cameraStatus, detectorStatus },
     })
-    if (!examSession) {
-      return NextResponse.json({ error: "Invalid active session" }, { status: 403 })
+    if (updated.count !== 1) return NextResponse.json({ error: "Invalid active session" }, { status: 403 })
+
+    if (snapshot && cameraStatus === "CONNECTED") {
+      setLiveSnapshot(sessionId, snapshot)
+      await triggerEvent("private-exam-session-" + sessionId, "webcam-snapshot", { snapshot })
     }
-
-    // Push the snapshot to the proctors viewing this session in real-time
-    setLiveSnapshot(sessionId, snapshot)
-    await prisma.examSession.update({
-      where: { id: sessionId },
-      data: {
-        lastHeartbeatAt: new Date(),
-        cameraStatus: String(cameraStatus).slice(0, 30),
-        detectorStatus: String(detectorStatus).slice(0, 30),
-      },
-    })
-    const channelName = `private-exam-session-${sessionId}`
-    await triggerEvent(channelName, "webcam-snapshot", { snapshot })
-
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Live feed snapshot trigger error:", error)
-    return NextResponse.json({ error: "Failed to push live snapshot" }, { status: 500 })
+    if (error instanceof z.ZodError || error instanceof SyntaxError) {
+      return NextResponse.json({ error: "Invalid live feed request" }, { status: 400 })
+    }
+    console.error("Live feed heartbeat failed")
+    return NextResponse.json({ error: "Failed to update live feed" }, { status: 500 })
   }
 }

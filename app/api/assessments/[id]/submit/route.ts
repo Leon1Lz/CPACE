@@ -115,10 +115,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (
         !examSession
         || !(examSession.identityVerifiedAt || (examSession.identityPhoto && examSession.idPhoto))
-        || (!timedOut && (!heartbeatIsFresh || examSession.cameraStatus !== "CONNECTED" || !detectorIsReady))
         || (assessment.requireProctoringConsent && !examSession.consentAt)
       ) {
         return NextResponse.json({ error: "A verified proctored session is required" }, { status: 403 })
+      }
+      if (!timedOut && examSession.cameraStatus !== "CONNECTED") {
+        return NextResponse.json({ error: "Your webcam is not connected. Reconnect it and retry Submit. Your answers remain on this page.", code: "CAMERA_NOT_READY" }, { status: 403 })
+      }
+      if (!timedOut && !heartbeatIsFresh) {
+        return NextResponse.json({ error: "The live proctoring feed has not connected or is stale. Retry the live feed, then submit again. Your answers remain on this page.", code: "LIVE_FEED_NOT_READY" }, { status: 403 })
+      }
+      if (!timedOut && !detectorIsReady) {
+        return NextResponse.json({ error: "The motion detector is not ready. Wait for it to start or contact your proctor, then retry Submit. Your answers remain on this page.", code: "DETECTOR_NOT_READY" }, { status: 403 })
       }
     }
 

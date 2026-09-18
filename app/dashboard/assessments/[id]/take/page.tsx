@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, use, useRef } from "react"
 import { useAssessmentAutosave } from "@/lib/use-assessment-autosave"
 import { useAssessmentCamera } from "@/lib/use-assessment-camera"
+import { useAssessmentLiveFeed } from "@/lib/use-assessment-live-feed"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,7 +26,7 @@ import {
 
 import { FloatingCalculator } from "@/components/ui/floating-calculator"
 import { ExamChat } from "@/components/ui/exam-chat"
-import { ExamMotionMonitor, type MotionViolation } from "@/components/proctoring/exam-motion-monitor"
+import { ExamMotionMonitor, type MotionViolation, type DetectorStatus } from "@/components/proctoring/exam-motion-monitor"
 import { LearnerVideoBroadcaster } from "@/components/proctoring/learner-video-broadcaster"
 
 type Option = { id: string; text: string; isCorrect?: boolean; order: number }
@@ -91,6 +92,14 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [materialViewerOpen, setMaterialViewerOpen] = useState(false)
   const isFinal = assessment?.type === "FINAL_EXAM"
+  const [motionDetectorStatus, setMotionDetectorStatus] = useState<DetectorStatus>("idle")
+  const detectorHealth = assessment?.motionDetectionEnabled === false ? "DISABLED"
+    : motionDetectorStatus === "active" ? "ACTIVE"
+    : motionDetectorStatus === "error" ? "ERROR"
+    : motionDetectorStatus === "loading" ? "LOADING" : "STARTING"
+  const { feedError, refreshFeed, retryFeed } = useAssessmentLiveFeed(
+    id, sessionId, phase === "taking" && isFinal, videoRef, streamRef, detectorHealth,
+  )
 
   const flagExamSession = useCallback(async (reason: string) => {
     if (!sessionId) return
@@ -243,12 +252,13 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
     if (!assessment || submissionInFlight.current) return
     submissionInFlight.current = true
     setSubmitError(null)
-    setPhase("submitting")
     const payload = assessment.questions.map(q => ({
       questionId: q.id,
       ...answers[q.id],
     }))
     try {
+      if (isFinal) await refreshFeed()
+      setPhase("submitting")
       const res = await fetch(`/api/assessments/${id}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -265,7 +275,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
     } finally {
       submissionInFlight.current = false
     }
-  }, [assessment, answers, id, startedAt, sessionId, stopCamera])
+  }, [assessment, answers, id, startedAt, sessionId, stopCamera, isFinal, refreshFeed])
 
   // Live face feedback to proctor during final exam
   useEffect(() => {
@@ -281,38 +291,10 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
     }
     void ensureCamera()
 
-    const interval = setInterval(async () => {
-      if (videoRef.current) {
-        try {
-          const canvas = document.createElement("canvas")
-          canvas.width = 160
-          canvas.height = 120
-          const ctx = canvas.getContext("2d")
-          if (ctx) {
-            ctx.drawImage(videoRef.current, 0, 0, 160, 120)
-            const snapshot = canvas.toDataURL("image/jpeg", 0.6)
-            await fetch(`/api/assessments/${id}/session/feed`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                sessionId,
-                snapshot,
-                cameraStatus: streamRef.current?.getVideoTracks()[0]?.readyState === "live" ? "CONNECTED" : "DISCONNECTED",
-                detectorStatus: assessment.motionDetectionEnabled === false ? "DISABLED" : "ACTIVE",
-              })
-            })
-          }
-        } catch (err) {
-          console.error("Failed to push live webcam snap:", err)
-        }
-      }
-    }, 3000)
-
     return () => {
       cancelled = true
-      clearInterval(interval)
     }
-  }, [phase, isFinal, sessionId, id, assessment?.motionDetectionEnabled, startCamera, streamRef])
+  }, [phase, isFinal, sessionId, id, startCamera, streamRef])
 
   // Sync stream to video ref whenever rendering phases or camera states change
   useEffect(() => {
@@ -1087,6 +1069,12 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
             </Button>
           </div>
         )}
+        {isFinal && feedError && (
+          <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <p>Live proctoring feed: {feedError}</p>
+            <Button type="button" variant="outline" onClick={retryFeed} className="mt-2">Retry live feed</Button>
+          </div>
+        )}
         <LearnerVideoBroadcaster sessionId={sessionId} stream={streamRef.current} />
 
         {isFinal && (
@@ -1094,6 +1082,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
             enabled={cameraActive && !!sessionId && assessment.motionDetectionEnabled !== false}
             videoRef={videoRefCallback}
             onViolation={handleMotionViolation}
+            onStatusChange={setMotionDetectorStatus}
             config={{
               holdMs: assessment.detectionHoldMs,
               cooldownMs: assessment.detectionCooldownMs,

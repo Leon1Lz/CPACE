@@ -45,7 +45,7 @@ export async function canManageGroup(user: AuthorizedUser, groupId: string) {
 export const MAX_PROCTOR_IMAGE_BYTES = 2 * 1024 * 1024
 const MIN_PROCTOR_IMAGE_BYTES = 1024
 
-export function isSafeImageDataUrl(value: unknown, maxBytes = MAX_PROCTOR_IMAGE_BYTES) {
+export function isSafeImageDataUrl(value: unknown, maxBytes = MAX_PROCTOR_IMAGE_BYTES, minBytes = MIN_PROCTOR_IMAGE_BYTES) {
   if (typeof value !== "string") return false
   const match = /^data:image\/(jpeg|png);base64,([A-Za-z0-9+/]+={0,2})$/.exec(value)
   if (!match) return false
@@ -55,7 +55,7 @@ export function isSafeImageDataUrl(value: unknown, maxBytes = MAX_PROCTOR_IMAGE_
   } catch {
     return false
   }
-  if (image.length < MIN_PROCTOR_IMAGE_BYTES || image.length > maxBytes) return false
+  if (image.length < minBytes || image.length > maxBytes) return false
 
   if (match[1] === "jpeg") {
     return image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff
