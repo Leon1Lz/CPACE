@@ -1,0 +1,5 @@
+import type { ExamQuestionData } from '@/lib/exam-data';
+
+export function ExamQuestion({ question, value, onChange }: { question: ExamQuestionData; value?: number; onChange: (value: number) => void }) {
+  return <fieldset><legend className="mb-7 text-[22px] font-semibold leading-8 text-slate-900">{question.prompt}</legend><div className="space-y-3">{question.options.map((option, index) => <label key={option} className={`flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-colors ${value === index ? 'border-[#105C2E] bg-green-50/70 ring-1 ring-[#105C2E]' : 'border-slate-200 bg-white hover:border-slate-300'}`}><input type="radio" name={question.id} checked={value === index} onChange={() => onChange(index)} className="h-4 w-4 accent-[#105C2E]" /><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-600">{String.fromCharCode(65 + index)}</span><span className="text-[15px] text-slate-700">{option}</span></label>)}</div></fieldset>;
+}
