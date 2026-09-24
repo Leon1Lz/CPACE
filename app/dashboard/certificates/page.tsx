@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -34,7 +34,7 @@ export default function CertificatesPage() {
     return () => clearTimeout(timer)
   }, [search])
 
-  const fetchCertificates = () => {
+  const fetchCertificates = useCallback(() => {
     setLoading(true)
     const params = new URLSearchParams({
       page: page.toString(),
@@ -52,13 +52,13 @@ export default function CertificatesPage() {
         }
       })
       .finally(() => setLoading(false))
-  }
+  }, [page, limit, debouncedSearch])
 
   useEffect(() => {
     if (session) {
       fetchCertificates()
     }
-  }, [session, page, limit, debouncedSearch])
+  }, [session, fetchCertificates])
 
   const filtered = certificates
 

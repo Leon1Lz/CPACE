@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
+      select: { email: true, avatar: true },
     })
 
     // Security practice: Don't reveal if user exists or not.
@@ -52,8 +53,13 @@ export async function POST(req: NextRequest) {
     // Send email via Resend
     await sendPasswordResetEmail(user.email, token)
 
+    // If the user has an avatar, they likely signed up via Google — include a helpful hint
+    const googleHint = user.avatar
+      ? " You can also sign in directly using Google."
+      : ""
+
     return NextResponse.json({
-      message: "If an account exists, a password reset link has been generated.",
+      message: `If an account exists, a password reset link has been generated.${googleHint}`,
     })
   } catch (error) {
     console.error("Forgot password API error:", error)

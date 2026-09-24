@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { syncLearnerScheduleReminders } from "@/lib/notifications"
 
 // GET /api/notifications — Retrieve user's database notifications
 export async function GET() {
@@ -11,6 +12,8 @@ export async function GET() {
 
     const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
+
+    if (user.role === "LEARNER") await syncLearnerScheduleReminders(user.id)
 
     const dbNotifs = await prisma.notification.findMany({
       where: { userId: user.id },

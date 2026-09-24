@@ -1,5 +1,13 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const projectRoot = path.dirname(fileURLToPath(import.meta.url))
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  turbopack: {
+    root: projectRoot,
+  },
   serverExternalPackages: ['@prisma/client'],
   allowedDevOrigins: ['localhost', '127.0.0.1', '192.168.0.106', '192.168.254.120'],
   experimental: {
@@ -8,12 +16,16 @@ const nextConfig = {
     },
   },
 
-  // Allow external images used in the landing page
+  // Allow external images used in the landing page and user profile avatars
   images: {
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
       },
     ],
   },
@@ -55,10 +67,10 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.pusher.com https://va.vercel-scripts.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.pusher.com https://va.vercel-scripts.com https://cdn.jsdelivr.net",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https://images.unsplash.com",
+              "img-src 'self' data: blob: https://images.unsplash.com https://lh3.googleusercontent.com",
               "connect-src 'self' https://*.pusher.com wss://*.pusher.com https://va.vercel-scripts.com https://cdn.jsdelivr.net https://storage.googleapis.com",
               "frame-ancestors 'none'",
               "base-uri 'self'",

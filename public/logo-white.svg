@@ -1,0 +1,36 @@
+<svg width="280" height="80" viewBox="0 0 280 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- CPACE Philippines Brand Logo (White variant for dark backgrounds) -->
+  <defs>
+    <clipPath id="emblem-clip-w">
+      <circle cx="30" cy="40" r="26"/>
+    </clipPath>
+  </defs>
+
+  <!-- Concentric circle emblem -->
+  <g clip-path="url(#emblem-clip-w)">
+    <!-- Outer filled circle -->
+    <circle cx="30" cy="40" r="26" fill="white"/>
+    <!-- Outer crescent cut -->
+    <circle cx="38" cy="32" r="20" fill="none"/>
+    <circle cx="38" cy="32" r="20" fill="#0d3d2b"/>
+    <!-- Middle filled circle -->
+    <circle cx="30" cy="40" r="18" fill="white"/>
+    <!-- Middle crescent cut -->
+    <circle cx="36" cy="34" r="13" fill="#0d3d2b"/>
+    <!-- Inner filled circle -->
+    <circle cx="30" cy="40" r="11" fill="white"/>
+    <!-- Inner crescent cut -->
+    <circle cx="34" cy="36" r="7" fill="#0d3d2b"/>
+  </g>
+
+  <!-- Vertical separator line -->
+  <line x1="64" y1="16" x2="64" y2="64" stroke="white" stroke-width="1.5"/>
+
+  <!-- CPACE text -->
+  <text x="74" y="40" font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif" font-size="30" font-weight="900" fill="white" dominant-baseline="central" letter-spacing="2">CPACE</text>
+  <text x="74" y="40" font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif" font-size="10" font-weight="900" fill="white" dominant-baseline="central" dx="142" dy="-8">®</text>
+
+  <!-- Full name text -->
+  <text x="74" y="56" font-family="Arial, 'Helvetica Neue', sans-serif" font-size="6.5" font-weight="600" fill="rgba(255,255,255,0.8)" letter-spacing="1.2" text-transform="uppercase">CENTER FOR PROFESSIONAL ADVANCEMENT</text>
+  <text x="74" y="64" font-family="Arial, 'Helvetica Neue', sans-serif" font-size="6.5" font-weight="600" fill="rgba(255,255,255,0.8)" letter-spacing="1.2" text-transform="uppercase">AND CONTINUING EDUCATION</text>
+</svg>

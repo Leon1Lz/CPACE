@@ -271,37 +271,57 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
             {/* Course Assessments Section */}
             {course.assessments && course.assessments.length > 0 && (
               <div className="pt-4 border-t border-gray-100 space-y-2 animate-fade-in">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1 mb-2">Assessments</p>
-                {course.assessments.map((ass) => {
-                  const isActive = activeAssessment?.id === ass.id
-                  const isFinal = ass.type === "FINAL_EXAM"
-                  const isReviewer = ass.type === "REVIEWER"
-                  return (
-                    <button
-                      key={ass.id}
-                      onClick={() => { setActiveAssessment(ass); setActiveModule(null); }}
-                      className={`w-full text-left p-3 rounded-2xl border-2 transition-all duration-150 flex items-start gap-3 ${
-                        isActive
-                          ? "border-amber-400 bg-amber-50 shadow-sm"
-                          : "border-gray-100 bg-white hover:border-amber-200"
-                      }`}
-                    >
-                      <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                        isActive ? "bg-amber-100 text-amber-700" : isFinal ? "bg-red-50 text-red-600" : "bg-gray-100 text-gray-400"
-                      }`}>
-                        <ClipboardCheck className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-semibold leading-tight line-clamp-2 ${isActive ? "text-amber-700" : "text-gray-800"}`}>
-                          {ass.title}
-                        </p>
-                        <p className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-wider font-bold">
-                          {ass.type.replace("_", " ")}
-                        </p>
-                      </div>
-                    </button>
-                  )
-                })}
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1 mb-2">Assessments &amp; Reviewers</p>
+                {[...course.assessments]
+                  .sort((a, b) => {
+                    const orderMap: Record<string, number> = { RULES_GUIDELINES: 1, REVIEWER: 2, PRACTICE_EXAM: 3, FINAL_EXAM: 4 }
+                    return (orderMap[a.type] ?? 99) - (orderMap[b.type] ?? 99)
+                  })
+                  .map((ass) => {
+                    const isActive = activeAssessment?.id === ass.id
+                    const isFinal = ass.type === "FINAL_EXAM"
+                    const isPractice = ass.type === "PRACTICE_EXAM"
+                    const isReviewer = ass.type === "REVIEWER"
+                    const isRules = ass.type === "RULES_GUIDELINES"
+
+                    return (
+                      <button
+                        key={ass.id}
+                        onClick={() => { setActiveAssessment(ass); setActiveModule(null); }}
+                        className={`w-full text-left p-3 rounded-2xl border-2 transition-all duration-150 flex items-start gap-3 ${
+                          isActive
+                            ? isReviewer
+                              ? "border-emerald-500 bg-emerald-50 shadow-sm"
+                              : isRules
+                                ? "border-amber-500 bg-amber-50 shadow-sm"
+                                : isPractice
+                                  ? "border-blue-500 bg-blue-50 shadow-sm"
+                                  : "border-rose-500 bg-rose-50 shadow-sm"
+                            : "border-gray-100 bg-white hover:border-gray-200"
+                        }`}
+                      >
+                        <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                          isActive
+                            ? isReviewer ? "bg-emerald-600 text-white" : isRules ? "bg-amber-600 text-white" : isPractice ? "bg-blue-600 text-white" : "bg-rose-600 text-white"
+                            : isReviewer ? "bg-emerald-50 text-emerald-600" : isRules ? "bg-amber-50 text-amber-600" : isPractice ? "bg-blue-50 text-blue-600" : "bg-rose-50 text-rose-600"
+                        }`}>
+                          {isRules ? <BookOpen className="h-4 w-4" /> : isReviewer ? <GraduationCap className="h-4 w-4" /> : isPractice ? <ClipboardCheck className="h-4 w-4" /> : <Award className="h-4 w-4" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-semibold leading-tight line-clamp-2 ${
+                            isActive
+                              ? isReviewer ? "text-emerald-800" : isRules ? "text-amber-800" : isPractice ? "text-blue-800" : "text-rose-800"
+                              : "text-gray-800"
+                          }`}>
+                            {ass.title}
+                          </p>
+                          <p className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-wider font-bold">
+                            {isRules ? "Rules & Guidelines" : isReviewer ? "Study Reviewer" : isPractice ? "Practice Quiz (30 Items)" : "Final Examination (60 Items)"}
+                          </p>
+                        </div>
+                      </button>
+                    )
+                  })}
               </div>
             )}
           </div>
@@ -408,8 +428,16 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                          {activeAssessment.type.replace("_", " ")}
+                        <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                          activeAssessment.type === "REVIEWER"
+                            ? "text-emerald-700 bg-emerald-50 border border-emerald-200"
+                            : activeAssessment.type === "RULES_GUIDELINES"
+                              ? "text-amber-700 bg-amber-50 border border-amber-200"
+                              : activeAssessment.type === "PRACTICE_EXAM"
+                                ? "text-blue-700 bg-blue-50 border border-blue-200"
+                                : "text-rose-700 bg-rose-50 border border-rose-200"
+                        }`}>
+                          {activeAssessment.type === "RULES_GUIDELINES" ? "Rules & Guidelines" : activeAssessment.type === "REVIEWER" ? "Course Study Reviewer" : activeAssessment.type === "PRACTICE_EXAM" ? "Practice Drill" : "Final Certification Exam"}
                         </span>
                       </div>
                       <CardTitle className="text-xl font-black text-gray-900">{activeAssessment.title}</CardTitle>
@@ -419,9 +447,9 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
 
                 <CardContent className="p-6 space-y-6">
                   {activeAssessment.description && (
-                    <p className="text-sm text-gray-600 bg-gray-50 rounded-xl p-4 leading-relaxed">
-                      {activeAssessment.description}
-                    </p>
+                    <div className="rounded-xl bg-gray-50/80 p-4 border border-gray-100">
+                      <SafeHtml html={activeAssessment.description} className="prose prose-sm max-w-none text-gray-700 leading-relaxed" />
+                    </div>
                   )}
 
                   {/* Details grid matching taker intro details */}
@@ -429,10 +457,40 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
                     <div className="p-3.5 rounded-xl bg-gray-50/50 border border-gray-100">
                       <p className="text-xs text-gray-400 font-medium">Questions</p>
                       <p className="text-base font-bold text-gray-900 mt-0.5">
-                        {activeAssessment._count?.questions ?? 0} items
+                        {activeAssessment._count?.questions ?? (activeAssessment.type === "REVIEWER" ? 30 : 0)} items
                       </p>
                     </div>
-                    {activeAssessment.type !== "REVIEWER" && activeAssessment.type !== "RULES_GUIDELINES" && (
+                    {activeAssessment.type === "REVIEWER" ? (
+                      <>
+                        <div className="p-3.5 rounded-xl bg-gray-50/50 border border-gray-100">
+                          <p className="text-xs text-gray-400 font-medium">Mode</p>
+                          <p className="text-base font-bold text-emerald-600 mt-0.5">Open Book</p>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-gray-50/50 border border-gray-100">
+                          <p className="text-xs text-gray-400 font-medium">Answer Keys</p>
+                          <p className="text-base font-bold text-emerald-600 mt-0.5">Included</p>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-gray-50/50 border border-gray-100">
+                          <p className="text-xs text-gray-400 font-medium">Attempts</p>
+                          <p className="text-base font-bold text-gray-900 mt-0.5">Unlimited</p>
+                        </div>
+                      </>
+                    ) : activeAssessment.type === "RULES_GUIDELINES" ? (
+                      <>
+                        <div className="p-3.5 rounded-xl bg-gray-50/50 border border-gray-100">
+                          <p className="text-xs text-gray-400 font-medium">Type</p>
+                          <p className="text-base font-bold text-amber-600 mt-0.5">Guide / Policies</p>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-gray-50/50 border border-gray-100">
+                          <p className="text-xs text-gray-400 font-medium">Proctoring</p>
+                          <p className="text-base font-bold text-gray-900 mt-0.5">Details Inside</p>
+                        </div>
+                        <div className="p-3.5 rounded-xl bg-gray-50/50 border border-gray-100">
+                          <p className="text-xs text-gray-400 font-medium">Required</p>
+                          <p className="text-base font-bold text-gray-900 mt-0.5">Recommended</p>
+                        </div>
+                      </>
+                    ) : (
                       <>
                         <div className="p-3.5 rounded-xl bg-gray-50/50 border border-gray-100">
                           <p className="text-xs text-gray-400 font-medium">Passing Score</p>
@@ -475,9 +533,23 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
                   )}
 
                   {/* Start Button */}
-                  <Button asChild className="w-full bg-amber-600 hover:bg-amber-700 text-white rounded-xl h-11 font-semibold text-sm">
+                  <Button asChild className={`w-full text-white rounded-xl h-11 font-semibold text-sm shadow-sm ${
+                    activeAssessment.type === "REVIEWER"
+                      ? "bg-emerald-600 hover:bg-emerald-700"
+                      : activeAssessment.type === "RULES_GUIDELINES"
+                        ? "bg-amber-600 hover:bg-amber-700"
+                        : activeAssessment.type === "PRACTICE_EXAM"
+                          ? "bg-blue-600 hover:bg-blue-700"
+                          : "bg-rose-600 hover:bg-rose-700"
+                  }`}>
                     <Link href={`/dashboard/assessments/${activeAssessment.id}/take`}>
-                      Start {activeAssessment.type === "FINAL_EXAM" ? "Exam Verification" : "Assessment"} →
+                      {activeAssessment.type === "RULES_GUIDELINES"
+                        ? "Read Examination Guidelines →"
+                        : activeAssessment.type === "REVIEWER"
+                          ? "Open Question Reviewer (30 Items) →"
+                          : activeAssessment.type === "PRACTICE_EXAM"
+                            ? "Start Practice Quiz (30 Items) →"
+                            : "Start Final Exam Verification (60 Items) →"}
                     </Link>
                   </Button>
                 </CardContent>

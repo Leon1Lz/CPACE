@@ -169,8 +169,8 @@ export default function ResetPasswordPage() {
 
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <div className="flex items-center gap-3">
-            <div className="relative w-36 h-10">
-              <Image src="/logo.svg" alt="CPACE" fill className="object-contain" priority />
+            <div className="relative w-52 h-14">
+              <Image src="/cpace-logo.png" alt="CPACE Philippines" fill className="object-contain object-left brightness-0 invert" priority />
             </div>
           </div>
 
@@ -233,8 +233,8 @@ export default function ResetPasswordPage() {
       <div className="w-full lg:w-1/2 flex items-center justify-center min-h-screen bg-gray-50 p-6 lg:p-12">
         <div className="w-full max-w-md space-y-8">
           <div className="lg:hidden flex flex-col items-center gap-2">
-            <div className="relative w-36 h-10">
-              <Image src="/logo.svg" alt="CPACE" fill className="object-contain" priority />
+            <div className="relative w-52 h-14">
+              <Image src="/cpace-logo.png" alt="CPACE Philippines" fill className="object-contain" priority />
             </div>
           </div>
 

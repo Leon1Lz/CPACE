@@ -19,6 +19,7 @@ import {
   Clock, Play, TrendingUp, TrendingDown, GraduationCap,
   FileText, CheckCircle, AlertCircle, Plus, Eye,
   ShieldCheck, Monitor, Minus, ArrowRight, Sparkles, Route, Lock,
+  Hourglass,
 } from "lucide-react"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -521,10 +522,28 @@ export interface LearnerCertificate {
 export interface LearnerAssessment {
   id: string
   title: string
+  type: string
   timeLimit: number | null
+  attempts: number | null
+  usedAttempts: number
+  startsAt: string | null
+  endsAt: string | null
+  availability: "OPEN" | "UPCOMING"
   course: {
     title: string
   } | null
+}
+
+export interface LearnerPendingResult {
+  id: string
+  completedAt: string | null
+  gradedAt: string | null
+  assessment: {
+    id: string
+    title: string
+    scoresReleasedAt: string | null
+    course: { title: string }
+  }
 }
 
 export interface LearnerStats {
@@ -532,6 +551,7 @@ export interface LearnerStats {
   enrollments: LearnerEnrollment[]
   certificates: LearnerCertificate[]
   upcomingAssessments: LearnerAssessment[]
+  pendingResults: LearnerPendingResult[]
   trends: {
     completed: Trend
     inProgress: Trend
@@ -576,6 +596,7 @@ export function LearnerDashboard({ userName = "Learner" }: { userName?: string }
   const enrollments = data.enrollments ?? []
   const certificates = data.certificates ?? []
   const upcomingAssessments = data.upcomingAssessments ?? []
+  const pendingResults = data.pendingResults ?? []
 
   const completed = enrollments.filter((e) => e.status === "COMPLETED").length
   const inProgress = enrollments.filter((e) => e.status === "ACTIVE").length
@@ -583,6 +604,7 @@ export function LearnerDashboard({ userName = "Learner" }: { userName?: string }
   const heroCourse = enrollments.find((e) => e.status === "ACTIVE") ?? enrollments[0] ?? null
   const nextPath = Array.isArray(learningPaths) ? learningPaths.find(path => path.progress < 100 && path.currentStepId) : undefined
   const nextPathStep = nextPath?.steps.find(step => step.id === nextPath.currentStepId && !step.locked)
+  const attentionAssessment = upcomingAssessments[0]
 
   return (
     <div className="space-y-6">
@@ -667,6 +689,38 @@ export function LearnerDashboard({ userName = "Learner" }: { userName?: string }
           <StatCard title="In Progress"       value={inProgress}        icon={<Play />}     subtitle="Currently studying" gradient="from-blue-600 to-cyan-600" />
           <StatCard title="Certificates"      value={certificates.length} icon={<Award />}  subtitle="Earned credentials"  gradient="from-violet-600 to-purple-600" />
         </div>
+      )}
+
+      {(attentionAssessment || pendingResults.length > 0) && (
+        <Card className="overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-sm">
+          <CardHeader className="border-b border-amber-100 bg-amber-50/60 pb-3">
+            <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-900"><Sparkles className="h-4 w-4 text-amber-600" /> Needs your attention</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 p-4 lg:grid-cols-2">
+            {attentionAssessment && (
+              <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${attentionAssessment.availability === "OPEN" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"}`}><ClipboardCheck className="h-5 w-5" /></div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{attentionAssessment.availability === "OPEN" ? "Ready to take" : "Opens soon"}</p>
+                  <p className="truncate text-sm font-bold text-slate-900">{attentionAssessment.title}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{attentionAssessment.availability === "UPCOMING" && attentionAssessment.startsAt ? `Opens ${new Date(attentionAssessment.startsAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}` : attentionAssessment.course?.title}</p>
+                </div>
+                <Button asChild size="sm" className="shrink-0 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"><Link href={`/dashboard/assessments/${attentionAssessment.id}/take`}>{attentionAssessment.availability === "OPEN" ? "Start" : "Details"}</Link></Button>
+              </div>
+            )}
+            {pendingResults.length > 0 && (
+              <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><Hourglass className="h-5 w-5" /></div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Results pending</p>
+                  <p className="truncate text-sm font-bold text-slate-900">{pendingResults[0].assessment.title}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{pendingResults[0].gradedAt ? "Graded · awaiting scheduled release" : "Submitted · awaiting grading"}{pendingResults.length > 1 ? ` · +${pendingResults.length - 1} more` : ""}</p>
+                </div>
+                <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl"><Link href="/dashboard/reports">View</Link></Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {learningPaths.length > 0 && (
@@ -763,7 +817,7 @@ export function LearnerDashboard({ userName = "Learner" }: { userName?: string }
                 </div>
                 <div>
                   <p className="font-bold text-sm text-slate-900">{a.title}</p>
-                  <p className="text-xs text-slate-400">{a.course?.title}</p>
+                  <p className="text-xs text-slate-400">{a.course?.title}{a.availability === "UPCOMING" && a.startsAt ? ` · Opens ${new Date(a.startsAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}` : " · Available now"}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -772,8 +826,8 @@ export function LearnerDashboard({ userName = "Learner" }: { userName?: string }
                     <Clock className="h-3.5 w-3.5 mr-1 text-slate-400" />{a.timeLimit} min
                   </div>
                 )}
-                <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs">
-                  <Link href={`/dashboard/assessments/${a.id}/take`}>Start Exam</Link>
+                <Button asChild size="sm" className={`${a.availability === "OPEN" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-blue-600 hover:bg-blue-700"} text-white rounded-xl text-xs font-semibold shadow-xs`}>
+                  <Link href={`/dashboard/assessments/${a.id}/take`}>{a.availability === "OPEN" ? "Start Exam" : "View Details"}</Link>
                 </Button>
               </div>
             </div>

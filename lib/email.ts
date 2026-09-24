@@ -5,54 +5,37 @@
  * Supports sending emails via SMTP (Nodemailer), Resend API, or logging to console in development.
  */
 
-import nodemailer, { type Transporter } from "nodemailer"
 import { Resend } from "resend"
+import { createPublicFormTransport, getPublicFormSmtp } from "@/lib/public-form-smtp"
 
 const resendApiKey = process.env.RESEND_API_KEY
 const resend = resendApiKey ? new Resend(resendApiKey) : null
-
-// SMTP Configuration
-const smtpHost = process.env.SMTP_HOST
-const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 587
-const smtpUser = process.env.SMTP_USER
-const smtpPassword = process.env.SMTP_PASSWORD
-const smtpSecure = process.env.SMTP_SECURE === "true"
-
-const fromEmail = process.env.EMAIL_FROM || "onboarding@resend.dev"
-
-// Create nodemailer transporter if SMTP_HOST is defined
-let transporter: Transporter | null = null
-if (smtpHost) {
-  transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpSecure,
-    auth: smtpUser && smtpPassword ? {
-      user: smtpUser,
-      pass: smtpPassword,
-    } : undefined,
-  })
-}
 
 export async function sendEmail({
   to,
   subject,
   html,
   text,
+  replyTo,
   sensitive = false,
 }: {
   to: string
   subject: string
   html: string
   text?: string
+  replyTo?: string | { name: string; address: string }
   sensitive?: boolean
 }) {
   try {
     // 1. Prioritize SMTP if SMTP_HOST is configured
-    if (transporter) {
+    const smtp = getPublicFormSmtp()
+    const fromEmail = process.env.CONTACT_EMAIL_FROM || process.env.EMAIL_FROM || smtp?.auth.user || "onboarding@resend.dev"
+    if (smtp) {
+      const transporter = createPublicFormTransport(smtp)
       const info = await transporter.sendMail({
         from: fromEmail,
         to,
+        replyTo,
         subject,
         html,
         text,
@@ -65,6 +48,7 @@ export async function sendEmail({
       const { data, error } = await resend.emails.send({
         from: fromEmail,
         to,
+        ...(typeof replyTo === "string" && { replyTo }),
         subject,
         html,
         ...(text && { text }),
@@ -83,12 +67,14 @@ export async function sendEmail({
       console.warn("Sensitive email was not logged because no mail provider is configured.")
       return { success: false, simulated: true }
     }
-    console.log(`\n==========================================`)
-    console.log(`✉️  EMAIL SIMULATION (No SMTP or Resend configured)`)
-    console.log(`👉 To:      ${to}`)
-    console.log(`👉 Subject: ${subject}`)
-    console.log(`👉 Body:    ${text || "See HTML content"}`)
-    console.log(`==========================================\n`)
+    if (process.env.NODE_ENV === "development") {
+      console.log(`\n==========================================`)
+      console.log(`✉️  EMAIL SIMULATION (No SMTP or Resend configured)`)
+      console.log(`👉 To:      ${to}`)
+      console.log(`👉 Subject: ${subject}`)
+      console.log(`👉 Body:    ${text || "See HTML content"}`)
+      console.log(`==========================================\n`)
+    }
     return { success: true, simulated: true }
   } catch (err) {
     console.error("Failed to send email:", err)

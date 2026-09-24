@@ -6,10 +6,17 @@ import { canManageOwnedResource } from "@/lib/authorization"
 import { z } from "zod"
 import { getLearningPathBlocker } from "@/lib/learning-path-access"
 import { lockAssessment, assertNoAssessmentAttempts, AssessmentIntegrityError } from "@/lib/assessment-integrity"
+import { sanitizeHtml, stripTags } from "@/lib/sanitize"
+import { recordStaffAudit } from "@/lib/audit"
+
+const assessmentDescriptionSchema = z.string().max(20000).transform(value => sanitizeHtml(value)).refine(
+  value => stripTags(value).length <= 5000,
+  { message: "Description is too long" },
+).transform(value => stripTags(value).trim() ? value : null).nullable()
 
 const assessmentUpdateSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
-  description: z.string().max(5000).nullable().optional(),
+  description: assessmentDescriptionSchema.optional(),
   type: z.enum(["REVIEWER", "PRACTICE_EXAM", "RULES_GUIDELINES", "FINAL_EXAM", "QUIZ", "ASSIGNMENT"]).optional(),
   timeLimit: z.number().int().min(1).max(1440).nullable().optional(),
   attempts: z.number().int().min(1).max(100).nullable().optional(),
@@ -76,7 +83,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const { enrollments: _enrollments, instructorId: _instructorId, ...safeCourse } = assessment.course
-    if (user.role === "LEARNER") {
+    const isStudyReviewer = assessment.type === "REVIEWER"
+    if (user.role === "LEARNER" && !isStudyReviewer) {
       return NextResponse.json({
         ...assessment,
         course: safeCourse,
@@ -203,6 +211,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
     }
 
+    await recordStaffAudit(user, "ASSESSMENT_UPDATE", `Updated "${updated.title}" fields: ${Object.keys(rawData).join(", ")}`)
+
     return NextResponse.json(updated)
   } catch (error) {
     if (error instanceof AssessmentIntegrityError) return NextResponse.json({ error: error.message }, { status: error.status })
@@ -225,7 +235,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const { id } = await params
     const existing = await prisma.assessment.findUnique({
       where: { id },
-      select: { course: { select: { instructorId: true } } },
+      select: { title: true, course: { select: { instructorId: true } } },
     })
     if (!existing) return NextResponse.json({ error: "Assessment not found" }, { status: 404 })
     if (!canManageOwnedResource(user, existing.course.instructorId)) {
@@ -236,6 +246,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       await assertNoAssessmentAttempts(tx, id)
       await tx.assessment.delete({ where: { id } })
     })
+    await recordStaffAudit(user, "ASSESSMENT_DELETE", `Deleted assessment "${existing.title}"`)
 
     return NextResponse.json({ success: true })
   } catch (error) {

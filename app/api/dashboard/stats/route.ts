@@ -138,7 +138,8 @@ export async function GET() {
     }
 
     // LEARNER
-    const [enrollments, certificates, upcomingAssessments] = await Promise.all([
+    const now = new Date()
+    const [enrollments, certificates, assessmentCandidates, pendingResults] = await Promise.all([
       prisma.enrollment.findMany({
         where: { userId: userRecord.id },
         include: {
@@ -159,18 +160,64 @@ export async function GET() {
       prisma.assessment.findMany({
         where: {
           isPublished: true,
+          OR: [{ endsAt: null }, { endsAt: { gt: now } }],
           course: { enrollments: { some: { userId: userRecord.id } } },
         },
-        include: { course: { select: { title: true } } },
+        include: {
+          course: { select: { title: true } },
+          results: {
+            where: { userId: userRecord.id, completedAt: { not: null } },
+            select: { id: true, passed: true, completedAt: true },
+          },
+        },
+        orderBy: [{ startsAt: "asc" }, { createdAt: "desc" }],
+        take: 12,
+      }),
+      prisma.assessmentResult.findMany({
+        where: {
+          userId: userRecord.id,
+          completedAt: { not: null },
+          OR: [
+            { gradedAt: null },
+            { assessment: { releaseScores: false, OR: [{ scoresReleasedAt: null }, { scoresReleasedAt: { gt: now } }] } },
+          ],
+        },
+        select: {
+          id: true,
+          completedAt: true,
+          gradedAt: true,
+          assessment: {
+            select: { id: true, title: true, scoresReleasedAt: true, course: { select: { title: true } } },
+          },
+        },
+        orderBy: { completedAt: "desc" },
         take: 5,
       }),
     ])
+
+    const upcomingAssessments = assessmentCandidates
+      .filter(assessment => {
+        const usedAttempts = assessment.results.length
+        const unlimited = assessment.type === "REVIEWER" || assessment.type === "PRACTICE_EXAM" || assessment.attempts == null
+        return unlimited || usedAttempts < (assessment.attempts ?? 0)
+      })
+      .map(assessment => ({
+        ...assessment,
+        results: undefined,
+        usedAttempts: assessment.results.length,
+        availability: assessment.startsAt && assessment.startsAt > now ? "UPCOMING" : "OPEN",
+      }))
+      .sort((left, right) => {
+        if (left.availability !== right.availability) return left.availability === "OPEN" ? -1 : 1
+        return (left.startsAt?.getTime() ?? 0) - (right.startsAt?.getTime() ?? 0)
+      })
+      .slice(0, 5)
 
     const completed = enrollments.filter(e => e.status === "COMPLETED").length
     const inProgress = enrollments.filter(e => e.status === "ACTIVE").length
 
     return NextResponse.json({
-      role, enrollments, certificates, upcomingAssessments,
+      role, enrollments, certificates, upcomingAssessments, pendingResults,
       trends: {
         completed: { current: completed, previous: null, pct: null },
         inProgress: { current: inProgress, previous: null, pct: null },

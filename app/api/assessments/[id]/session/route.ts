@@ -24,7 +24,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const user = await prisma.user.findUnique({ where: { id: session.user.id } })
-    if (!user || user.role !== "LEARNER") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    if (!user) return NextResponse.json({ error: "Your account is no longer available" }, { status: 403 })
+    if (user.role !== "LEARNER") {
+      return NextResponse.json({
+        error: "Only learner accounts can start an exam. Staff can preview and manage this assessment without creating an attempt.",
+        code: "LEARNER_ROLE_REQUIRED",
+      }, { status: 403 })
+    }
 
     const { id: assessmentId } = await params
 

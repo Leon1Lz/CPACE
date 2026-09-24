@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { User, Lock, Shield, CheckCircle, Loader2, AlertCircle } from "lucide-react"
+import { User, Lock, Shield, CheckCircle, Loader2, AlertCircle, Mail } from "lucide-react"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -28,6 +28,10 @@ export default function SettingsPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState("")
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [smtpStatus, setSmtpStatus] = useState<{ configured: boolean; port: number | null; secure: boolean | null; senderConfigured: boolean; recipientConfigured: boolean; autoReplyEnabled: boolean } | null>(null)
+  const [smtpTesting, setSmtpTesting] = useState(false)
+  const [smtpMessage, setSmtpMessage] = useState("")
+  const [smtpError, setSmtpError] = useState("")
 
   const handleDeleteAccount = async () => {
     setDeleting(true)
@@ -61,6 +65,32 @@ export default function SettingsPage() {
       }
     })
   }, [])
+
+  useEffect(() => {
+    if (session?.user?.role !== "ADMIN") return
+    fetch("/api/admin/smtp", { cache: "no-store" })
+      .then(async response => {
+        const data = await response.json()
+        if (response.ok) setSmtpStatus(data)
+      })
+      .catch(() => setSmtpError("Unable to load SMTP status"))
+  }, [session?.user?.role])
+
+  const testSmtp = async () => {
+    setSmtpTesting(true)
+    setSmtpMessage("")
+    setSmtpError("")
+    try {
+      const response = await fetch("/api/admin/smtp", { method: "POST" })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "SMTP test failed")
+      setSmtpMessage(data.message)
+    } catch (error) {
+      setSmtpError(error instanceof Error ? error.message : "SMTP test failed")
+    } finally {
+      setSmtpTesting(false)
+    }
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -100,6 +130,7 @@ export default function SettingsPage() {
     admin: "bg-rose-100 text-rose-700 border-rose-200",
     instructor: "bg-blue-100 text-blue-700 border-blue-200",
     learner: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    proctor: "bg-violet-100 text-violet-700 border-violet-200",
   }
 
   return (
@@ -198,6 +229,35 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {role === "admin" && (
+        <Card className="border-0 shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+              <Mail className="h-4 w-4 text-emerald-600" /> Email Delivery (SMTP)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className={`rounded-xl border px-4 py-3 text-sm ${smtpStatus?.configured ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+              <p className="font-bold">{smtpStatus?.configured ? "SMTP configured" : "SMTP credentials required"}</p>
+              <p className="mt-1 text-xs opacity-80">{smtpStatus?.configured ? `Port ${smtpStatus.port} · ${smtpStatus.secure ? "TLS" : "STARTTLS"}` : "Add SMTP_HOST, SMTP_USER, and SMTP_PASSWORD to the server environment."}</p>
+            </div>
+            {smtpStatus && (
+              <div className="grid grid-cols-1 gap-2 text-xs text-slate-500 sm:grid-cols-3">
+                <span>Sender: {smtpStatus.senderConfigured ? "Ready" : "Missing"}</span>
+                <span>Recipient: {smtpStatus.recipientConfigured ? "Ready" : "Using default"}</span>
+                <span>Auto-replies: {smtpStatus.autoReplyEnabled ? "Enabled" : "Disabled"}</span>
+              </div>
+            )}
+            {smtpMessage && <p role="status" className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{smtpMessage}</p>}
+            {smtpError && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{smtpError}</p>}
+            <Button type="button" onClick={testSmtp} disabled={smtpTesting || !smtpStatus?.configured} className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">
+              {smtpTesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+              {smtpTesting ? "Testing…" : "Send test email"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Account */}
       <Card className="border-0 shadow-md border-red-100">

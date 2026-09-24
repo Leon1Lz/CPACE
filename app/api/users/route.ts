@@ -2,6 +2,25 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { z } from "zod"
+
+const userRoleEnum = z.enum(["ADMIN", "INSTRUCTOR", "LEARNER", "PROCTOR"])
+
+const singleUpdateSchema = z.object({
+  id: z.string().min(1),
+  isActive: z.boolean().optional(),
+  role: userRoleEnum.optional(),
+}).strict()
+
+const bulkUpdateSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(500),
+  isActive: z.boolean().optional(),
+  role: userRoleEnum.optional(),
+}).strict()
+
+const bulkDeleteSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(500),
+}).strict()
 
 export async function GET(request: Request) {
   try {
@@ -80,7 +99,7 @@ export async function PATCH(request: NextRequest) {
 
     // Bulk update: { ids: string[], isActive?: boolean, role?: string }
     if (Array.isArray(body.ids)) {
-      const { ids, isActive, role } = body
+      const { ids, isActive, role } = bulkUpdateSchema.parse(body)
       // Prevent admin from deactivating/changing their own account in bulk
       const safeIds = ids.filter((id: string) => id !== admin.id)
       await prisma.user.updateMany({
@@ -91,13 +110,14 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Single update: { id, isActive?, role? }
-    const { id, isActive, role } = body
+    const { id, isActive, role } = singleUpdateSchema.parse(body)
     const updated = await prisma.user.update({
       where: { id },
       data: { ...(isActive !== undefined && { isActive }), ...(role && { role }) },
     })
     return NextResponse.json(updated)
   } catch (error) {
+    if (error instanceof z.ZodError) return NextResponse.json({ error: "Invalid request data" }, { status: 400 })
     return NextResponse.json({ error: "Failed to update user" }, { status: 500 })
   }
 }
@@ -110,15 +130,14 @@ export async function DELETE(request: NextRequest) {
     const admin = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!admin || admin.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-    const { ids } = await request.json()
-    if (!Array.isArray(ids) || ids.length === 0)
-      return NextResponse.json({ error: "No ids provided" }, { status: 400 })
+    const { ids } = bulkDeleteSchema.parse(await request.json())
 
     // Prevent admin from deleting their own account
     const safeIds = ids.filter((id: string) => id !== admin.id)
     await prisma.user.deleteMany({ where: { id: { in: safeIds } } })
     return NextResponse.json({ deleted: safeIds.length })
   } catch (error) {
+    if (error instanceof z.ZodError) return NextResponse.json({ error: "Invalid request data" }, { status: 400 })
     return NextResponse.json({ error: "Failed to delete users" }, { status: 500 })
   }
 }

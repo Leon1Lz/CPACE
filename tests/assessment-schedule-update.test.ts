@@ -23,6 +23,14 @@ it("rejects an end before the persisted start on partial updates", async () => {
   expect(mocks.update).not.toHaveBeenCalled()
 })
 it("clears schedule boundaries", async () => expect((await PATCH(request({ startsAt: null, endsAt: null }), context)).status).toBe(200))
+it("sanitizes rich assessment descriptions before saving", async () => {
+  expect((await PATCH(request({ description: '<h2>Instructions</h2><script>alert("xss")</script><p onclick="steal()">Bring an ID.</p>' }), context)).status).toBe(200)
+  expect(mocks.update.mock.calls[0][0].data.description).toBe("<h2>Instructions</h2><p>Bring an ID.</p>")
+})
+it("rejects oversized rich assessment descriptions", async () => {
+  expect((await PATCH(request({ description: `<p>${"a".repeat(5001)}</p>` }), context)).status).toBe(400)
+  expect(mocks.update).not.toHaveBeenCalled()
+})
 it("rejects malformed dates", async () => expect((await PATCH(request({ startsAt: "not-a-date" }), context)).status).toBe(400))
 it("denies a proctor", async () => { mocks.user.mockResolvedValue({ id: "proctor", role: "PROCTOR" }); expect((await PATCH(request({ startsAt: null }), context)).status).toBe(403) })
 it("denies a foreign instructor", async () => { mocks.user.mockResolvedValue({ id: "foreign", role: "INSTRUCTOR" }); expect((await PATCH(request({ startsAt: null }), context)).status).toBe(403) })

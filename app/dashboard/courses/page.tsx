@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { 
   Plus, 
   Search, 
@@ -384,16 +385,7 @@ export default function CoursesAndAssessmentsPage() {
     setPage(1)
   }, [filterCategory, filterStatus])
 
-  useEffect(() => {
-    fetchCourses()
-    if (role === "learner") {
-      fetch("/api/enrollments").then(r => r.json()).then(data => {
-        if (Array.isArray(data)) setEnrolledIds(new Set(data.map((e: any) => e.courseId)))
-      })
-    }
-  }, [filterCategory, filterStatus, role, page, limit, debouncedSearch, session])
-
-  const fetchCourses = async () => {
+  const fetchCourses = useCallback(async () => {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -418,7 +410,16 @@ export default function CoursesAndAssessmentsPage() {
     } finally {
       setCoursesLoading(false)
     }
-  }
+  }, [page, limit, filterCategory, filterStatus, debouncedSearch])
+
+  useEffect(() => {
+    fetchCourses()
+    if (role === "learner") {
+      fetch("/api/enrollments").then(r => r.json()).then(data => {
+        if (Array.isArray(data)) setEnrolledIds(new Set(data.map((e: any) => e.courseId)))
+      })
+    }
+  }, [fetchCourses, role, session])
 
   // ── Assessment fetching ───────────────────────────────────
   useEffect(() => {
@@ -552,7 +553,23 @@ export default function CoursesAndAssessmentsPage() {
 
   const activeProgram = PROGRAMS.find(p => p.key === selectedProgram)
 
-  const isLoading = activeTab === "courses" ? coursesLoading : assessmentsLoading
+  const isLoading = role === "learner" ? assessmentsLoading : (activeTab === "courses" ? coursesLoading : assessmentsLoading)
+
+  // ── Auto-select single enrolled program for learners ─────
+  useEffect(() => {
+    if (role === "learner" && assessments.length > 0 && selectedProgram === null) {
+      const progKeys = Array.from(
+        new Set(
+          assessments
+            .map(a => a.course?.category || assessmentCourses.find((c: any) => c.id === a.courseId)?.category)
+            .filter(Boolean)
+        )
+      )
+      if (progKeys.length === 1) {
+        setSelectedProgram(progKeys[0] as string)
+      }
+    }
+  }, [role, assessments, assessmentCourses])
 
   // ── Loading ───────────────────────────────────────────────
   if (isLoading) {
@@ -565,72 +582,20 @@ export default function CoursesAndAssessmentsPage() {
 
   // ── LEARNER VIEW ──────────────────────────────────────────
   if (role === "learner") {
-    const enrolledCourses = courses.filter(c => enrolledIds.has(c.id))
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Learning</h1>
-            <p className="text-sm text-gray-500 mt-1">Your courses and assessments</p>
-          </div>
-          <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">My Learning</h1>
+          <p className="text-sm text-gray-500 mt-1">Reviewers, practice exams, and certification examinations</p>
         </div>
 
-        {/* ── Courses Tab (Learner) ── */}
-        {activeTab === "courses" && (
-          <>
-            {enrolledCourses.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <BookOpen className="h-12 w-12 text-gray-200 mb-3" />
-                <p className="text-sm font-medium text-gray-400">No courses assigned yet</p>
-                <p className="text-xs text-gray-400 mt-1">Contact your administrator if you expect to have course access</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                {enrolledCourses.map(course => {
-                  const CATEGORY_COLORS: Record<string, string> = {
-                    CFMS: "from-emerald-600 to-teal-700",
-                    CMMS: "from-blue-600 to-indigo-700",
-                    COMS: "from-orange-500 to-amber-600",
-                  }
-                  const gradient = CATEGORY_COLORS[course.category] ?? "from-gray-500 to-gray-600"
-                  return (
-                    <Link key={course.id} href={`/dashboard/courses/${course.id}`} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col">
-                      <div className={`bg-gradient-to-r ${gradient} px-5 py-6`}>
-                        <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center mb-3">
-                          <GraduationCap className="h-5 w-5 text-white" />
-                        </div>
-                        <h3 className="font-bold text-white text-base leading-snug">{course.title}</h3>
-                        <span className="text-xs text-white/70 mt-1 inline-block">{course.category}</span>
-                      </div>
-                      <div className="p-5 flex-1 flex flex-col">
-                        <p className="text-sm text-gray-500 line-clamp-2 flex-1">{course.description}</p>
-                        <div className="flex items-center gap-3 mt-3 mb-4 text-xs text-gray-400">
-                          <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{course.duration}</span>
-                          <span className="flex items-center gap-1"><Users className="h-3 w-3" />{course._count.enrollments} learners</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm font-semibold text-emerald-600 bg-emerald-50 rounded-xl px-4 py-2.5">
-                          <CheckCircle className="h-4 w-4" /> Continue Learning
-                        </div>
-                      </div>
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ── Assessments Tab (Learner) ── */}
-        {activeTab === "assessments" && (
-          <LearnerAssessmentsContent
-            assessments={assessments}
-            assessmentCourses={assessmentCourses}
-            selectedProgram={selectedProgram}
-            setSelectedProgram={setSelectedProgram}
-            role={role}
-          />
-        )}
+        <LearnerAssessmentsContent
+          assessments={assessments}
+          assessmentCourses={assessmentCourses}
+          selectedProgram={selectedProgram}
+          setSelectedProgram={setSelectedProgram}
+          role={role}
+        />
       </div>
     )
   }
@@ -913,15 +878,32 @@ function LearnerAssessmentsContent({
   setSelectedProgram: (p: string | null) => void
   role?: string
 }) {
+  const getProgramAssessments = (progKey: string) => {
+    return assessments.filter(a =>
+      (a.course?.category || assessmentCourses.find((c: any) => c.id === a.courseId)?.category) === progKey
+    )
+  }
+
+  const enrolledPrograms = PROGRAMS.filter(prog => getProgramAssessments(prog.key).length > 0)
+  const displayedPrograms = enrolledPrograms.length > 0 ? enrolledPrograms : PROGRAMS
+
+  if (assessments.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-gray-100">
+        <ClipboardCheck className="h-12 w-12 text-gray-200 mb-3" />
+        <p className="text-sm font-semibold text-gray-700">No assessments or reviewers assigned yet</p>
+        <p className="text-xs text-gray-400 mt-1">Contact your administrator if you expect access to a certification program</p>
+      </div>
+    )
+  }
+
   if (!selectedProgram) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {PROGRAMS.map((prog) => {
+          {displayedPrograms.map((prog) => {
             const Icon = prog.icon
-            const progAssessments = assessments.filter(a =>
-              assessmentCourses.find((c: any) => c.id === a.courseId)?.category === prog.key
-            )
+            const progAssessments = getProgramAssessments(prog.key)
             const finalCount = progAssessments.filter(a => a.type === "FINAL_EXAM").length
             const practiceCount = progAssessments.filter(a => a.type === "PRACTICE_EXAM" || a.type === "REVIEWER").length
 
@@ -971,9 +953,7 @@ function LearnerAssessmentsContent({
 
   // Level 2: Program selected
   const activeProgram = PROGRAMS.find(p => p.key === selectedProgram)
-  const programAssessments = assessments.filter(a =>
-    a.course?.category === selectedProgram || assessmentCourses.find((c: any) => c.id === a.courseId)?.category === selectedProgram
-  )
+  const programAssessments = getProgramAssessments(selectedProgram)
 
   return (
     <div className="space-y-6">
@@ -1164,7 +1144,7 @@ function AdminAssessmentsContent({
               <Plus className="h-4 w-4 mr-2" /> New Assessment
             </Button>
           </DialogTrigger>
-          <DialogContent className="rounded-2xl max-w-lg">
+          <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-2xl">
             <DialogHeader>
               <DialogTitle>Create Assessment — {activeProgram?.label}</DialogTitle>
             </DialogHeader>
@@ -1252,7 +1232,13 @@ function AdminAssessmentsContent({
 
               <div className="space-y-1.5">
                 <Label>Description</Label>
-                <Input placeholder="Optional description" value={assessmentForm.description} onChange={e => setAssessmentForm((p: any) => ({ ...p, description: e.target.value }))} className="rounded-xl" />
+                <RichTextEditor
+                  value={assessmentForm.description}
+                  onChange={description => setAssessmentForm((previous: any) => ({ ...previous, description }))}
+                  placeholder="Add instructions, preparation notes, or exam details..."
+                  maxLength={5000}
+                  minHeight="140px"
+                />
               </div>
               <Button onClick={handleCreateAssessment} disabled={assessmentSaving || !assessmentForm.title || !assessmentForm.courseId} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
                 {assessmentSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Create Assessment

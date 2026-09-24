@@ -161,8 +161,25 @@ export async function DELETE(request: NextRequest) {
     const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
-    const { courseId } = await request.json()
-    await prisma.enrollment.deleteMany({ where: { userId: user.id, courseId } })
+    if (user.role !== "ADMIN" && user.role !== "INSTRUCTOR") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { userId, courseId } = body ?? {}
+    if (!userId || typeof userId !== "string" || !courseId || typeof courseId !== "string") {
+      return NextResponse.json({ error: "userId and courseId are required" }, { status: 400 })
+    }
+
+    if (!(await canManageCourse(user, courseId))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const deleted = await prisma.enrollment.deleteMany({ where: { userId, courseId } })
+    if (deleted.count === 0) {
+      return NextResponse.json({ error: "Enrollment not found" }, { status: 404 })
+    }
+
     return NextResponse.json({ success: true })
   } catch {
     return NextResponse.json({ error: "Failed to unenroll" }, { status: 500 })

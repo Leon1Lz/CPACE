@@ -3,6 +3,20 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { canManageCourse } from "@/lib/authorization"
 import { prisma } from "@/lib/prisma"
+import { sanitizeHtml, stripTags } from "@/lib/sanitize"
+import { z } from "zod"
+
+const assessmentCreateSchema = z.object({
+  title: z.string().trim().min(1, "Title is required").max(200),
+  description: z.string().max(20000).nullable().optional(),
+  type: z.enum(["REVIEWER", "PRACTICE_EXAM", "RULES_GUIDELINES", "FINAL_EXAM", "QUIZ", "ASSIGNMENT"]).optional().default("REVIEWER"),
+  courseId: z.string().min(1, "Course is required"),
+  timeLimit: z.number().int().min(1).max(1440).nullable().optional(),
+  passingScore: z.number().min(0).max(100).optional().default(70),
+  attempts: z.number().int().min(1).max(100).nullable().optional(),
+  releaseScores: z.boolean().optional().default(true),
+  scoresReleasedAt: z.string().datetime({ offset: true }).nullable().optional(),
+})
 
 export async function GET(request: Request) {
   try {
@@ -78,26 +92,38 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user || (user.role !== "ADMIN" && user.role !== "INSTRUCTOR")) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-    const { title, description, type, courseId, timeLimit, passingScore, attempts, releaseScores, scoresReleasedAt } = await request.json()
-    if (!title || !courseId) return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-    if (!(await canManageCourse(user, courseId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const body = assessmentCreateSchema.parse(await request.json())
+    if (!(await canManageCourse(user, body.courseId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+    let cleanDescription: string | null = null
+    if (body.description != null) {
+      const sanitized = sanitizeHtml(body.description)
+      if (stripTags(sanitized).length > 5000) {
+        return NextResponse.json({ error: "Description is too long" }, { status: 400 })
+      }
+      cleanDescription = stripTags(sanitized).trim() ? sanitized : null
+    }
 
     const assessment = await prisma.assessment.create({
       data: {
-        title,
-        description,
-        type: type || "REVIEWER",
-        courseId,
-        timeLimit,
-        passingScore: passingScore || 70,
-        attempts: attempts ?? null,
-        releaseScores: releaseScores !== false,
-        scoresReleasedAt: releaseScores ? null : (scoresReleasedAt ? new Date(scoresReleasedAt) : null),
+        title: body.title,
+        description: cleanDescription,
+        type: body.type,
+        courseId: body.courseId,
+        timeLimit: body.timeLimit ?? null,
+        passingScore: body.passingScore,
+        attempts: body.attempts ?? null,
+        releaseScores: body.releaseScores,
+        scoresReleasedAt: body.releaseScores ? null : (body.scoresReleasedAt ? new Date(body.scoresReleasedAt) : null),
       },
       include: { course: { select: { id: true, title: true, category: true } } },
     })
     return NextResponse.json(assessment, { status: 201 })
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      const firstError = error.errors[0]?.message || "Invalid input"
+      return NextResponse.json({ error: firstError }, { status: 400 })
+    }
     return NextResponse.json({ error: "Failed to create assessment" }, { status: 500 })
   }
 }

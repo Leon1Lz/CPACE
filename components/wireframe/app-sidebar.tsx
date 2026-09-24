@@ -8,6 +8,7 @@ import {
   LayoutDashboard, GraduationCap, BarChart3,
   Award, Users, Settings, LogOut, ChevronDown, ShieldCheck, UsersRound,
   Newspaper, Route, ClipboardCheck,
+  CalendarClock, CalendarDays, PanelsTopLeft, ScrollText,
 } from "lucide-react"
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
@@ -33,7 +34,9 @@ interface AppSidebarProps {
 const menuItems = {
   admin: [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+    { id: "calendar", label: "Calendar", icon: CalendarDays, href: "/dashboard/calendar" },
     { id: "courses", label: "Courses & Assessments", icon: GraduationCap, href: "/dashboard/courses" },
+    { id: "schedules", label: "Manage Schedules", icon: CalendarClock, href: "/dashboard/schedules" },
     { id: "learning-paths", label: "Learning Paths", icon: Route, href: "/dashboard/learning-paths" },
     { id: "grading", label: "Grading Queue", icon: ClipboardCheck, href: "/dashboard/grading" },
     { id: "reports", label: "Reports", icon: BarChart3, href: "/dashboard/reports" },
@@ -41,10 +44,13 @@ const menuItems = {
     { id: "proctor", label: "Exam Monitor", icon: ShieldCheck, href: "/dashboard/proctor" },
     { id: "groups", label: "Groups", icon: UsersRound, href: "/dashboard/groups" },
     { id: "users", label: "User Management", icon: Users, href: "/dashboard/users" },
+    { id: "content", label: "Website Content", icon: PanelsTopLeft, href: "/dashboard/content" },
+    { id: "audit", label: "Audit Log", icon: ScrollText, href: "/dashboard/audit" },
     { id: "insights", label: "Manage Insights", icon: Newspaper, href: "/dashboard/insights" },
   ],
   instructor: [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+    { id: "calendar", label: "Calendar", icon: CalendarDays, href: "/dashboard/calendar" },
     { id: "courses", label: "Courses & Assessments", icon: GraduationCap, href: "/dashboard/courses" },
     { id: "learning-paths", label: "Learning Paths", icon: Route, href: "/dashboard/learning-paths" },
     { id: "grading", label: "Grading Queue", icon: ClipboardCheck, href: "/dashboard/grading" },
@@ -54,6 +60,7 @@ const menuItems = {
   ],
   learner: [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+    { id: "calendar", label: "My Calendar", icon: CalendarDays, href: "/dashboard/calendar" },
     { id: "courses", label: "Courses & Assessments", icon: GraduationCap, href: "/dashboard/courses" },
     { id: "learning-paths", label: "My Learning Paths", icon: Route, href: "/dashboard/learning-paths" },
     { id: "reports", label: "My Progress", icon: BarChart3, href: "/dashboard/reports" },
@@ -61,6 +68,7 @@ const menuItems = {
   ],
   proctor: [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+    { id: "calendar", label: "Calendar", icon: CalendarDays, href: "/dashboard/calendar" },
     { id: "proctor", label: "Exam Monitor", icon: ShieldCheck, href: "/dashboard/proctor" },
   ],
 }
@@ -75,10 +83,10 @@ const roleColors: Record<UserRole, string> = {
 export function AppSidebar({ role = "learner", userName = "User", userEmail = "", isExamTaking = false }: AppSidebarProps) {
   const items = menuItems[role]
   const groups = [
-    { label: "Overview", ids: ["dashboard"] },
+    { label: "Overview", ids: ["dashboard", "calendar"] },
     { label: "Learning", ids: ["courses", "learning-paths"] },
     { label: role === "learner" ? "My Results" : "Exams & Results", ids: ["proctor", "grading", "reports", "certificates"] },
-    { label: "Administration", ids: ["groups", "users", "insights"] },
+    { label: "Administration", ids: ["content", "schedules", "groups", "users", "insights", "audit"] },
   ].map(group => ({ ...group, items: group.ids.flatMap(id => items.filter(item => item.id === id)) })).filter(group => group.items.length)
   const initials = userName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
   const pathname = usePathname()

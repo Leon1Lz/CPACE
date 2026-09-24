@@ -27,6 +27,16 @@ beforeEach(() => {
   mocks.find.mockResolvedValue({ draftAnswers: {}, draftVersion: 2, deadlineAt: null })
 })
 describe("assessment recovery", () => {
+  it("explains that staff preview cannot create a learner attempt", async () => {
+    mocks.user.mockResolvedValue({ id: "admin", role: "ADMIN" })
+    const response = await start(new NextRequest("http://localhost/api/assessments/exam/session", { method: "POST", body: "{}" }), context)
+    expect(response.status).toBe(403)
+    expect(await response.json()).toMatchObject({
+      code: "LEARNER_ROLE_REQUIRED",
+      error: expect.stringContaining("Only learner accounts"),
+    })
+    expect(mocks.create).not.toHaveBeenCalled()
+  })
   it("saves only an owned active attempt at the expected version", async () => {
     const response = await PATCH(request(), context)
     expect(await response.json()).toEqual({ version: 3 })

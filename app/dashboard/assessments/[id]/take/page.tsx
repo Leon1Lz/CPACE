@@ -21,13 +21,18 @@ import {
 import {
   Clock, ChevronLeft, ChevronRight, CheckCircle, XCircle,
   Award, AlertTriangle, Loader2, Flag, ClipboardList, Camera, RefreshCw,
-  Download, FileText, Eye, X as XIcon
+  Download, FileText, Eye, X as XIcon, BookOpen, Unlock, ShieldCheck,
+  Search, Sparkles, Check, HelpCircle
 } from "lucide-react"
 
 import { FloatingCalculator } from "@/components/ui/floating-calculator"
 import { ExamChat } from "@/components/ui/exam-chat"
 import { ExamMotionMonitor, type MotionViolation, type DetectorStatus } from "@/components/proctoring/exam-motion-monitor"
 import { LearnerVideoBroadcaster } from "@/components/proctoring/learner-video-broadcaster"
+import { SafeHtml } from "@/components/ui/safe-html"
+import { useExamLock } from "@/lib/exam-lock-context"
+import { getGuidelineByCourseCode } from "@/lib/guidelines-data"
+import { getReviewerByCourseCode, findReviewerItem } from "@/lib/reviewer-data"
 
 type Option = { id: string; text: string; isCorrect?: boolean; order: number }
 type Question = { id: string; question: string; type: string; points: number; order: number; options: Option[] }
@@ -56,10 +61,11 @@ type AnswerMap = Record<string, { selectedOptionId?: string; content?: string }>
 
 export default function TakeAssessmentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const { data: session } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
   const router = useRouter()
   const currentUserId = (session?.user as any)?.id ?? ""
-  const currentUserRole = (session?.user as any)?.role ?? "LEARNER"
+  const currentUserRole = (session?.user as any)?.role ?? ""
+  const isStaffPreview = currentUserRole === "ADMIN" || currentUserRole === "INSTRUCTOR"
 
   const [assessment, setAssessment] = useState<Assessment | null>(null)
   const [loading, setLoading] = useState(true)
@@ -82,7 +88,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null)
   const [capturedIdPhoto, setCapturedIdPhoto] = useState<string | null>(null)
   const [activeVerifyStep, setActiveVerifyStep] = useState<"face" | "id">("face")
-  const { streamRef, cameraActive, cameraError, cameraStarting, startCamera, stopCamera } = useAssessmentCamera()
+  const { stream, streamRef, cameraActive, cameraError, cameraStarting, startCamera, stopCamera } = useAssessmentCamera()
   const [proctoringConsent, setProctoringConsent] = useState(false)
   const [calibrationStatus, setCalibrationStatus] = useState<"idle" | "checking" | "passed" | "warning">("idle")
   const [calibrationMessage, setCalibrationMessage] = useState("Run the camera check before starting your exam.")
@@ -91,12 +97,32 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
   const [isFsLocked, setIsFsLocked] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [materialViewerOpen, setMaterialViewerOpen] = useState(false)
+  const [reviewerModalOpen, setReviewerModalOpen] = useState(false)
+  const [reviewerSearch, setReviewerSearch] = useState("")
+  const [showAnswerKeys, setShowAnswerKeys] = useState(true)
+  const [revealedItems, setRevealedItems] = useState<Set<string>>(new Set())
   const isFinal = assessment?.type === "FINAL_EXAM"
+  const isPractice = assessment?.type === "PRACTICE_EXAM" || assessment?.type === "QUIZ"
   const [motionDetectorStatus, setMotionDetectorStatus] = useState<DetectorStatus>("idle")
   const detectorHealth = assessment?.motionDetectionEnabled === false ? "DISABLED"
     : motionDetectorStatus === "active" ? "ACTIVE"
     : motionDetectorStatus === "error" ? "ERROR"
     : motionDetectorStatus === "loading" ? "LOADING" : "STARTING"
+  const { setIsExamLocked } = useExamLock()
+
+  // Navigation lock: only lock sidebar and breadcrumbs during active Final Exam in taking phase.
+  // Practice quizzes and intro screens NEVER lock navigation.
+  useEffect(() => {
+    if (isFinal && phase === "taking") {
+      setIsExamLocked(true)
+    } else {
+      setIsExamLocked(false)
+    }
+    return () => {
+      setIsExamLocked(false)
+    }
+  }, [isFinal, phase, setIsExamLocked])
+
   const { feedError, refreshFeed, retryFeed } = useAssessmentLiveFeed(
     id, sessionId, phase === "taking" && isFinal, videoRef, streamRef, detectorHealth,
   )
@@ -317,9 +343,9 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
     return () => clearTimeout(t)
   }, [phase, timeLeft, handleSubmit, submitError, deadlineAt])
 
-  // Browser Lock: Fullscreen and Focus/Visibility violations detection
+  // Browser Lock: Fullscreen and Focus/Visibility violations detection (Final Exam only)
   useEffect(() => {
-    if (phase !== "taking") return
+    if (phase !== "taking" || !isFinal) return
 
     let warningCount = 0
 
@@ -348,18 +374,14 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
       if (document.visibilityState === "hidden") {
         warningCount++
         flagSession(`Tab/window switched — lost focus (Violation #${warningCount})`)
-        if (isFinal) {
-          setIsFsLocked(true)
-        }
+        setIsFsLocked(true)
       }
     }
 
     const handleBlur = () => {
       warningCount++
       flagSession(`Window lost focus (Violation #${warningCount})`)
-      if (isFinal) {
-        setIsFsLocked(true)
-      }
+      setIsFsLocked(true)
     }
 
     document.addEventListener("fullscreenchange", handleFullscreenChange)
@@ -387,9 +409,9 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
     return () => window.removeEventListener("beforeunload", handleBeforeUnload)
   }, [phase])
 
-  // Prevent copying, cutting, pasting, and context menu (right-click)
+  // Prevent copying, cutting, pasting, and context menu (Final Exam only)
   useEffect(() => {
-    if (phase !== "taking") return
+    if (phase !== "taking" || !isFinal) return
 
     const blockEvent = (e: Event) => e.preventDefault()
 
@@ -404,11 +426,11 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
       document.removeEventListener("paste", blockEvent)
       document.removeEventListener("contextmenu", blockEvent)
     }
-  }, [phase])
+  }, [phase, isFinal])
 
-  // Block Developer Tools and standard cheats shortcuts
+  // Block Developer Tools and standard cheats shortcuts (Final Exam only)
   useEffect(() => {
-    if (phase !== "taking") return
+    if (phase !== "taking" || !isFinal) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "F12") {
@@ -435,10 +457,14 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [phase, assessment?.type])
+  }, [phase, isFinal])
 
 
   const startExam = async () => {
+    if (isStaffPreview) {
+      setStartError("Preview mode cannot create a learner attempt. Use an enrolled learner account to take this exam.")
+      return
+    }
     if (isFinal && (!streamRef.current?.getVideoTracks().some(track => track.readyState === "live") || cameraError)) {
       setStartError("A working webcam is required before starting the final exam. Enable your webcam and run the camera check.")
       return
@@ -501,7 +527,6 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
   const total = assessment?.questions.length ?? 0
   const progress = total > 0 ? (answered / total) * 100 : 0
 
-  const isPractice = assessment?.type === "PRACTICE_EXAM"
   const attemptsLeft = assessment?.attempts != null ? assessment.attempts - attemptCount : null
   const canRetake = isPractice || (isFinal && (attemptsLeft === null || attemptsLeft > 0))
 
@@ -509,14 +534,18 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
     PRACTICE_EXAM: "bg-blue-100 text-blue-700",
     FINAL_EXAM: "bg-rose-100 text-rose-700",
     QUIZ: "bg-amber-100 text-amber-700",
+    REVIEWER: "bg-emerald-100 text-emerald-700",
+    RULES_GUIDELINES: "bg-amber-100 text-amber-700",
   }
   const typeLabels: Record<string, string> = {
-    PRACTICE_EXAM: "Practice Exam",
+    PRACTICE_EXAM: "Practice Quiz",
     FINAL_EXAM: "Final Exam",
     QUIZ: "Quiz",
+    REVIEWER: "Study Reviewer",
+    RULES_GUIDELINES: "Rules & Guidelines",
   }
 
-  if (loading) {
+  if (loading || sessionStatus === "loading") {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
@@ -560,6 +589,358 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
   }
 
 
+  const renderReviewerDialog = () => (
+    <Dialog open={reviewerModalOpen} onOpenChange={setReviewerModalOpen}>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 rounded-2xl overflow-hidden [&>button]:hidden">
+        <div className="p-5 border-b border-gray-100 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+              <BookOpen className="h-4 w-4" />
+            </div>
+            <div>
+              <DialogTitle className="text-base font-bold text-gray-900">
+                {assessment?.course.title} — Question Reviewer
+              </DialogTitle>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Open-book reference guide with verified answer keys, formulas, and rationales.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative w-full sm:w-64">
+              <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search questions or formulas…"
+                value={reviewerSearch}
+                onChange={(e) => setReviewerSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50/50"
+              />
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setReviewerModalOpen(false)} className="rounded-xl h-8 w-8 p-0 shrink-0">
+              <XIcon className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4 max-h-[calc(90vh-130px)] bg-gray-50/30">
+          {(() => {
+            const rev = getReviewerByCourseCode(assessment?.course.title || "")
+            const modalItems = rev.items.filter(it =>
+              !reviewerSearch.trim() ||
+              it.question.toLowerCase().includes(reviewerSearch.toLowerCase()) ||
+              it.keyConcept.toLowerCase().includes(reviewerSearch.toLowerCase()) ||
+              (it.formula && it.formula.toLowerCase().includes(reviewerSearch.toLowerCase()))
+            )
+
+            if (modalItems.length === 0) {
+              return (
+                <div className="text-center py-12 text-gray-400">
+                  <HelpCircle className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                  <p className="text-xs">No questions matched your search criteria.</p>
+                </div>
+              )
+            }
+
+            return modalItems.map((item) => (
+              <div key={item.id} className="p-4 rounded-xl border border-gray-100 bg-white space-y-3 shadow-2xs">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-black flex items-center justify-center shrink-0">
+                      {item.order}
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                      {item.keyConcept}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs font-bold text-gray-900 leading-snug">{item.question}</p>
+                
+                <div className="grid sm:grid-cols-2 gap-1.5">
+                  {item.options.map((opt, oIdx) => {
+                    const isCorrect = opt === item.correctAnswer
+                    return (
+                      <div
+                        key={oIdx}
+                        className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center justify-between ${
+                          isCorrect
+                            ? "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold"
+                            : "bg-white border-gray-100 text-gray-600"
+                        }`}
+                      >
+                        <span>{opt}</span>
+                        {isCorrect && (
+                          <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-bold">
+                            ✓ Correct
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-emerald-50/80 border border-emerald-100 text-[11px] text-emerald-950 leading-relaxed space-y-1">
+                  <div>
+                    <strong className="text-emerald-800">Rationale: </strong>
+                    {item.explanation}
+                  </div>
+                  {item.formula && (
+                    <div className="p-1 rounded bg-white/90 border border-emerald-200/80 font-mono text-[10px] text-emerald-900 font-bold">
+                      📐 {item.formula}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          })()}
+        </div>
+
+        <div className="p-3 border-t border-gray-100 bg-white flex items-center justify-between">
+          <span className="text-xs text-gray-400 font-medium">
+            Showing 30 comprehensive items with rationales
+          </span>
+          <Button size="sm" onClick={() => setReviewerModalOpen(false)} className="rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
+            Close Reviewer
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+
+  // ── RULES & GUIDELINES VIEW ─────────────────────────────
+  if (assessment.type === "RULES_GUIDELINES") {
+    const guideline = getGuidelineByCourseCode(assessment.course.title)
+    return (
+      <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-16">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-800">
+                Official Examination Rules &amp; Academic Guidelines
+              </span>
+              <span className="text-xs text-gray-500 font-medium">{assessment.course.title}</span>
+            </div>
+            <h1 className="text-2xl font-black text-gray-900">{assessment.title}</h1>
+            <p className="text-sm text-gray-600 mt-1">{guideline.subtitle}</p>
+          </div>
+          <Button variant="outline" onClick={() => router.push(`/dashboard/courses/${assessment.course.id}`)} className="rounded-xl gap-1.5 shrink-0">
+            <ChevronLeft className="h-4 w-4" /> Back to Course
+          </Button>
+        </div>
+
+        <div className="space-y-4">
+          {guideline.sections.map((section, idx) => (
+            <Card key={idx} className="border-0 shadow-sm overflow-hidden">
+              <CardHeader className="py-4 px-6 bg-gradient-to-r from-amber-50/70 to-orange-50/30 border-b border-amber-100/60">
+                <CardTitle className="text-base font-bold text-gray-900 flex items-center gap-2.5">
+                  <span className="w-6 h-6 rounded-lg bg-amber-200/80 text-amber-900 text-xs flex items-center justify-center font-bold">
+                    {idx + 1}
+                  </span>
+                  {section.title}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-3">
+                <p className="text-sm text-gray-700 leading-relaxed font-medium">{section.content}</p>
+                <div className="grid gap-2 pt-1">
+                  {section.bullets.map((b, bIdx) => (
+                    <div key={bIdx} className="flex items-start gap-2.5 p-3 rounded-xl bg-gray-50/80 border border-gray-100/80 text-xs text-gray-700 leading-relaxed">
+                      <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span>{b}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="p-6 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+          <div>
+            <h3 className="font-bold text-gray-900 text-sm">Ready to begin your preparation?</h3>
+            <p className="text-xs text-gray-600 mt-0.5">Proceed to study the course reviewer or take the 30-item practice quiz.</p>
+          </div>
+          <div className="flex gap-2.5 shrink-0">
+            <Button variant="outline" onClick={() => router.push(`/dashboard/courses/${assessment.course.id}`)} className="rounded-xl text-xs">
+              Course Outline
+            </Button>
+            <Button onClick={() => router.push(`/dashboard/courses/${assessment.course.id}`)} className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold shadow-sm">
+              I Understand &amp; Continue →
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── STUDY REVIEWER VIEW ─────────────────────────────────
+  if (assessment.type === "REVIEWER") {
+    const courseReviewer = getReviewerByCourseCode(assessment.course.title)
+    const reviewerQuestions = assessment.questions.length > 0
+      ? assessment.questions.map((q, idx) => {
+          const revInfo = findReviewerItem(q.question)
+          const correctOpt = q.options.find(o => o.isCorrect)
+          return {
+            id: q.id,
+            order: idx + 1,
+            question: q.question,
+            options: q.options.map(o => o.text),
+            correctAnswer: correctOpt?.text ?? revInfo?.correctAnswer ?? "See explanation",
+            explanation: revInfo?.explanation ?? "Core certification concept testing mastery in this subject domain.",
+            keyConcept: revInfo?.keyConcept ?? "Core Competency",
+            formula: revInfo?.formula ?? null
+          }
+        })
+      : courseReviewer.items
+
+    const filtered = reviewerQuestions.filter(it =>
+      !reviewerSearch.trim() ||
+      it.question.toLowerCase().includes(reviewerSearch.toLowerCase()) ||
+      it.keyConcept.toLowerCase().includes(reviewerSearch.toLowerCase()) ||
+      (it.formula && it.formula.toLowerCase().includes(reviewerSearch.toLowerCase()))
+    )
+
+    return (
+      <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-16">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800">
+                📖 Course Study Reviewer
+              </span>
+              <span className="text-xs text-gray-500 font-medium">{assessment.course.title}</span>
+            </div>
+            <h1 className="text-2xl font-black text-gray-900">{assessment.title}</h1>
+            <p className="text-sm text-gray-600 mt-1 max-w-2xl">{courseReviewer.overview}</p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Button variant="outline" onClick={() => router.push(`/dashboard/courses/${assessment.course.id}`)} className="rounded-xl text-xs gap-1.5">
+              <ChevronLeft className="h-4 w-4" /> Back to Course
+            </Button>
+          </div>
+        </div>
+
+        {/* Domain Chips */}
+        <div className="flex flex-wrap gap-2">
+          {courseReviewer.domains.map((dom, dIdx) => (
+            <span key={dIdx} className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100">
+              ✓ {dom}
+            </span>
+          ))}
+        </div>
+
+        {/* Toolbar: Search + Mode toggle */}
+        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between p-3.5 bg-white rounded-2xl border border-gray-100 shadow-xs">
+          <div className="relative w-full sm:w-80">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search questions, concepts, or formulas…"
+              value={reviewerSearch}
+              onChange={(e) => setReviewerSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50/50"
+            />
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <Button
+              variant={showAnswerKeys ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowAnswerKeys(!showAnswerKeys)}
+              className={`rounded-xl text-xs gap-1.5 ${showAnswerKeys ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}`}
+            >
+              {showAnswerKeys ? "👁️ Hide Answer Keys" : "💡 Reveal All Answer Keys"}
+            </Button>
+            <span className="text-xs text-gray-400 font-medium">
+              Showing {filtered.length} of {reviewerQuestions.length} items
+            </span>
+          </div>
+        </div>
+
+        {/* Question Cards */}
+        <div className="space-y-4">
+          {filtered.map((item) => {
+            const isRevealed = showAnswerKeys || revealedItems.has(item.id)
+            return (
+              <Card key={item.id} className="border-0 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
+                <CardHeader className="py-3 px-5 bg-gray-50/80 border-b border-gray-100 flex flex-row items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs font-black flex items-center justify-center shrink-0">
+                      {item.order}
+                    </span>
+                    <Badge variant="outline" className="text-[10px] text-emerald-800 bg-emerald-50 border-emerald-200 font-bold">
+                      {item.keyConcept}
+                    </Badge>
+                  </div>
+                  {!showAnswerKeys && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setRevealedItems(prev => {
+                        const next = new Set(prev)
+                        next.has(item.id) ? next.delete(item.id) : next.add(item.id)
+                        return next
+                      })}
+                      className="text-xs text-emerald-600 hover:text-emerald-700 h-7"
+                    >
+                      {isRevealed ? "Hide Answer" : "Reveal Answer"}
+                    </Button>
+                  )}
+                </CardHeader>
+                <CardContent className="p-5 space-y-4">
+                  <p className="text-sm font-semibold text-gray-900 leading-relaxed">{item.question}</p>
+                  
+                  {/* Options */}
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {item.options.map((opt, oIdx) => {
+                      const isCorrect = opt === item.correctAnswer
+                      return (
+                        <div
+                          key={oIdx}
+                          className={`p-2.5 rounded-xl border text-xs font-medium transition-all ${
+                            isRevealed && isCorrect
+                              ? "bg-emerald-50 border-emerald-300 text-emerald-900 font-bold shadow-xs"
+                              : "bg-white border-gray-100 text-gray-600"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span>{opt}</span>
+                            {isRevealed && isCorrect && (
+                              <span className="shrink-0 text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded-md font-bold">
+                                Correct
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Explanation Callout */}
+                  {isRevealed && (
+                    <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-50/70 to-teal-50/50 border border-emerald-100/80 space-y-2 animate-fade-in">
+                      <div className="flex items-start gap-2">
+                        <Sparkles className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div className="text-xs text-emerald-950 leading-relaxed">
+                          <strong className="text-emerald-800">Rationale: </strong>
+                          {item.explanation}
+                        </div>
+                      </div>
+                      {item.formula && (
+                        <div className="ml-6 p-2 rounded-lg bg-white/80 border border-emerald-200/60 font-mono text-[11px] text-emerald-900 font-bold">
+                          📐 {item.formula}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   // ── INTRO ──────────────────────────────────────────────
   if (phase === "intro") {
     return (
@@ -592,7 +973,11 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
             </div>
 
             {assessment.description && (
-              <p className="text-sm text-gray-600 bg-gray-50 rounded-xl p-3">{assessment.description}</p>
+              <SafeHtml
+                html={assessment.description}
+                className="prose prose-sm max-w-none rounded-xl bg-gray-50 p-3 text-gray-600"
+                externalLinks
+              />
             )}
 
             {assessment.materialUrl && (
@@ -657,7 +1042,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
               </>
             )}
 
-            {isFinal && (
+            {isFinal && !isStaffPreview && (
               <>
                 <div className="flex gap-2 p-3 rounded-xl bg-rose-50 border border-rose-100">
                   <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
@@ -807,17 +1192,95 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                     )}
                   </CardContent>
                 </Card>
+
               </>
             )}
 
             {isPractice && (
-              <div className="flex gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
-                <CheckCircle className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
-                <p className="text-sm text-blue-700"><strong>Practice Exam:</strong> Retake as many times as you need. Results don&apos;t affect your certificate.</p>
-              </div>
+              <Card className="border border-blue-200 bg-blue-50/50 rounded-2xl shadow-none overflow-hidden">
+                <CardHeader className="py-3 px-4 bg-blue-100/60 border-b border-blue-100">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-blue-950">
+                    <BookOpen className="h-4 w-4 text-blue-600" /> Practice Quiz Guidelines &amp; Rules
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-3">
+                  <p className="text-xs text-blue-900 leading-relaxed font-medium">
+                    This practice drill helps reinforce your understanding of core concepts before taking the Final Examination. Please review the simple guidelines below:
+                  </p>
+                  <div className="grid sm:grid-cols-2 gap-2.5 pt-1">
+                    <div className="flex items-start gap-2.5 p-2.5 bg-white rounded-xl border border-blue-100 shadow-xs">
+                      <Unlock className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-xs text-gray-900">No Browser Lock</p>
+                        <p className="text-gray-500 text-[11px] leading-snug mt-0.5">
+                          You are free to switch tabs, view course reviewers, and take notes. Fullscreen and webcam monitoring are disabled.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2.5 p-2.5 bg-white rounded-xl border border-blue-100 shadow-xs">
+                      <RefreshCw className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-xs text-gray-900">Unlimited Retakes</p>
+                        <p className="text-gray-500 text-[11px] leading-snug mt-0.5">
+                          Retake this quiz as many times as you like until you feel completely confident with the material.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2.5 p-2.5 bg-white rounded-xl border border-blue-100 shadow-xs">
+                      <ClipboardList className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-xs text-gray-900">30 Practice Items</p>
+                        <p className="text-gray-500 text-[11px] leading-snug mt-0.5">
+                          Carefully selected questions covering the primary topics of the certification program.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2.5 p-2.5 bg-white rounded-xl border border-blue-100 shadow-xs">
+                      <ShieldCheck className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-xs text-gray-900">Zero Academic Penalty</p>
+                        <p className="text-gray-500 text-[11px] leading-snug mt-0.5">
+                          Practice scores do not affect your certificate eligibility, final course grade, or permanent record.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-blue-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <p className="text-[11px] text-blue-900 font-medium">
+                      Want to review the 30 questions and correct answers before starting?
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setReviewerModalOpen(true)}
+                      className="w-full sm:w-auto rounded-xl border-blue-300 text-blue-800 bg-white hover:bg-blue-100 text-xs font-semibold gap-1.5 shadow-2xs"
+                    >
+                      <BookOpen className="h-3.5 w-3.5 text-blue-600" />
+                      Open Course Question Reviewer (30 Items)
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
-            {assessment.questions.length === 0 ? (
+            {isStaffPreview ? (
+              <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-blue-900">
+                <p className="text-sm font-semibold">Staff preview mode</p>
+                <p className="text-xs leading-relaxed">
+                  Only an enrolled learner account can start this exam and create an attempt. Previewing as staff does not consume an attempt or require webcam verification.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push(`/dashboard/assessments/${id}/manage`)}
+                  className="w-full rounded-xl border-blue-300 bg-white text-blue-800 hover:bg-blue-100"
+                >
+                  Manage assessment and questions
+                </Button>
+              </div>
+            ) : assessment.questions.length === 0 ? (
               <div className="text-center py-4 text-amber-600 text-sm font-medium">
                 <AlertTriangle className="h-5 w-5 mx-auto mb-1" />
                 No questions have been added yet.
@@ -841,12 +1304,15 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                       ? "Pass Camera Check to Unlock"
                       : (isFinal && assessment.requireProctoringConsent !== false && !proctoringConsent)
                         ? "Accept Proctoring Consent to Unlock"
-                        : "Start Exam"}
+                        : isPractice
+                          ? "Start Practice Quiz"
+                          : "Start Final Examination"}
               </Button>
               </div>
             )}
           </CardContent>
         </Card>
+        {renderReviewerDialog()}
       </div>
     )
   }
@@ -875,6 +1341,16 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                 <Clock className="h-3.5 w-3.5" />
                 {formatTime(timeLeft)}
               </div>
+            )}
+            {isPractice && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setReviewerModalOpen(true)}
+                className="rounded-xl text-xs border-blue-200 text-blue-700 bg-blue-50/50 hover:bg-blue-100 gap-1.5"
+              >
+                <BookOpen className="h-3.5 w-3.5 text-blue-600" /> Reviewer
+              </Button>
             )}
             <Button
               size="sm" variant="outline"
@@ -983,7 +1459,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Question Palette</p>
 
                 {/* Grid of question numbers */}
-                <div className="grid grid-cols-5 gap-1.5">
+                <div className="grid grid-cols-5 gap-1.5 max-h-[320px] overflow-y-auto pr-1">
                   {assessment.questions.map((sq, i) => {
                     const isAnswered = !!answers[sq.id]
                     const isFlaggedQ = flagged.has(sq.id)
@@ -1075,7 +1551,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
             <Button type="button" variant="outline" onClick={retryFeed} className="mt-2">Retry live feed</Button>
           </div>
         )}
-        <LearnerVideoBroadcaster sessionId={sessionId} stream={streamRef.current} />
+        <LearnerVideoBroadcaster sessionId={sessionId} stream={stream ?? streamRef.current} />
 
         {isFinal && (
           <ExamMotionMonitor
@@ -1093,6 +1569,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
             }}
           />
         )}
+        {renderReviewerDialog()}
       </div>
     )
   }
@@ -1226,16 +1703,34 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
               {assessment.questions.map((q, i) => {
                 const userAnswer = answers[q.id]
                 const hasMultiChoice = q.type === "MULTIPLE_CHOICE" || q.type === "TRUE_FALSE"
+                const revInfo = findReviewerItem(q.question)
+                const correctOptId = result?.answerReview?.find((ar: any) => ar.questionId === q.id)?.correctOptionId || q.options.find(o => o.isCorrect)?.id
+                const isUserCorrect = userAnswer?.selectedOptionId && (
+                  (correctOptId && userAnswer.selectedOptionId === correctOptId) ||
+                  (revInfo && q.options.find(o => o.id === userAnswer.selectedOptionId)?.text === revInfo.correctAnswer)
+                )
 
                 return (
-                  <div key={q.id} className="p-4 rounded-2xl border-2 border-gray-100 bg-gray-50">
-                    <div className="flex items-start gap-3 mb-3">
-                      <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 mt-0.5 bg-gray-200 text-gray-600">{i + 1}</span>
-                      <p className="text-sm font-medium text-gray-800 leading-relaxed">{q.question}</p>
-                      <span className="ml-auto shrink-0">
-                        {!userAnswer
-                          ? <span className="text-xs text-gray-400 font-medium">Not answered</span>
-                          : <CheckCircle className="h-5 w-5 text-sky-500" />}
+                  <div key={q.id} className="p-4 rounded-2xl border-2 border-gray-100 bg-gray-50/70 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 mt-0.5 ${
+                        !userAnswer ? "bg-gray-200 text-gray-600" : isUserCorrect ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"
+                      }`}>
+                        {i + 1}
+                      </span>
+                      <p className="text-sm font-semibold text-gray-800 leading-relaxed flex-1">{q.question}</p>
+                      <span className="shrink-0">
+                        {!userAnswer ? (
+                          <span className="text-xs text-gray-400 font-medium bg-gray-100 px-2 py-0.5 rounded-full">Not answered</span>
+                        ) : isUserCorrect ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                            <CheckCircle className="h-3.5 w-3.5" /> Correct
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-700 bg-rose-100 px-2.5 py-0.5 rounded-full">
+                            <XCircle className="h-3.5 w-3.5" /> Incorrect
+                          </span>
+                        )}
                       </span>
                     </div>
 
@@ -1243,17 +1738,35 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                       <div className="ml-9 space-y-1.5">
                         {q.options.map(opt => {
                           const isSelected = opt.id === userAnswer?.selectedOptionId
+                          const isCorrectOption = (correctOptId && opt.id === correctOptId) || (revInfo && opt.text === revInfo.correctAnswer)
                           return (
-                            <div key={opt.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium ${
-                              isSelected ? "bg-sky-100 text-sky-800" : "text-gray-500"
+                            <div key={opt.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border transition-all ${
+                              isCorrectOption
+                                ? "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold shadow-2xs"
+                                : isSelected
+                                  ? "bg-rose-50 border-rose-300 text-rose-900"
+                                  : "bg-white border-gray-100 text-gray-500"
                             }`}>
                               <span className={`w-4 h-4 rounded-full border flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                                isSelected ? "border-sky-500 bg-sky-500 text-white" : "border-gray-300"
+                                isCorrectOption
+                                  ? "border-emerald-600 bg-emerald-600 text-white"
+                                  : isSelected
+                                    ? "border-rose-500 bg-rose-500 text-white"
+                                    : "border-gray-300"
                               }`}>
-                                {isSelected ? "✓" : ""}
+                                {isCorrectOption ? "✓" : isSelected ? "✗" : ""}
                               </span>
-                              {opt.text}
-                              {isSelected && <span className="ml-auto text-sky-700 font-semibold">Your answer</span>}
+                              <span>{opt.text}</span>
+                              {isCorrectOption && (
+                                <span className="ml-auto text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-md font-bold">
+                                  Correct Answer
+                                </span>
+                              )}
+                              {isSelected && !isCorrectOption && (
+                                <span className="ml-auto text-[10px] bg-rose-600 text-white px-2 py-0.5 rounded-md font-bold">
+                                  Your Choice
+                                </span>
+                              )}
                             </div>
                           )
                         })}
@@ -1266,12 +1779,33 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                         <p className="text-sm text-gray-700 bg-white rounded-xl px-3 py-2 border border-gray-200">{userAnswer.content}</p>
                       </div>
                     )}
+
+                    {/* Explanations & Formula Callout */}
+                    {revInfo?.explanation && (
+                      <div className="ml-9 p-3 rounded-xl bg-gradient-to-r from-emerald-50/70 to-teal-50/40 border border-emerald-100 text-xs text-emerald-950 leading-relaxed space-y-1.5">
+                        <div className="flex items-start gap-2">
+                          <Sparkles className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <div>
+                            <strong className="text-emerald-800">Concept &amp; Rationale: </strong>
+                            {revInfo.explanation}
+                          </div>
+                        </div>
+                        {revInfo.formula && (
+                          <div className="ml-6 p-2 rounded-lg bg-white/90 border border-emerald-200/80 font-mono text-[11px] text-emerald-900 font-bold">
+                            📐 {revInfo.formula}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               })}
             </CardContent>
           </Card>
         )}
+
+        {/* Reviewer Modal for Practice Quizzes */}
+        {renderReviewerDialog()}
       </div>
     )
   }

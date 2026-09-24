@@ -25,18 +25,34 @@ type Props = {
   videoRef: (element: HTMLVideoElement | null) => void
   onViolation: (violation: MotionViolation) => void
   onStatusChange?: (status: DetectorStatus) => void
-  config?: {
-    holdMs?: number
-    cooldownMs?: number
-    detectFaceAbsence?: boolean
-    detectMultipleFaces?: boolean
-    detectGaze?: boolean
-    detectPosture?: boolean
-  }
+  config?: MotionDetectionConfig
+}
+
+export type MotionDetectionConfig = {
+  holdMs?: number
+  cooldownMs?: number
+  detectFaceAbsence?: boolean
+  detectMultipleFaces?: boolean
+  detectGaze?: boolean
+  detectPosture?: boolean
 }
 
 const HOLD_MS = 2500
 const COOLDOWN_MS = 12000
+const DETECTOR_LOAD_TIMEOUT_MS = 30000
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(
+      () => reject(new Error("Motion detector loading timed out")),
+      timeoutMs,
+    )
+    promise.then(
+      value => { window.clearTimeout(timeout); resolve(value) },
+      error => { window.clearTimeout(timeout); reject(error) },
+    )
+  })
+}
 
 export function ExamMotionMonitor({ enabled, videoRef, onViolation, onStatusChange, config }: Props) {
   const holdMs = config?.holdMs ?? HOLD_MS
@@ -50,11 +66,13 @@ export function ExamMotionMonitor({ enabled, videoRef, onViolation, onStatusChan
   const timersRef = useRef<Record<string, number>>({})
   const lastLoggedRef = useRef<Record<string, number>>({})
   const baselineRef = useRef<{ x: number; y: number; width: number } | null>(null)
+  const lastVideoTimeRef = useRef(-1)
   const onViolationRef = useRef(onViolation)
   const [status, setStatus] = useState<DetectorStatus>("idle")
   const [faceCount, setFaceCount] = useState(0)
   const [error, setError] = useState("")
   const [lastEvent, setLastEvent] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
     onViolationRef.current = onViolation
@@ -74,6 +92,26 @@ export function ExamMotionMonitor({ enabled, videoRef, onViolation, onStatusChan
 
     let cancelled = false
     let intervalId: number | null = null
+
+    const releaseDetector = () => {
+      try {
+        detectorRef.current?.close()
+      } catch {
+        // A failed WASM instance can also throw while being released.
+      }
+      detectorRef.current = null
+    }
+
+    const failDetector = (message: string) => {
+      if (cancelled) return
+      if (intervalId !== null) {
+        window.clearInterval(intervalId)
+        intervalId = null
+      }
+      releaseDetector()
+      setError(message)
+      setStatus("error")
+    }
 
     const record = (
       type: string,
@@ -111,8 +149,11 @@ export function ExamMotionMonitor({ enabled, videoRef, onViolation, onStatusChan
       try {
         const vision = await import("@mediapipe/tasks-vision")
         if (cancelled) return
-        const files = await vision.FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm",
+        const files = await withTimeout(
+          vision.FilesetResolver.forVisionTasks(
+            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm",
+          ),
+          DETECTOR_LOAD_TIMEOUT_MS,
         )
         if (cancelled) return
 
@@ -128,35 +169,52 @@ export function ExamMotionMonitor({ enabled, videoRef, onViolation, onStatusChan
         }
 
         try {
-          detectorRef.current = await vision.FaceLandmarker.createFromOptions(files, {
-            ...options,
-            baseOptions: { ...options.baseOptions, delegate: "GPU" },
-          }) as FaceLandmarkerInstance
+          detectorRef.current = await withTimeout(
+            vision.FaceLandmarker.createFromOptions(files, {
+              ...options,
+              baseOptions: { ...options.baseOptions, delegate: "GPU" },
+            }) as Promise<FaceLandmarkerInstance>,
+            DETECTOR_LOAD_TIMEOUT_MS,
+          )
         } catch {
-          detectorRef.current = await vision.FaceLandmarker.createFromOptions(files, {
-            ...options,
-            baseOptions: { ...options.baseOptions, delegate: "CPU" },
-          }) as FaceLandmarkerInstance
+          detectorRef.current = await withTimeout(
+            vision.FaceLandmarker.createFromOptions(files, {
+              ...options,
+              baseOptions: { ...options.baseOptions, delegate: "CPU" },
+            }) as Promise<FaceLandmarkerInstance>,
+            DETECTOR_LOAD_TIMEOUT_MS,
+          )
         }
 
         if (cancelled) {
-          detectorRef.current.close()
-          detectorRef.current = null
+          releaseDetector()
           return
         }
 
-        setStatus("active")
         intervalId = window.setInterval(() => {
           const video = localVideoRef.current
           if (!video || video.readyState < 2 || !detectorRef.current) return
+          if (video.currentTime === lastVideoTimeRef.current) return
+          lastVideoTimeRef.current = video.currentTime
 
-          const faces = detectorRef.current.detectForVideo(video, performance.now()).faceLandmarks
+          let faces: Array<Array<{ x: number; y: number; z: number }>>
+          try {
+            faces = detectorRef.current.detectForVideo(video, performance.now()).faceLandmarks
+          } catch {
+            failDetector("Motion analysis stopped unexpectedly. Select Retry detector to restart it; your camera feed remains available to the proctor.")
+            return
+          }
+          setStatus(current => current === "active" ? current : "active")
           setFaceCount(faces.length)
           sustain("No face detected", detectFaceAbsence && faces.length === 0, "No face was visible for several seconds.", "high")
           sustain("Multiple faces detected", detectMultipleFaces && faces.length > 1, "More than one face was visible in the camera frame.", "high")
           if (faces.length !== 1) return
 
           const face = faces[0]
+          if (face.length <= 263) {
+            failDetector("The motion model returned incomplete face data. Select Retry detector to reload it.")
+            return
+          }
           const xs = face.map((point) => point.x)
           const ys = face.map((point) => point.y)
           const box = {
@@ -192,8 +250,9 @@ export function ExamMotionMonitor({ enabled, videoRef, onViolation, onStatusChan
         }, 500)
       } catch {
         if (cancelled) return
-        setError("Motion analysis could not start. The live camera feed will remain available to the proctor.")
-        setStatus("error")
+        failDetector(navigator.onLine === false
+          ? "Motion analysis could not load while offline. Restore your connection, then select Retry detector."
+          : "Motion analysis could not start. Select Retry detector to reload it; your camera feed remains available to the proctor.")
       }
     }
 
@@ -201,12 +260,12 @@ export function ExamMotionMonitor({ enabled, videoRef, onViolation, onStatusChan
     return () => {
       cancelled = true
       if (intervalId !== null) window.clearInterval(intervalId)
-      detectorRef.current?.close()
-      detectorRef.current = null
+      releaseDetector()
       baselineRef.current = null
+      lastVideoTimeRef.current = -1
       timersRef.current = {}
     }
-  }, [enabled, holdMs, cooldownMs, detectFaceAbsence, detectMultipleFaces, detectGaze, detectPosture])
+  }, [enabled, holdMs, cooldownMs, detectFaceAbsence, detectMultipleFaces, detectGaze, detectPosture, retryKey])
 
   const statusLabel = status === "active"
     ? faceCount === 1 ? "Face in frame" : `${faceCount} faces detected`
@@ -240,6 +299,15 @@ export function ExamMotionMonitor({ enabled, videoRef, onViolation, onStatusChan
           <div className="min-w-0">
             <p className="text-[11px] font-bold text-slate-800">{statusLabel}</p>
             <p className="text-[9px] leading-3.5 text-slate-400">{error || "Movement is analyzed during the final exam."}</p>
+            {status === "error" && (
+              <button
+                type="button"
+                onClick={() => setRetryKey(value => value + 1)}
+                className="mt-1 text-[10px] font-bold text-emerald-700 underline underline-offset-2 hover:text-emerald-800"
+              >
+                Retry detector
+              </button>
+            )}
           </div>
         </div>
         {lastEvent && (

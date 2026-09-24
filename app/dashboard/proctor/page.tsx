@@ -33,6 +33,7 @@ import { buildSimulatedSessions } from "@/lib/proctor-simulation"
 import { SessionEvidencePanel } from "@/components/proctoring/session-evidence-panel"
 import { loadProctorSessionList } from "@/lib/proctor-session-list"
 import { ProctorAssignments } from "@/components/proctoring/proctor-assignments"
+import { ProctorVideoFeed } from "@/components/proctoring/proctor-video-feed"
 import { getProctorHealth } from "@/lib/proctor-health"
 import { IncidentQueue } from "@/components/proctoring/incident-queue"
 
@@ -946,19 +947,26 @@ export default function ProctorPage() {
                 const latestReason = s.flagReason?.replace(/^\[[^\]]+\]\s*/, "").split(":")[0]?.replaceAll("_", " ")
                 return (
                   <article key={s.id} className={`group overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${s.flagged ? "border-rose-300 ring-1 ring-rose-100" : "border-slate-200"}`}>
-                    <div className="relative aspect-video overflow-hidden bg-gradient-to-br from-[#174F2F] to-[#0A2F1C]">
-                      {cameraFrame ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={cameraFrame} alt={`${s.user.firstName} ${s.user.lastName} camera`} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                    <div className="relative aspect-video overflow-hidden bg-slate-950">
+                      {simulationMode ? (
+                        cameraFrame ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={cameraFrame} alt={`${s.user.firstName} ${s.user.lastName} camera`} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                        ) : (
+                          <div className="flex h-full items-center justify-center"><Camera className="h-9 w-9 text-white/25" /></div>
+                        )
                       ) : (
-                        <div className="flex h-full items-center justify-center"><Camera className="h-9 w-9 text-white/25" /></div>
+                        <ProctorVideoFeed
+                          sessionId={s.id}
+                          fallbackSnapshot={cameraFrame ?? null}
+                          candidateName={`${s.user.firstName} ${s.user.lastName}`}
+                          stale={cameraHealth === "Feed stale"}
+                          compact={true}
+                          fit="cover"
+                          showFullscreenButton={true}
+                        />
                       )}
-                      <div className="absolute inset-[13%_25%] rounded-2xl border border-emerald-300/45 pointer-events-none" />
-                      <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white backdrop-blur">
-                        <span className={`h-1.5 w-1.5 rounded-full ${cameraHealth === "Live camera" ? "bg-emerald-400 animate-pulse" : cameraHealth === "Feed stale" ? "bg-amber-400" : "bg-slate-400"}`} />
-                        {cameraHealth}
-                      </span>
-                      {s.flagged && <span className="absolute right-3 top-3 rounded-full bg-rose-600 px-2 py-1 text-[9px] font-black uppercase text-white shadow">High priority</span>}
+                      {s.flagged && <span className="absolute right-2.5 top-2.5 rounded-full bg-rose-600 px-2 py-0.5 text-[9px] font-black uppercase text-white shadow z-10">High priority</span>}
                     </div>
                     <div className="p-4">
                       <p className="mb-2 text-[10px] text-slate-500">{health.connection} · Detector: {health.detector}</p>

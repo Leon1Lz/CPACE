@@ -45,8 +45,8 @@ export default function LoginPage() {
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="relative w-36 h-10">
-              <Image src="/logo.svg" alt="CPACE" fill className="object-contain" priority />
+            <div className="relative w-52 h-14">
+              <Image src="/cpace-logo.png" alt="CPACE Philippines" fill className="object-contain object-left brightness-0 invert" priority />
             </div>
           </div>
 
@@ -115,8 +115,8 @@ export default function LoginPage() {
 
           {/* Mobile Logo */}
           <div className="lg:hidden flex flex-col items-center gap-2">
-            <div className="relative w-36 h-10">
-              <Image src="/logo.svg" alt="CPACE" fill className="object-contain" priority />
+            <div className="relative w-52 h-14">
+              <Image src="/cpace-logo.png" alt="CPACE Philippines" fill className="object-contain" priority />
             </div>
           </div>
 

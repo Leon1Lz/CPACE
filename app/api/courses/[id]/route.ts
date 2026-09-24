@@ -6,6 +6,20 @@ import { sanitizeHtml } from "@/lib/sanitize"
 import { canManageOwnedResource } from "@/lib/authorization"
 import { getLearningPathBlocker } from "@/lib/learning-path-access"
 import { assertNoAssessmentAttempts, AssessmentIntegrityError } from "@/lib/assessment-integrity"
+import { z } from "zod"
+
+const courseUpdateSchema = z.object({
+  title: z.string().trim().min(1).max(300).optional(),
+  description: z.string().trim().min(1).max(5000).optional(),
+  content: z.string().max(100000).optional(),
+  category: z.string().trim().min(1).max(100).optional(),
+  level: z.string().trim().min(1).max(50).optional(),
+  duration: z.string().trim().min(1).max(100).optional(),
+  price: z.number().min(0).max(999999).optional(),
+  thumbnail: z.string().max(2000).nullable().optional(),
+  status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
+  learningObjectives: z.array(z.string().max(500)).max(50).optional(),
+}).strict()
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -75,22 +89,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const target = await prisma.course.findUnique({ where: { id }, select: { instructorId: true } })
     if (!target) return NextResponse.json({ error: "Not found" }, { status: 404 })
     if (!canManageOwnedResource(user, target.instructorId)) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    const data = await request.json()
+    const rawData = courseUpdateSchema.parse(await request.json())
 
-    const allowedFields = ["title", "description", "content", "category", "level", "duration", "price", "thumbnail", "status", "learningObjectives"]
-    const updateData: Record<string, unknown> = {}
-    for (const key of allowedFields) {
-      if (key in data) {
-        // Sanitize HTML content fields before saving
-        updateData[key] = key === "content" && data[key]
-          ? sanitizeHtml(data[key])
-          : data[key]
-      }
+    const updateData: Record<string, unknown> = { ...rawData }
+    // Sanitize HTML content field before saving
+    if (rawData.content) {
+      updateData.content = sanitizeHtml(rawData.content)
     }
 
     const updated = await prisma.course.update({ where: { id }, data: updateData })
     return NextResponse.json(updated)
-  } catch {
+  } catch (error) {
+    if (error instanceof z.ZodError) return NextResponse.json({ error: "Invalid course data" }, { status: 400 })
     return NextResponse.json({ error: "Failed to update course" }, { status: 500 })
   }
 }

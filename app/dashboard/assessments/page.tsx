@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Textarea } from "@/components/ui/textarea"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import {
   ClipboardCheck, Plus, BookOpen, CheckCircle, AlertCircle,
   Loader2, FlaskConical, ScrollText, Trophy, ShieldCheck,
@@ -186,6 +186,13 @@ function AssessmentCard({ a, role, groupBadge, onTogglePublish, onDelete }: { a:
                 Manage
               </Link>
             </Button>
+            {isFinal && (
+              <Button asChild size="sm" variant="outline" className="rounded-xl border-blue-200 text-xs text-blue-700 hover:bg-blue-50">
+                <Link href={`/dashboard/assessments/${a.id}/manage?motionTest=1`}>
+                  <FlaskConical className="mr-1 h-3.5 w-3.5" /> Test Motion
+                </Link>
+              </Button>
+            )}
             <Button
               size="icon"
               variant="outline"
@@ -426,7 +433,7 @@ export default function AssessmentsPage() {
                 <Plus className="h-4 w-4 mr-2" /> New Assessment
               </Button>
             </DialogTrigger>
-            <DialogContent className="rounded-2xl max-w-lg">
+            <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-2xl">
               <DialogHeader>
                 <DialogTitle>Create Assessment — {activeProgram?.label}</DialogTitle>
               </DialogHeader>
@@ -514,7 +521,13 @@ export default function AssessmentsPage() {
 
                 <div className="space-y-1.5">
                   <Label>Description</Label>
-                  <Input placeholder="Optional description" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} className="rounded-xl" />
+                  <RichTextEditor
+                    value={form.description}
+                    onChange={description => setForm(previous => ({ ...previous, description }))}
+                    placeholder="Add instructions, preparation notes, or exam details..."
+                    maxLength={5000}
+                    minHeight="140px"
+                  />
                 </div>
                 <Button onClick={handleCreate} disabled={saving || !form.title || !form.courseId} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
                   {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Create Assessment

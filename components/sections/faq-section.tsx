@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ChevronDown, HelpCircle, GraduationCap, Building, ShieldCheck, Award } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -54,10 +54,18 @@ const faqs: FAQItem[] = [
 export function FAQSection() {
   const [openId, setOpenId] = useState<string | null>("faq-1")
   const [activeCategory, setActiveCategory] = useState<string>("all")
+  const [faqItems, setFaqItems] = useState<FAQItem[]>(faqs)
+
+  useEffect(() => {
+    fetch("/api/homepage-faqs")
+      .then(response => response.ok ? response.json() : Promise.reject())
+      .then(items => { if (Array.isArray(items)) setFaqItems(items) })
+      .catch(() => undefined)
+  }, [])
 
   const filteredFaqs = activeCategory === "all" 
-    ? faqs 
-    : faqs.filter(f => f.category === activeCategory)
+    ? faqItems
+    : faqItems.filter(f => f.category === activeCategory)
 
   const toggleFAQ = (id: string) => {
     setOpenId(openId === id ? null : id)

@@ -508,6 +508,22 @@ model ExamChat {
   @@map("exam_chats")
 }
 
+// Short-lived WebRTC negotiation messages used when an external realtime
+// provider is not configured. Camera media remains peer-to-peer.
+model WebRtcSignal {
+  id         String   @id @default(cuid())
+  sessionId  String
+  senderId   String
+  targetId   String?
+  senderRole String
+  type       String
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+  @@map("webrtc_signals")
+}
+
 // Password reset tokens for self-service forgot password flow
 model PasswordResetToken {
   id        String   @id @default(cuid())
@@ -535,6 +551,56 @@ model Article {
   updatedAt     DateTime @updatedAt
 
   @@map("articles")
+}
+
+model ArticleComment {
+  id          String   @id @default(cuid())
+  articleSlug String
+  name        String
+  email       String
+  content     String   @db.Text
+  isVisible   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([articleSlug, isVisible, createdAt])
+  @@map("article_comments")
+}
+
+// Public homepage training and certification schedule
+model TrainingEvent {
+  id              String   @id @default(cuid())
+  title           String
+  certification   String
+  startDate       String
+  endDate         String?
+  time            String
+  location        String
+  deliveryMode    String
+  color           String   @default("from-emerald-500 to-teal-600")
+  spots           String
+  registrationUrl String   @default("https://linktr.ee/cpaceph")
+  isPublished     Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isPublished, sortOrder])
+  @@map("training_events")
+}
+
+model HomepageFaq {
+  id          String   @id @default(cuid())
+  category    String
+  question    String
+  answer      String
+  isPublished Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished, sortOrder])
+  @@map("homepage_faqs")
 }
 
 // Persistable user notifications

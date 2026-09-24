@@ -64,7 +64,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           earnedPoints: released ? submitted.result.answers.reduce((sum, answer) => sum + answer.points, 0) : null,
           attempt: submitted.result.attempt, certificate,
           hasOpenEnded: assessment.questions.some(q => q.type === "SHORT_ANSWER" || q.type === "ESSAY"),
-          scoresReleased: released, gradingPending, recovered: true })
+          scoresReleased: released, gradingPending, recovered: true,
+          ...((assessment.type === "PRACTICE_EXAM" || assessment.type === "QUIZ") ? {
+            answerReview: assessment.questions.map(q => ({
+              questionId: q.id,
+              correctOptionId: q.options.find(o => o.isCorrect)?.id,
+            }))
+          } : {}) })
       }
     }
 
@@ -302,6 +308,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       scoresReleased: released,
       timedOut,
       answerSource: timedOut ? "SERVER_SAVED_DRAFT" : "SUBMISSION",
+      ...((assessment.type === "PRACTICE_EXAM" || assessment.type === "QUIZ") ? {
+        answerReview: assessment.questions.map(q => ({
+          questionId: q.id,
+          correctOptionId: q.options.find(o => o.isCorrect)?.id,
+        }))
+      } : {}),
     })
   } catch (error) {
     if (error instanceof AssessmentIntegrityError) return NextResponse.json({ error: error.message }, { status: error.status })

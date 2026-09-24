@@ -13,10 +13,16 @@ import {
 import { Loader2, ArrowUpRight } from "lucide-react"
 import Link from "next/link"
 import { NotificationBell } from "@/components/ui/notification-bell"
+import { ExamLockProvider, useExamLock } from "@/lib/exam-lock-context"
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/dashboard/courses": "Courses & Assessments",
+  "/dashboard/calendar": "Calendar",
+  "/dashboard/content": "Website Content",
+  "/dashboard/audit": "Audit Log",
+  "/dashboard/faqs": "Manage FAQs",
+  "/dashboard/schedules": "Manage Schedules",
   "/dashboard/reports": "Reports",
   "/dashboard/grading": "Grading Queue",
   "/dashboard/certificates": "Certificates",
@@ -28,10 +34,11 @@ const pageTitles: Record<string, string> = {
   "/dashboard/learning-paths": "Learning Paths",
 }
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
   const router = useRouter()
   const pathname = usePathname()
+  const { isExamLocked } = useExamLock()
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login")
@@ -82,7 +89,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
   const breadcrumbParent = getBreadcrumbParent(pathname)
 
-  const isExamTaking = pathname.includes("/take")
+  const isExamTaking = isExamLocked
 
   return (
     <SidebarProvider className="portal-shell" style={{ "--sidebar-width": "17.5rem" } as React.CSSProperties}>
@@ -144,5 +151,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
       </SidebarInset>
     </SidebarProvider>
+  )
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ExamLockProvider>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+    </ExamLockProvider>
   )
 }

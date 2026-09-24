@@ -7,17 +7,19 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import {
   ChevronLeft, Plus, Trash2, CheckCircle, Circle, Loader2,
   ClipboardCheck, ListChecks, ToggleLeft, FileText, AlignLeft,
   GripVertical, AlertCircle, Upload, Download, FileSpreadsheet,
-  Settings, Eye, X as XIcon
+  Settings, Eye, FlaskConical, X as XIcon, CalendarClock, BarChart3, ShieldCheck
 } from "lucide-react"
 import Link from "next/link"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { localDateTime } from "@/lib/assessment-schedule"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import { MotionThresholdTest } from "@/components/proctoring/motion-threshold-test"
 
 type Option = { id?: string; text: string; isCorrect: boolean }
 type Question = {
@@ -90,6 +92,8 @@ export default function ManageQuestionsPage() {
 
   // Edit Assessment Info States
   const [editOpen, setEditOpen] = useState(false)
+  const [motionTestOpen, setMotionTestOpen] = useState(false)
+  const [motionSaving, setMotionSaving] = useState(false)
   const [editForm, setEditForm] = useState({
     title: "",
     type: "REVIEWER",
@@ -116,6 +120,12 @@ export default function ManageQuestionsPage() {
   const [editSaving, setEditSaving] = useState(false)
   const [uploadingMaterial, setUploadingMaterial] = useState(false)
   const [materialViewerOpen, setMaterialViewerOpen] = useState(false)
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("motionTest") === "1") {
+      setMotionTestOpen(true)
+    }
+  }, [])
 
   const handleUploadMaterial = async (file: File) => {
     setUploadingMaterial(true)
@@ -249,6 +259,47 @@ export default function ManageQuestionsPage() {
       alert("Unable to save assessment settings. Please try again.")
     } finally {
       setEditSaving(false)
+    }
+  }
+
+  const handleSaveMotionSettings = async () => {
+    setMotionSaving(true)
+    try {
+      const res = await fetch(`/api/assessments/${assessmentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          motionDetectionEnabled: editForm.motionDetectionEnabled,
+          detectFaceAbsence: editForm.detectFaceAbsence,
+          detectMultipleFaces: editForm.detectMultipleFaces,
+          detectGaze: editForm.detectGaze,
+          detectPosture: editForm.detectPosture,
+          detectionHoldMs: Math.max(1000, parseInt(editForm.detectionHoldMs) || 2500),
+          detectionCooldownMs: Math.max(3000, parseInt(editForm.detectionCooldownMs) || 12000),
+        }),
+      })
+      if (!res.ok) {
+        const failure = await res.json()
+        alert(failure.error ?? "Unable to save motion detection settings.")
+        return
+      }
+      const updated = await res.json()
+      setAssessment(previous => previous ? { ...previous, ...updated } : updated)
+      setMotionTestOpen(false)
+    } catch (err) {
+      console.error("Failed to update motion detection settings:", err)
+      alert("Unable to save motion detection settings. Please try again.")
+    } finally {
+      setMotionSaving(false)
+    }
+  }
+
+  const handleMotionTestOpenChange = (open: boolean) => {
+    setMotionTestOpen(open)
+    if (!open) {
+      const url = new URL(window.location.href)
+      url.searchParams.delete("motionTest")
+      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`)
     }
   }
 
@@ -404,6 +455,76 @@ export default function ManageQuestionsPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {assessment?.type === "FINAL_EXAM" && (
+            <Dialog open={motionTestOpen} onOpenChange={handleMotionTestOpenChange}>
+              <DialogTrigger asChild>
+                <Button className="h-9 rounded-xl bg-blue-700 text-white hover:bg-blue-800">
+                  <FlaskConical className="mr-2 h-4 w-4" /> Test Motion Detector
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-2xl">
+                <DialogHeader>
+                  <DialogTitle>Motion Detector Test</DialogTitle>
+                  <DialogDescription>
+                    Adjust the final-exam thresholds, test them with this computer&apos;s camera, then save the values learners should use.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                  <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <Label htmlFor="motion-test-enabled" className="text-sm font-semibold text-slate-800">Enable motion detection for this exam</Label>
+                      <Checkbox id="motion-test-enabled" checked={editForm.motionDetectionEnabled} onCheckedChange={(value) => setEditForm(previous => ({ ...previous, motionDetectionEnabled: Boolean(value) }))} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="motion-test-hold">Hold threshold (ms)</Label>
+                        <Input id="motion-test-hold" type="number" min="1000" value={editForm.detectionHoldMs} onChange={(event) => setEditForm(previous => ({ ...previous, detectionHoldMs: event.target.value }))} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="motion-test-cooldown">Repeat cooldown (ms)</Label>
+                        <Input id="motion-test-cooldown" type="number" min="3000" value={editForm.detectionCooldownMs} onChange={(event) => setEditForm(previous => ({ ...previous, detectionCooldownMs: event.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {[
+                        ["detectFaceAbsence", "Missing face"],
+                        ["detectMultipleFaces", "Multiple faces"],
+                        ["detectGaze", "Looking away"],
+                        ["detectPosture", "Posture changes"],
+                      ].map(([key, label]) => (
+                        <div key={key} className="flex items-center justify-between rounded-lg bg-white px-3 py-2">
+                          <Label htmlFor={`motion-test-${key}`} className="text-xs text-slate-700">{label}</Label>
+                          <Checkbox id={`motion-test-${key}`} checked={Boolean(editForm[key as keyof typeof editForm])} onCheckedChange={(value) => setEditForm(previous => ({ ...previous, [key]: Boolean(value) }))} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {editForm.motionDetectionEnabled ? (
+                    <MotionThresholdTest
+                      config={{
+                        holdMs: Math.max(1000, parseInt(editForm.detectionHoldMs) || 2500),
+                        cooldownMs: Math.max(3000, parseInt(editForm.detectionCooldownMs) || 12000),
+                        detectFaceAbsence: editForm.detectFaceAbsence,
+                        detectMultipleFaces: editForm.detectMultipleFaces,
+                        detectGaze: editForm.detectGaze,
+                        detectPosture: editForm.detectPosture,
+                      }}
+                    />
+                  ) : (
+                    <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">Enable motion detection above to run the test.</p>
+                  )}
+
+                  <Button onClick={() => void handleSaveMotionSettings()} disabled={motionSaving} className="w-full rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">
+                    {motionSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Save Motion Settings
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+
           {/* Edit Assessment Details Dialog */}
           <Dialog open={editOpen} onOpenChange={setEditOpen}>
             <DialogTrigger asChild>
@@ -411,7 +532,7 @@ export default function ManageQuestionsPage() {
                 <Settings className="h-4 w-4 mr-2" /> Edit Details
               </Button>
             </DialogTrigger>
-            <DialogContent className="rounded-2xl max-w-lg">
+            <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-2xl">
               <DialogHeader>
                 <DialogTitle>Edit Assessment Details</DialogTitle>
               </DialogHeader>
@@ -517,8 +638,8 @@ export default function ManageQuestionsPage() {
                       ["requireProctoringConsent", "Require learner consent"],
                     ].map(([key, label]) => (
                       <div key={key} className="flex items-center justify-between gap-4">
-                        <Label className="text-xs text-gray-700">{label}</Label>
-                        <Checkbox checked={Boolean(editForm[key as keyof typeof editForm])} onCheckedChange={(value) => setEditForm((previous) => ({ ...previous, [key]: Boolean(value) }))} />
+                        <Label htmlFor={`proctoring-${key}`} className="text-xs text-gray-700">{label}</Label>
+                        <Checkbox id={`proctoring-${key}`} checked={Boolean(editForm[key as keyof typeof editForm])} onCheckedChange={(value) => setEditForm((previous) => ({ ...previous, [key]: Boolean(value) }))} />
                       </div>
                     ))}
                     <div className="grid grid-cols-3 gap-2 border-t border-emerald-100 pt-3">
@@ -532,7 +653,13 @@ export default function ManageQuestionsPage() {
 
                 <div className="space-y-1.5">
                   <Label>Description</Label>
-                  <Textarea placeholder="Optional description" value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} className="rounded-xl" />
+                  <RichTextEditor
+                    value={editForm.description}
+                    onChange={description => setEditForm(previous => ({ ...previous, description }))}
+                    placeholder="Add instructions, preparation notes, or exam details..."
+                    maxLength={5000}
+                    minHeight="140px"
+                  />
                 </div>
                 <Button onClick={handleUpdateAssessment} disabled={editSaving || !editForm.title || !editForm.courseId} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
                   {editSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Save Details
@@ -741,6 +868,14 @@ export default function ManageQuestionsPage() {
         </Dialog>
         </div>
       </div>
+
+      <nav aria-label="Assessment management sections" className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+        <span aria-current="page" className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white"><ListChecks className="h-4 w-4" />Questions</span>
+        <button type="button" onClick={() => setEditOpen(true)} className="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"><Settings className="h-4 w-4" />Details</button>
+        <button type="button" onClick={() => setEditOpen(true)} className="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"><CalendarClock className="h-4 w-4" />Schedule &amp; scoring</button>
+        {assessment?.type === "FINAL_EXAM" && <button type="button" onClick={() => setMotionTestOpen(true)} className="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"><ShieldCheck className="h-4 w-4" />Proctoring</button>}
+        <Link href="/dashboard/reports" className="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"><BarChart3 className="h-4 w-4" />Results</Link>
+      </nav>
 
       {/* Study Material Upload Section */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">

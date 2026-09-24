@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import type { Prisma } from "@prisma/client"
 
 const auditEntrySchema = z.object({
   action: z.string().trim().min(1).max(80).regex(/^[A-Z0-9_:-]+$/),
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: Prisma.AuditLogWhereInput = user.role === "ADMIN" ? {} : { actorId: user.id }
     if (category && category !== "ALL") {
       where.category = category
     }

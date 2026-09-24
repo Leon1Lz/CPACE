@@ -6,14 +6,16 @@ import { Footer } from "@/components/layout/footer"
 import { Calendar, MessageCircle, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Newspaper } from "lucide-react"
 import Link from "next/link"
 import { SafeHtml } from "@/components/ui/safe-html"
-import { articlesData } from "@/data/articles"
+import { articlesData, type Article } from "@/data/articles"
 import { ArticleImage } from "@/components/ui/article-image"
+import { ArticleComments } from "@/components/sections/article-comments"
 
 export default function ArticleDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
   
-  const [articles, setArticles] = useState<any[]>([])
+  const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
+  const [commentCount, setCommentCount] = useState(0)
 
   useEffect(() => {
     fetch("/api/articles")
@@ -107,7 +109,7 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ slug: 
               </span>
               <span className="flex items-center gap-1.5">
                 <MessageCircle className="w-4 h-4" />
-                {article.comments} Comments
+                {commentCount} {commentCount === 1 ? "Comment" : "Comments"}
               </span>
             </div>
           </div>
@@ -135,6 +137,8 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ slug: 
               />
             </div>
           </article>
+
+          <ArticleComments key={article.slug} slug={article.slug} onCountChange={setCommentCount} />
 
           {/* Navigation Links (Bottom - Next/Prev Post) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-12 pt-8 border-t border-gray-200">

@@ -683,7 +683,7 @@ export default function CourseEditPage({ params }: { params: Promise<{ id: strin
                           ({ass._count?.questions ?? 0} questions)
                         </span>
                       </div>
-                      {ass.description && <p className="text-xs text-gray-400 truncate mt-0.5">{ass.description}</p>}
+                      {ass.description && <SafeHtml html={ass.description} className="mt-0.5 line-clamp-1 text-xs text-gray-400" />}
                     </div>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${ass.isPublished ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
                       {ass.isPublished ? "Published" : "Draft"}
@@ -824,13 +824,13 @@ export default function CourseEditPage({ params }: { params: Promise<{ id: strin
               </div>
 
               <div className="space-y-1.5 md:col-span-2">
-                <Label>Short Description</Label>
-                <Textarea
+                <Label>Description</Label>
+                <RichTextEditor
                   value={assessmentForm.description}
-                  onChange={e => setAssessmentForm(p => ({ ...p, description: e.target.value }))}
-                  placeholder="Brief summary of what this assessment evaluates..."
-                  rows={2}
-                  className="rounded-xl resize-none"
+                  onChange={description => setAssessmentForm(previous => ({ ...previous, description }))}
+                  placeholder="Add instructions, preparation notes, or exam details..."
+                  maxLength={5000}
+                  minHeight="140px"
                 />
               </div>
 

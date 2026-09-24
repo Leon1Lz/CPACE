@@ -93,5 +93,5 @@ export function useAssessmentCamera() {
 
   useEffect(() => releaseStream, [releaseStream])
 
-  return { streamRef, cameraActive, cameraError, cameraStarting, startCamera, stopCamera }
+  return { stream: cameraActive ? streamRef.current : null, streamRef, cameraActive, cameraError, cameraStarting, startCamera, stopCamera }
 }

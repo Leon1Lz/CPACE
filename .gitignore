@@ -19,6 +19,10 @@ node_modules
 .DS_Store
 /lib/generated/prisma
 cpace-landing/
+cpace-landing-app/
+web_detector/
+.codex-scan-staging/
+.codex-dev.log
 
 # Next.js generated declarations and TypeScript build cache
 /next-env.d.ts

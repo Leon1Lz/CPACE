@@ -8,11 +8,14 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXTAUTH_URL || 'https://cpaceph.com'),
   title: {
     default: 'CPACE Philippines | Professional Advancement & Continuing Education',
     template: '%s | CPACE Philippines',
   },
   description: 'CPACE Philippines — Professional development and continuing education learning management system.',
+  keywords: ['CPACE', 'Philippines', 'Continuing Professional Development', 'CPD', 'Online Learning', 'Assessments', 'Proctoring'],
+  authors: [{ name: 'CPACE Philippines' }],
   icons: {
     icon: [
       {
@@ -33,7 +36,24 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_PH',
+    url: 'https://cpaceph.com',
     siteName: 'CPACE Philippines',
+    title: 'CPACE Philippines | Professional Advancement & Continuing Education',
+    description: 'CPACE Philippines — Professional development and continuing education learning management system.',
+    images: [
+      {
+        url: '/cpace-logo.png',
+        width: 1200,
+        height: 630,
+        alt: 'CPACE Philippines',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'CPACE Philippines | Professional Advancement & Continuing Education',
+    description: 'CPACE Philippines — Professional development and continuing education learning management system.',
+    images: ['/cpace-logo.png'],
   },
 }
 

@@ -3,6 +3,24 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { sanitizeHtml } from "@/lib/sanitize"
+import { z } from "zod"
+
+const courseCreateSchema = z.object({
+  title: z.string().trim().min(1, "Title is required").max(300),
+  description: z.string().trim().min(1, "Description is required").max(5000),
+  content: z.string().min(1, "Content is required").max(100000),
+  category: z.string().trim().min(1, "Category is required").max(100),
+  level: z.string().trim().min(1, "Level is required").max(50),
+  duration: z.string().trim().min(1, "Duration is required").max(100),
+  price: z.union([z.string(), z.number()]).optional().transform(val => {
+    if (val === undefined || val === null || val === "") return 0
+    const num = typeof val === "string" ? parseFloat(val) : val
+    return isNaN(num) || num < 0 ? 0 : num
+  }),
+  thumbnail: z.string().max(2000).nullable().optional(),
+  status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional().default("DRAFT"),
+  learningObjectives: z.array(z.string().max(500)).max(50).optional().default([]),
+})
 
 export async function GET(request: NextRequest) {
   try {
@@ -98,43 +116,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
     }
 
-    const body = await request.json()
-    const {
-      title,
-      description,
-      content,
-      category,
-      level,
-      duration,
-      price,
-      thumbnail,
-      status,
-      learningObjectives
-    } = body
-
-    // Validation
-    if (!title || !description || !content || !category || !level || !duration) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      )
-    }
+    const body = courseCreateSchema.parse(await request.json())
 
     // Create course
     const course = await prisma.course.create({
       data: {
-        title,
-        description,
-        content: content ? sanitizeHtml(content) : null,
-        category,
-        level,
-        duration,
-        price: price ? parseFloat(price) : 0,
-        thumbnail: thumbnail || null,
-        status: status || "DRAFT",
+        title: body.title,
+        description: body.description,
+        content: sanitizeHtml(body.content),
+        category: body.category,
+        level: body.level,
+        duration: body.duration,
+        price: body.price,
+        thumbnail: body.thumbnail || null,
+        status: body.status,
         creatorId: user.id,
         instructorId: user.id, // Set creator as instructor by default
-        learningObjectives: learningObjectives || []
+        learningObjectives: body.learningObjectives,
       },
       include: {
         creator: {
@@ -158,6 +156,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(course, { status: 201 })
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      const firstError = error.errors[0]?.message || "Invalid input"
+      return NextResponse.json({ error: firstError }, { status: 400 })
+    }
     console.error("Error creating course:", error)
     return NextResponse.json(
       { error: "Failed to create course" },
