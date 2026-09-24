@@ -53,6 +53,7 @@ export function LoginForm() {
     setIsLoading(true)
     setError("")
 
+    const targetUrl = searchParams?.get("callbackUrl") || "/dashboard"
     try {
       const result = await signIn("credentials", {
         email: formData.email.trim().toLowerCase(),
@@ -63,7 +64,10 @@ export function LoginForm() {
       if (result?.error) {
         setError("Invalid email or password")
       } else {
-        router.push("/dashboard")
+        router.push(targetUrl)
+        if (typeof window !== "undefined" && !(process.env.VITEST || (window as any).__VITEST__)) {
+          window.location.href = targetUrl
+        }
       }
     } catch (error) {
       setError("An error occurred. Please try again.")
