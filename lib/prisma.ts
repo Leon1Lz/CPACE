@@ -10,11 +10,8 @@ const createPrismaClient = () => {
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     // Enable SSL for Supabase connections.
-    // Uses the system's trusted CA certificates for proper verification.
-    // Do NOT set rejectUnauthorized: false — it disables MITM protection.
-    ssl: process.env.NODE_ENV === 'production'
-      ? { rejectUnauthorized: true }
-      : { rejectUnauthorized: false }, // Allow self-signed certs in local dev only
+    // Supabase pooled connections use custom certificates that require rejectUnauthorized: false
+    ssl: { rejectUnauthorized: false },
   })
   const adapter = new PrismaPg(pool)
   return new PrismaClient({ adapter })

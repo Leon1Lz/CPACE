@@ -5,11 +5,10 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url))
 
 // Sanitize NEXTAUTH_URL so next-auth doesn't crash on new URL("") if empty in Vercel env
 const rawNextAuthUrl = process.env.NEXTAUTH_URL?.trim()
-const fallbackUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
-  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-  : process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : 'https://cpace.vercel.app'
+const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined
+const fallbackUrl = vercelUrl
+  || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined)
+  || (process.env.NODE_ENV === 'production' ? 'https://cpace-three.vercel.app' : 'http://localhost:3000')
 
 if (!rawNextAuthUrl || !rawNextAuthUrl.startsWith('http')) {
   process.env.NEXTAUTH_URL = fallbackUrl
@@ -20,9 +19,6 @@ if (process.env.NEXTAUTH_URL_INTERNAL && !process.env.NEXTAUTH_URL_INTERNAL.star
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  env: {
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-  },
   turbopack: {
     root: projectRoot,
   },
@@ -85,14 +81,15 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.pusher.com https://va.vercel-scripts.com https://cdn.jsdelivr.net",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.pusher.com https://va.vercel-scripts.com https://cdn.jsdelivr.net https://vercel.live",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https://images.unsplash.com https://lh3.googleusercontent.com",
-              "connect-src 'self' https://*.pusher.com wss://*.pusher.com https://va.vercel-scripts.com https://cdn.jsdelivr.net https://storage.googleapis.com",
+              "img-src 'self' data: blob: https://images.unsplash.com https://lh3.googleusercontent.com https://vercel.com",
+              "connect-src 'self' https://*.pusher.com wss://*.pusher.com https://va.vercel-scripts.com https://cdn.jsdelivr.net https://storage.googleapis.com https://vercel.com https://vercel.live",
+              "manifest-src 'self' https://vercel.com",
               "frame-ancestors 'none'",
               "base-uri 'self'",
-              "form-action 'self'",
+              "form-action 'self' https://vercel.com",
             ].join('; '),
           },
         ],

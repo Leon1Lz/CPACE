@@ -73,8 +73,15 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   )
 }
 
+if (!process.env.NEXTAUTH_URL) {
+  process.env.NEXTAUTH_URL = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : (process.env.NODE_ENV === "production" ? "https://cpace-three.vercel.app" : "http://localhost:3000")
+}
+
 export const authOptions: NextAuthOptions = {
   providers,
+  secret: process.env.NEXTAUTH_SECRET || "miY07Ku2Y7H5lfMoWe4OMTlp+y51+r488AI95NrdoNU=",
   session: {
     strategy: "jwt"
   },
