@@ -3,8 +3,26 @@ import { fileURLToPath } from 'node:url'
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url))
 
+// Sanitize NEXTAUTH_URL so next-auth doesn't crash on new URL("") if empty in Vercel env
+const rawNextAuthUrl = process.env.NEXTAUTH_URL?.trim()
+const fallbackUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  : process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'https://cpace.vercel.app'
+
+if (!rawNextAuthUrl || !rawNextAuthUrl.startsWith('http')) {
+  process.env.NEXTAUTH_URL = fallbackUrl
+}
+if (process.env.NEXTAUTH_URL_INTERNAL && !process.env.NEXTAUTH_URL_INTERNAL.startsWith('http')) {
+  delete process.env.NEXTAUTH_URL_INTERNAL
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+  },
   turbopack: {
     root: projectRoot,
   },
