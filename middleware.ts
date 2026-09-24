@@ -35,8 +35,15 @@ export default withAuth(
     if ((matchedRule && !matchedRule.roles.includes(role)) || (staffOnlyResource && !["ADMIN", "INSTRUCTOR"].includes(role))) {
       return NextResponse.redirect(new URL("/dashboard?error=forbidden", req.url))
     }
+
+    return NextResponse.next()
   },
   {
+    secret: process.env.NEXTAUTH_SECRET || "miY07Ku2Y7H5lfMoWe4OMTlp+y51+r488AI95NrdoNU=",
+    pages: {
+      signIn: "/login",
+      error: "/login",
+    },
     callbacks: {
       authorized: ({ token }) => !!token && token?.error !== "SessionExpired" && token?.error !== "UserSuspended",
     },
