@@ -73,10 +73,14 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   )
 }
 
+const vercelProductionDomain = "https://cpace-three.vercel.app"
+if (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("localhost")) {
+  if (process.env.VERCEL || process.env.NODE_ENV === "production") {
+    process.env.NEXTAUTH_URL = vercelProductionDomain
+  }
+}
 if (!process.env.NEXTAUTH_URL) {
-  process.env.NEXTAUTH_URL = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : (process.env.NODE_ENV === "production" ? "https://cpace-three.vercel.app" : "http://localhost:3000")
+  process.env.NEXTAUTH_URL = "http://localhost:3000"
 }
 
 export const authOptions: NextAuthOptions = {
