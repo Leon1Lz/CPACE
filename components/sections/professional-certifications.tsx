@@ -15,7 +15,7 @@ import {
   GraduationCap,
   BookOpen,
   Zap,
-} from "lucide-react"
+  } from "lucide-react"
 import { cpaceStats } from "@/data/stats"
 
 const certifications = [
@@ -131,7 +131,7 @@ const stats = [
 
 export function ProfessionalCertifications() {
   return (
-    <section className="relative overflow-hidden">
+    <section id="certifications" className="relative overflow-hidden">
       {/* ── Hero Banner ── */}
       <div className="relative py-20 lg:py-28 bg-gradient-to-br from-gray-900 via-slate-900 to-emerald-950 overflow-hidden">
         <div className="absolute inset-0">
@@ -281,7 +281,7 @@ export function ProfessionalCertifications() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <div className="flex flex-wrap items-center gap-3 pt-2">
                       <Link href="/#contact">
                         <Button
                           className={`bg-gradient-to-r ${cert.gradient} hover:opacity-90 text-white font-semibold px-6 py-2.5 shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105`}
@@ -290,6 +290,7 @@ export function ProfessionalCertifications() {
                           <ArrowRight className="ml-2 w-4 h-4" />
                         </Button>
                       </Link>
+                      
                       <Link href="https://linktr.ee/cpaceph" target="_blank" rel="noopener noreferrer">
                         <Button
                           variant="outline"

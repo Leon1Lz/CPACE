@@ -28,7 +28,10 @@ export function LatestIndustrySection() {
 
   useEffect(() => {
     fetch("/api/articles")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) return null
+        return res.json().catch(() => null)
+      })
       .then((data) => {
         if (Array.isArray(data)) {
           const managedArticles = data.map((article) => {
@@ -47,7 +50,7 @@ export function LatestIndustrySection() {
           ])
         }
       })
-      .catch((err) => console.error("Error fetching articles:", err))
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 

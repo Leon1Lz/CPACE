@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sanitizeHtml, stripTags } from "@/lib/sanitize"
+import { articlesData } from "@/data/articles"
 
 // Helper to generate slug from title
 function generateSlug(title: string): string {
@@ -16,13 +17,80 @@ function generateSlug(title: string): string {
 
 export async function GET(req: NextRequest) {
   try {
-    const articles = await prisma.article.findMany({
+    let articles = await prisma.article.findMany({
       orderBy: { createdAt: "desc" },
     })
+
+    // If database has fewer articles than the default landing page dataset,
+    // ensure missing landing page articles are seeded so administrators can see and manage them.
+    if (articles.length < articlesData.length) {
+      const existingSlugs = new Set(articles.map((a) => a.slug))
+      const missing = articlesData.filter((a) => !existingSlugs.has(a.slug))
+      if (missing.length > 0) {
+        for (const item of missing) {
+          try {
+            await prisma.article.create({
+              data: {
+                title: item.title,
+                slug: item.slug,
+                excerpt: item.excerpt,
+                content: item.content,
+                category: item.category || "Partnership",
+                categoryColor: item.categoryColor || "bg-emerald-100 text-emerald-700 border-emerald-200",
+                iconName: item.iconName || "users",
+                image: item.image,
+                featured: !!item.featured,
+                createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+              },
+            })
+          } catch {
+            // In case of parallel request or race condition, ignore
+          }
+        }
+        articles = await prisma.article.findMany({
+          orderBy: { createdAt: "desc" },
+        })
+      }
+    }
+
+    if (articles.length === 0) {
+      return NextResponse.json(
+        articlesData.map((a) => ({
+          id: a.id,
+          title: a.title,
+          slug: a.slug,
+          excerpt: a.excerpt,
+          content: a.content,
+          category: a.category,
+          categoryColor: a.categoryColor,
+          iconName: a.iconName,
+          image: a.image,
+          featured: a.featured,
+          createdAt: a.createdAt || new Date().toISOString(),
+          updatedAt: a.createdAt || new Date().toISOString(),
+        }))
+      )
+    }
+
     return NextResponse.json(articles)
   } catch (error: any) {
     console.error("GET /api/articles error:", error)
-    return NextResponse.json({ error: "Failed to fetch articles" }, { status: 500 })
+    return NextResponse.json(
+      articlesData.map((a) => ({
+        id: a.id,
+        title: a.title,
+        slug: a.slug,
+        excerpt: a.excerpt,
+        content: a.content,
+        category: a.category,
+        categoryColor: a.categoryColor,
+        iconName: a.iconName,
+        image: a.image,
+        featured: a.featured,
+        createdAt: a.createdAt || new Date().toISOString(),
+        updatedAt: a.createdAt || new Date().toISOString(),
+      }))
+    )
   }
 }
 

@@ -339,6 +339,25 @@ export default function CoursesAndAssessmentsPage() {
   // ── Tab state ─────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<"courses" | "assessments">("courses")
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      const tab = params.get("tab")
+      if (tab === "assessments" || tab === "courses") {
+        setActiveTab(tab)
+      }
+    }
+  }, [])
+
+  const handleTabChange = (tab: "courses" | "assessments") => {
+    setActiveTab(tab)
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href)
+      url.searchParams.set("tab", tab)
+      window.history.replaceState(null, "", url.toString())
+    }
+  }
+
   // ── Courses state ─────────────────────────────────────────
   const [courses, setCourses] = useState<Course[]>([])
   const [coursesLoading, setCoursesLoading] = useState(true)
@@ -371,6 +390,7 @@ export default function CoursesAndAssessmentsPage() {
     scoresReleasedAt: "",
   })
   const [assessmentSaving, setAssessmentSaving] = useState(false)
+  const [assessmentError, setAssessmentError] = useState("")
 
   // ── Course fetching ───────────────────────────────────────
   useEffect(() => {
@@ -505,46 +525,73 @@ export default function CoursesAndAssessmentsPage() {
     }
   }
 
+  // Filter courses by selected program for the create dialog
+  const programCourses = selectedProgram
+    ? assessmentCourses.filter((c: any) => c.category === selectedProgram)
+    : assessmentCourses
+
+  // Automatically pre-populate courseId whenever program is selected or dialog is open
+  useEffect(() => {
+    if (selectedProgram && programCourses.length > 0) {
+      const defaultCourse = programCourses.find((c: any) => c.status === "PUBLISHED") || programCourses[0]
+      if (defaultCourse && (!assessmentForm.courseId || !programCourses.some((c: any) => c.id === assessmentForm.courseId))) {
+        setAssessmentForm((prev: any) => ({ ...prev, courseId: defaultCourse.id }))
+      }
+    }
+  }, [selectedProgram, programCourses, assessmentForm.courseId])
+
   const handleCreateAssessment = async () => {
     setAssessmentSaving(true)
+    setAssessmentError("")
     const isUnlimited = assessmentForm.type === "REVIEWER" || assessmentForm.type === "PRACTICE_EXAM"
-    const res = await fetch("/api/assessments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...assessmentForm,
-        timeLimit: assessmentForm.timeLimit ? parseInt(assessmentForm.timeLimit) : null,
-        passingScore: parseFloat(assessmentForm.passingScore),
-        attempts: isUnlimited ? null : parseInt(assessmentForm.attempts),
-        releaseScores: assessmentForm.releaseScores,
-        scoresReleasedAt: assessmentForm.releaseScores ? null : (assessmentForm.scoresReleasedAt ? new Date(assessmentForm.scoresReleasedAt) : null),
-      }),
-    })
-    if (res.ok) {
-      const newA = await res.json()
-      setAssessments(prev => [newA, ...prev])
+    const targetCourseId = assessmentForm.courseId || programCourses.find((c: any) => c.status === "PUBLISHED")?.id || programCourses[0]?.id
+
+    if (!targetCourseId) {
+      setAssessmentError(`No course found under ${selectedProgram || "this program"}. Please create or publish the course first.`)
+      setAssessmentSaving(false)
+      return
+    }
+
+    try {
+      const res = await fetch("/api/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...assessmentForm,
+          courseId: targetCourseId,
+          timeLimit: assessmentForm.timeLimit ? parseInt(assessmentForm.timeLimit) : null,
+          passingScore: assessmentForm.passingScore ? parseFloat(assessmentForm.passingScore) : 70,
+          attempts: isUnlimited ? null : (assessmentForm.attempts ? parseInt(assessmentForm.attempts) : 1),
+          releaseScores: assessmentForm.releaseScores,
+          scoresReleasedAt: assessmentForm.releaseScores ? null : (assessmentForm.scoresReleasedAt ? new Date(assessmentForm.scoresReleasedAt).toISOString() : null),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setAssessmentError(data.error || "Failed to create assessment")
+        return
+      }
+      setAssessments(prev => [data, ...prev])
       setAssessmentDialogOpen(false)
       setAssessmentForm({
         title: "",
         description: "",
         type: "REVIEWER",
-        courseId: "",
+        courseId: targetCourseId,
         timeLimit: "",
         passingScore: "70",
         attempts: "1",
         releaseScores: true,
         scoresReleasedAt: "",
       })
+    } catch {
+      setAssessmentError("Failed to save assessment. Please check your connection and try again.")
+    } finally {
+      setAssessmentSaving(false)
     }
-    setAssessmentSaving(false)
   }
 
   const isUnlimitedType = assessmentForm.type === "REVIEWER" || assessmentForm.type === "PRACTICE_EXAM"
-
-  // Filter courses by selected program for the create dialog
-  const programCourses = selectedProgram
-    ? assessmentCourses.filter((c: any) => c.category === selectedProgram)
-    : assessmentCourses
 
   // Assessments for the selected program
   const programAssessments = selectedProgram
@@ -611,7 +658,7 @@ export default function CoursesAndAssessmentsPage() {
           <h1 className="text-2xl font-bold">Courses & Assessments</h1>
           <p className="text-gray-600">Manage your courses and assessments in one place</p>
         </div>
-        <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+        <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
       </div>
 
       {/* ════════════ COURSES TAB ════════════ */}
@@ -855,6 +902,8 @@ export default function CoursesAndAssessmentsPage() {
           assessmentForm={assessmentForm}
           setAssessmentForm={setAssessmentForm}
           assessmentSaving={assessmentSaving}
+          assessmentError={assessmentError}
+          setAssessmentError={setAssessmentError}
           isUnlimitedType={isUnlimitedType}
           handleCreateAssessment={handleCreateAssessment}
           handleAssessmentTogglePublish={handleAssessmentTogglePublish}
@@ -1035,6 +1084,7 @@ function AdminAssessmentsContent({
   activeProgram, programAssessments, programCourses, role,
   assessmentDialogOpen, setAssessmentDialogOpen,
   assessmentForm, setAssessmentForm, assessmentSaving,
+  assessmentError, setAssessmentError,
   isUnlimitedType, handleCreateAssessment,
   handleAssessmentTogglePublish, handleDeleteAssessment,
 }: {
@@ -1051,6 +1101,8 @@ function AdminAssessmentsContent({
   assessmentForm: any
   setAssessmentForm: (fn: any) => void
   assessmentSaving: boolean
+  assessmentError: string
+  setAssessmentError: (msg: string) => void
   isUnlimitedType: boolean
   handleCreateAssessment: () => Promise<void>
   handleAssessmentTogglePublish: (id: string, current: boolean) => Promise<void>
@@ -1115,6 +1167,8 @@ function AdminAssessmentsContent({
   }
 
   // Level 2: Program selected — show 4 group cards + create dialog
+  const activeCourse = programCourses.find((c: any) => c.id === assessmentForm.courseId) || programCourses.find((c: any) => c.status === "PUBLISHED") || programCourses[0]
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -1138,7 +1192,15 @@ function AdminAssessmentsContent({
           </div>
         </div>
 
-        <Dialog open={assessmentDialogOpen} onOpenChange={setAssessmentDialogOpen}>
+        <Dialog open={assessmentDialogOpen} onOpenChange={open => {
+          setAssessmentDialogOpen(open)
+          if (open) {
+            setAssessmentError("")
+            if (activeCourse && !assessmentForm.courseId) {
+              setAssessmentForm((p: any) => ({ ...p, courseId: activeCourse.id }))
+            }
+          }
+        }}>
           <DialogTrigger asChild>
             <Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
               <Plus className="h-4 w-4 mr-2" /> New Assessment
@@ -1165,15 +1227,39 @@ function AdminAssessmentsContent({
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Program Course Binding */}
               <div className="space-y-1.5">
-                <Label>Course</Label>
-                <Select value={assessmentForm.courseId} onValueChange={v => setAssessmentForm((p: any) => ({ ...p, courseId: v }))}>
-                  <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select course" /></SelectTrigger>
-                  <SelectContent>
-                    {programCourses.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label>Program Course</Label>
+                {programCourses.length <= 1 ? (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <BookOpen className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <span className="text-sm font-semibold text-slate-800 truncate">
+                        {programCourses[0]?.title || activeProgram?.fullName || activeProgram?.label}
+                      </span>
+                    </div>
+                    <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 shrink-0 ml-2">
+                      Auto-assigned ({activeProgram?.label})
+                    </Badge>
+                  </div>
+                ) : (
+                  <Select
+                    value={assessmentForm.courseId || activeCourse?.id}
+                    onValueChange={v => setAssessmentForm((p: any) => ({ ...p, courseId: v }))}
+                  >
+                    <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select course" /></SelectTrigger>
+                    <SelectContent>
+                      {programCourses.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.title} {c.status === "DRAFT" ? "(Draft)" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
+
               {assessmentForm.type !== "REVIEWER" && assessmentForm.type !== "RULES_GUIDELINES" && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
@@ -1240,7 +1326,19 @@ function AdminAssessmentsContent({
                   minHeight="140px"
                 />
               </div>
-              <Button onClick={handleCreateAssessment} disabled={assessmentSaving || !assessmentForm.title || !assessmentForm.courseId} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
+
+              {assessmentError && (
+                <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{assessmentError}</span>
+                </div>
+              )}
+
+              <Button
+                onClick={handleCreateAssessment}
+                disabled={assessmentSaving || !assessmentForm.title?.trim()}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl"
+              >
                 {assessmentSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Create Assessment
               </Button>
             </div>

@@ -13,14 +13,15 @@ export function Footer() {
   ]
 
   const programs = [
-    { name: "Professional Certifications", href: "/services" },
-    { name: "Business Consultancy", href: "/services" },
-    { name: "Corporate Training", href: "/services" },
-    { name: "Skills Development", href: "/services" }
+    { name: "Professional Certifications", href: "/services#certifications" },
+    { name: "Business Consultancy", href: "/services#consultancy" },
+    { name: "Corporate Training", href: "/services#certifications" },
+    { name: "Skills Development", href: "/services#certifications" }
   ]
 
   const resources = [
     { name: "About CPACE", href: "/about" },
+    { name: "Verify Credential", href: "/verify" },
     { name: "Insights & Articles", href: "/insights" },
     { name: "Institutional Partnerships", href: "/#partners" },
     { name: "Learning Portal (LMS)", href: "/login", external: false },

@@ -17,9 +17,9 @@ export async function canManageCourse(user: AuthorizedUser, courseId: string) {
   if (user.role !== "INSTRUCTOR") return false
   const course = await prisma.course.findUnique({
     where: { id: courseId },
-    select: { instructorId: true },
+    select: { instructorId: true, creatorId: true },
   })
-  return course?.instructorId === user.id
+  return course?.instructorId === user.id || course?.creatorId === user.id
 }
 
 export async function canManageAssessment(user: AuthorizedUser, assessmentId: string) {

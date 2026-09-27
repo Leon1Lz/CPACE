@@ -42,7 +42,9 @@ export async function GET(request: NextRequest) {
     const where: any = viewer.role === "LEARNER"
       ? { status: "PUBLISHED", enrollments: { some: { userId: viewer.id } } }
       : viewer.role === "INSTRUCTOR"
-        ? { instructorId: viewer.id }
+        ? (searchParams.get("assignable") === "true" || searchParams.get("status") === "PUBLISHED"
+            ? { OR: [{ instructorId: viewer.id }, { creatorId: viewer.id }, { status: "PUBLISHED" }] }
+            : { OR: [{ instructorId: viewer.id }, { creatorId: viewer.id }] })
         : {}
     
     if (category) where.category = category

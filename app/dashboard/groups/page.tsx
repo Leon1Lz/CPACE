@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Users, Plus, Trash2, BookOpen, UserPlus, X, Loader2, Search, ChevronRight, UserCheck, Upload, FileText, CheckSquare, Square } from "lucide-react"
+import { Users, Plus, Trash2, BookOpen, UserPlus, X, Loader2, Search, ChevronRight, UserCheck, Upload, FileText, CheckSquare, Square, AlertCircle } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 
 type Member = { id: string; joinedAt: string; user: { id: string; firstName: string; lastName: string; email: string; role: string } }
@@ -50,6 +50,7 @@ export default function GroupsPage() {
   const [memberSearch, setMemberSearch] = useState("")
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
   const [addingMembers, setAddingMembers] = useState(false)
+  const [addMemberError, setAddMemberError] = useState("")
   const [bulkEmailsInput, setBulkEmailsInput] = useState("")
   const [bulkImportResult, setBulkImportResult] = useState<{
     success?: boolean
@@ -62,6 +63,7 @@ export default function GroupsPage() {
   const [coursesOpen, setCoursesOpen] = useState(false)
   const [courseSearch, setCourseSearch] = useState("")
   const [addingCourse, setAddingCourse] = useState<string | null>(null)
+  const [courseAssignError, setCourseAssignError] = useState("")
 
   // Delete dialog
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -75,8 +77,8 @@ export default function GroupsPage() {
       fetch("/api/courses?status=PUBLISHED&limit=100").then(r => r.json()),
     ]).then(([g, u, c]) => {
       setGroups(Array.isArray(g) ? g : [])
-      setAllUsers(Array.isArray(u.data) ? u.data : [])
-      setAllCourses(Array.isArray(c.data) ? c.data : [])
+      setAllUsers(Array.isArray(u?.data) ? u.data : Array.isArray(u?.users) ? u.users : Array.isArray(u) ? u : [])
+      setAllCourses(Array.isArray(c?.data) ? c.data : Array.isArray(c?.courses) ? c.courses : Array.isArray(c) ? c : [])
     }).finally(() => setLoading(false))
   }, [role, router, status])
 
@@ -115,18 +117,27 @@ export default function GroupsPage() {
   const handleAddMembers = async () => {
     if (!selected || selectedUserIds.length === 0) return
     setAddingMembers(true)
-    const res = await fetch(`/api/groups/${selected.id}/members`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userIds: selectedUserIds }),
-    })
-    setAddingMembers(false)
-    if (res.ok) {
+    setAddMemberError("")
+    try {
+      const res = await fetch(`/api/groups/${selected.id}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: selectedUserIds }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setAddMemberError(data.error || "Failed to add members")
+        return
+      }
       const fresh = await fetch("/api/groups").then(r => r.json())
       setGroups(Array.isArray(fresh) ? fresh : [])
       const updated = fresh.find((g: Group) => g.id === selected.id)
       if (updated) setSelected(updated)
       setMembersOpen(false); setSelectedUserIds([]); setMemberSearch("")
+    } catch {
+      setAddMemberError("Network error while adding members")
+    } finally {
+      setAddingMembers(false)
     }
   }
 
@@ -178,47 +189,67 @@ export default function GroupsPage() {
     reader.readAsText(file)
   }
 
-  const handleRemoveMember = async (userId: string) => {
+  const handleRemoveMember = async (userId: string, memberName: string) => {
     if (!selected) return
-    await fetch(`/api/groups/${selected.id}/members`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
-    })
-    const updatedMembers = selected.members.filter(m => m.user.id !== userId)
-    const updatedGroup = { ...selected, members: updatedMembers, _count: { ...selected._count, members: updatedMembers.length } }
-    setSelected(updatedGroup)
-    setGroups(prev => prev.map(g => g.id === selected.id ? updatedGroup : g))
+    if (!confirm(`Are you sure you want to remove ${memberName} from this group?`)) return
+    try {
+      await fetch(`/api/groups/${selected.id}/members`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      })
+      const updatedMembers = selected.members.filter(m => m.user.id !== userId)
+      const updatedGroup = { ...selected, members: updatedMembers, _count: { ...selected._count, members: updatedMembers.length } }
+      setSelected(updatedGroup)
+      setGroups(prev => prev.map(g => g.id === selected.id ? updatedGroup : g))
+    } catch {
+      alert("Failed to remove member")
+    }
   }
 
   const handleAssignCourse = async (courseId: string) => {
     if (!selected) return
     setAddingCourse(courseId)
-    const res = await fetch(`/api/groups/${selected.id}/courses`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ courseId }),
-    })
-    setAddingCourse(null)
-    if (res.ok) {
+    setCourseAssignError("")
+    try {
+      const res = await fetch(`/api/groups/${selected.id}/courses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setCourseAssignError(data.error || "Failed to assign course")
+        return
+      }
       const fresh = await fetch("/api/groups").then(r => r.json())
       setGroups(Array.isArray(fresh) ? fresh : [])
       const updated = fresh.find((g: Group) => g.id === selected.id)
       if (updated) setSelected(updated)
+      setCoursesOpen(false)
+    } catch {
+      setCourseAssignError("Network error while assigning course")
+    } finally {
+      setAddingCourse(null)
     }
   }
 
-  const handleRemoveCourse = async (courseId: string) => {
+  const handleRemoveCourse = async (courseId: string, courseTitle: string) => {
     if (!selected) return
-    await fetch(`/api/groups/${selected.id}/courses`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ courseId }),
-    })
-    const updatedCourses = selected.courses.filter(c => c.course.id !== courseId)
-    const updatedGroup = { ...selected, courses: updatedCourses, _count: { ...selected._count, courses: updatedCourses.length } }
-    setSelected(updatedGroup)
-    setGroups(prev => prev.map(g => g.id === selected.id ? updatedGroup : g))
+    if (!confirm(`Are you sure you want to remove "${courseTitle}" from this group?`)) return
+    try {
+      await fetch(`/api/groups/${selected.id}/courses`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId }),
+      })
+      const updatedCourses = selected.courses.filter(c => c.course.id !== courseId)
+      const updatedGroup = { ...selected, courses: updatedCourses, _count: { ...selected._count, courses: updatedCourses.length } }
+      setSelected(updatedGroup)
+      setGroups(prev => prev.map(g => g.id === selected.id ? updatedGroup : g))
+    } catch {
+      alert("Failed to remove course")
+    }
   }
 
   const availableUsers = allUsers.filter(u =>
@@ -449,6 +480,14 @@ export default function GroupsPage() {
                             {selectedUserIds.length > 0 && (
                               <p className="text-xs text-emerald-600 font-semibold">{selectedUserIds.length} user{selectedUserIds.length !== 1 ? "s" : ""} selected</p>
                             )}
+
+                            {addMemberError && (
+                              <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
+                                <AlertCircle className="h-4 w-4 shrink-0" />
+                                <span>{addMemberError}</span>
+                              </div>
+                            )}
+
                             <Button onClick={handleAddMembers} disabled={addingMembers || selectedUserIds.length === 0} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
                               {addingMembers ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <UserCheck className="h-4 w-4 mr-2" />}
                               Add &amp; Enroll {selectedUserIds.length > 0 ? `(${selectedUserIds.length})` : ""}
@@ -517,7 +556,7 @@ export default function GroupsPage() {
                           <p className="text-xs text-gray-400 truncate">{m.user.email}</p>
                         </div>
                         <Badge variant="outline" className="text-xs shrink-0">{m.user.role}</Badge>
-                        <button onClick={() => handleRemoveMember(m.user.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-400 shrink-0">
+                        <button onClick={() => handleRemoveMember(m.user.id, `${m.user.firstName} ${m.user.lastName}`)} className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-400 shrink-0" title="Remove member">
                           <X className="h-3.5 w-3.5" />
                         </button>
                       </div>
@@ -532,7 +571,7 @@ export default function GroupsPage() {
               <CardContent className="p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-gray-900 flex items-center gap-2"><BookOpen className="h-4 w-4 text-blue-500" />Assigned Courses</h3>
-                  <Dialog open={coursesOpen} onOpenChange={v => { setCoursesOpen(v); if (!v) setCourseSearch("") }}>
+                  <Dialog open={coursesOpen} onOpenChange={v => { setCoursesOpen(v); if (!v) { setCourseSearch(""); setCourseAssignError("") } }}>
                     <DialogTrigger asChild>
                       <Button size="sm" variant="outline" className="rounded-xl text-xs border-blue-200 text-blue-700 hover:bg-blue-50">
                         <Plus className="h-3.5 w-3.5 mr-1" /> Assign Course
@@ -541,6 +580,12 @@ export default function GroupsPage() {
                     <DialogContent className="rounded-2xl max-w-[calc(100%-2rem)] sm:max-w-lg">
                       <DialogHeader><DialogTitle>Assign Course to {selected.name}</DialogTitle></DialogHeader>
                       <div className="space-y-3 mt-2">
+                        {courseAssignError && (
+                          <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
+                            <AlertCircle className="h-4 w-4 shrink-0" />
+                            <span>{courseAssignError}</span>
+                          </div>
+                        )}
                         <div className="relative">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
                           <Input value={courseSearch} onChange={e => setCourseSearch(e.target.value)} placeholder="Search courses…" className="pl-9 rounded-xl" />
@@ -578,7 +623,7 @@ export default function GroupsPage() {
                           <p className="text-sm font-semibold text-gray-900 truncate">{gc.course.title}</p>
                           <p className="text-xs text-gray-400">{gc.course.category}</p>
                         </div>
-                        <button onClick={() => handleRemoveCourse(gc.course.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-400 shrink-0">
+                        <button onClick={() => handleRemoveCourse(gc.course.id, gc.course.title)} className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-400 shrink-0" title="Remove course">
                           <X className="h-3.5 w-3.5" />
                         </button>
                       </div>

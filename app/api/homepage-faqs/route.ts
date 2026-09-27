@@ -4,13 +4,47 @@ import { requireApiUser, apiErrorMessage, apiErrorStatus } from "@/lib/api-auth"
 import { homepageFaqSchema } from "@/lib/homepage-faq-schema"
 import { recordStaffAudit } from "@/lib/audit"
 
+import { defaultHomepageFaqs } from "@/data/homepage-faqs"
+
 export async function GET(request: Request) {
   try {
     const includeDrafts = new URL(request.url).searchParams.get("includeDrafts") === "true"
     if (includeDrafts) await requireApiUser(["ADMIN"])
-    return NextResponse.json(await prisma.homepageFaq.findMany({ where: includeDrafts ? undefined : { isPublished: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }))
+
+    let faqs = await prisma.homepageFaq.findMany({
+      where: includeDrafts ? undefined : { isPublished: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    })
+
+    if (faqs.length === 0) {
+      for (const faq of defaultHomepageFaqs) {
+        try {
+          await prisma.homepageFaq.create({
+            data: {
+              category: faq.category,
+              question: faq.question,
+              answer: faq.answer,
+              isPublished: faq.isPublished,
+              sortOrder: faq.sortOrder,
+            },
+          })
+        } catch {
+          // ignore duplicate
+        }
+      }
+      faqs = await prisma.homepageFaq.findMany({
+        where: includeDrafts ? undefined : { isPublished: true },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      })
+    }
+
+    if (faqs.length === 0) {
+      return NextResponse.json(defaultHomepageFaqs)
+    }
+
+    return NextResponse.json(faqs)
   } catch (error) {
-    return NextResponse.json({ error: apiErrorMessage(error, "Failed to load FAQs") }, { status: apiErrorStatus(error) })
+    return NextResponse.json(defaultHomepageFaqs)
   }
 }
 

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import {
   ClipboardCheck, Plus, BookOpen, CheckCircle, AlertCircle,
@@ -234,8 +235,24 @@ export default function AssessmentsPage() {
     scoresReleasedAt: "",
   })
   const [saving, setSaving] = useState(false)
+  const [createError, setCreateError] = useState("")
 
   const role = session?.user?.role?.toLowerCase()
+
+  // Filter courses by selected program for the create dialog
+  const programCourses = selectedProgram
+    ? courses.filter(c => c.category === selectedProgram)
+    : courses
+
+  // Auto-select program course when program is selected or dialog opens
+  useEffect(() => {
+    if (selectedProgram && programCourses.length > 0) {
+      const defaultCourse = programCourses.find((c: any) => c.status === "PUBLISHED") || programCourses[0]
+      if (defaultCourse && (!form.courseId || !programCourses.some((c: any) => c.id === form.courseId))) {
+        setForm((prev: any) => ({ ...prev, courseId: defaultCourse.id }))
+      }
+    }
+  }, [selectedProgram, programCourses, form.courseId])
 
   useEffect(() => {
     Promise.all([
@@ -282,44 +299,56 @@ export default function AssessmentsPage() {
 
   const handleCreate = async () => {
     setSaving(true)
+    setCreateError("")
     const isUnlimited = form.type === "REVIEWER" || form.type === "PRACTICE_EXAM"
-    const res = await fetch("/api/assessments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        timeLimit: form.timeLimit ? parseInt(form.timeLimit) : null,
-        passingScore: parseFloat(form.passingScore),
-        attempts: isUnlimited ? null : parseInt(form.attempts),
-        releaseScores: form.releaseScores,
-        scoresReleasedAt: form.releaseScores ? null : (form.scoresReleasedAt ? new Date(form.scoresReleasedAt) : null),
-      }),
-    })
-    if (res.ok) {
-      const newA = await res.json()
-      setAssessments(prev => [newA, ...prev])
+    const targetCourseId = form.courseId || programCourses.find((c: any) => c.status === "PUBLISHED")?.id || programCourses[0]?.id
+
+    if (!targetCourseId) {
+      setCreateError(`No course found under ${selectedProgram || "this program"}. Please create or publish the course first.`)
+      setSaving(false)
+      return
+    }
+
+    try {
+      const res = await fetch("/api/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          courseId: targetCourseId,
+          timeLimit: form.timeLimit ? parseInt(form.timeLimit) : null,
+          passingScore: form.passingScore ? parseFloat(form.passingScore) : 70,
+          attempts: isUnlimited ? null : (form.attempts ? parseInt(form.attempts) : 1),
+          releaseScores: form.releaseScores,
+          scoresReleasedAt: form.releaseScores ? null : (form.scoresReleasedAt ? new Date(form.scoresReleasedAt).toISOString() : null),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setCreateError(data.error || "Failed to create assessment")
+        return
+      }
+      setAssessments(prev => [data, ...prev])
       setOpen(false)
       setForm({
         title: "",
         description: "",
         type: "REVIEWER",
-        courseId: "",
+        courseId: targetCourseId,
         timeLimit: "",
         passingScore: "70",
         attempts: "1",
         releaseScores: true,
         scoresReleasedAt: "",
       })
+    } catch {
+      setCreateError("Failed to save assessment. Please check your connection and try again.")
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   const isUnlimitedType = form.type === "REVIEWER" || form.type === "PRACTICE_EXAM"
-
-  // Filter courses by selected program for the create dialog
-  const programCourses = selectedProgram
-    ? courses.filter(c => c.category === selectedProgram)
-    : courses
 
   // Assessments for the selected program
   const programAssessments = selectedProgram
@@ -327,15 +356,29 @@ export default function AssessmentsPage() {
     : assessments
 
   const activeProgram = PROGRAMS.find(p => p.key === selectedProgram)
+  const activeCourse = programCourses.find((c: any) => c.id === form.courseId) || programCourses.find((c: any) => c.status === "PUBLISHED") || programCourses[0]
 
   // ── LEVEL 1: Program selection ──────────────────────────
   if (!selectedProgram) {
     return (
       <div className="space-y-8">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Assessments</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Courses &amp; Assessments</h1>
             <p className="text-sm text-gray-500 mt-1">Select a program to view its assessments</p>
+          </div>
+          <div className="flex items-center gap-1 p-1 bg-gray-100/80 rounded-2xl w-fit">
+            <Link
+              href="/dashboard/courses"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 text-gray-500 hover:text-gray-700"
+            >
+              <BookOpen className="h-4 w-4" />
+              Courses
+            </Link>
+            <div className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 bg-white text-gray-900 shadow-sm">
+              <ClipboardCheck className="h-4 w-4" />
+              Assessments
+            </div>
           </div>
         </div>
 
@@ -405,7 +448,7 @@ export default function AssessmentsPage() {
   return (
     <div className="space-y-6">
       {/* Header with back button */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-4">
           <button
             onClick={() => setSelectedProgram(null)}
@@ -426,7 +469,21 @@ export default function AssessmentsPage() {
           </div>
         </div>
 
-        {role !== "learner" && (
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-1 p-1 bg-gray-100/80 rounded-2xl w-fit">
+            <Link
+              href="/dashboard/courses"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 text-gray-500 hover:text-gray-700"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Courses
+            </Link>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 bg-white text-gray-900 shadow-sm">
+              <ClipboardCheck className="h-3.5 w-3.5" />
+              Assessments
+            </div>
+          </div>
+          {role !== "learner" && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
@@ -454,14 +511,36 @@ export default function AssessmentsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                {/* Program Course Binding */}
                 <div className="space-y-1.5">
-                  <Label>Course</Label>
-                  <Select value={form.courseId} onValueChange={v => setForm(p => ({ ...p, courseId: v }))}>
-                    <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select course" /></SelectTrigger>
-                    <SelectContent>
-                      {programCourses.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Label>Program Course</Label>
+                  {programCourses.length <= 1 ? (
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <BookOpen className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span className="text-sm font-semibold text-slate-800 truncate">
+                          {programCourses[0]?.title || activeProgram?.fullName || activeProgram?.label}
+                        </span>
+                      </div>
+                      <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 shrink-0 ml-2">
+                        Auto-assigned ({activeProgram?.label})
+                      </Badge>
+                    </div>
+                  ) : (
+                    <Select
+                      value={form.courseId || activeCourse?.id}
+                      onValueChange={v => setForm((p: any) => ({ ...p, courseId: v }))}
+                    >
+                      <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select course" /></SelectTrigger>
+                      <SelectContent>
+                        {programCourses.map((c: any) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.title} {c.status === "DRAFT" ? "(Draft)" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                  {form.type !== "REVIEWER" && form.type !== "RULES_GUIDELINES" && (
                    <div className="grid grid-cols-2 gap-3">
@@ -529,13 +608,21 @@ export default function AssessmentsPage() {
                     minHeight="140px"
                   />
                 </div>
-                <Button onClick={handleCreate} disabled={saving || !form.title || !form.courseId} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
+                {createError && (
+                  <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{createError}</span>
+                  </div>
+                )}
+
+                <Button onClick={handleCreate} disabled={saving || !form.title?.trim()} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
                   {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Create Assessment
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
         )}
+        </div>
       </div>
 
       {/* 4 group cards */}

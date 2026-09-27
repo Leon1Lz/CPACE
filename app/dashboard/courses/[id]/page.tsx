@@ -11,6 +11,7 @@ import {
   BookOpen, Clock, ChevronRight, ChevronLeft, CheckCircle,
   PlayCircle, FileText, Lock, Award, ArrowLeft, Loader2,
   GraduationCap, BarChart3, ClipboardCheck, Eye, X as XIcon, Download,
+  Users, Edit,
 } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import Link from "next/link"
@@ -66,6 +67,8 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
   const { id } = use(params)
   const { data: session } = useSession()
   const router = useRouter()
+  const role = session?.user?.role?.toLowerCase()
+  const isStaff = role === "admin" || role === "instructor"
 
   const [course, setCourse] = useState<Course | null>(null)
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null)
@@ -184,6 +187,22 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
             )}
           </div>
         </div>
+
+        {/* Staff Quick Action Buttons */}
+        {isStaff && (
+          <div className="flex items-center gap-2 shrink-0">
+            <Button asChild variant="outline" size="sm" className="rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+              <Link href={`/dashboard/courses/${course.id}/participants`}>
+                <Users className="h-4 w-4 mr-1.5" /> Participants
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="rounded-xl">
+              <Link href={`/dashboard/courses/${course.id}/edit`}>
+                <Edit className="h-4 w-4 mr-1.5" /> Edit Course
+              </Link>
+            </Button>
+          </div>
+        )}
 
         {/* Progress ring area */}
         <div className="shrink-0 hidden md:block">

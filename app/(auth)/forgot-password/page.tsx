@@ -26,13 +26,14 @@ export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
-  const debugUrl = ""
+  const [debugUrl, setDebugUrl] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setMessage("")
     setError("")
+    setDebugUrl("")
 
     try {
       const res = await fetch("/api/auth/forgot-password", {
@@ -43,6 +44,7 @@ export default function ForgotPasswordPage() {
       const data = await res.json()
       if (res.ok) {
         setMessage(data.message)
+        if (data.debugUrl) setDebugUrl(data.debugUrl)
       } else {
         setError(data.error || "An error occurred. Please try again.")
       }

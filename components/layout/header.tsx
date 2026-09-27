@@ -65,6 +65,7 @@ export function Header() {
                 src="/cpace-logo.png"
                 alt="CPACE Philippines - Center for Professional Advancement and Continuing Education"
                 fill
+                sizes="(max-width: 640px) 256px, 320px"
                 className="object-contain"
                 priority
               />

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { CalendarClock, ExternalLink, Loader2, Pencil, Plus, Trash2 } from "lucide-react"
+import { CalendarClock, ExternalLink, Loader2, Pencil, Plus, Trash2, RefreshCw, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -36,6 +36,8 @@ export default function ManageSchedulesPage() {
   const [events, setEvents] = useState<TrainingEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMessage, setSyncMessage] = useState<string | null>(null)
   const [error, setError] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -54,6 +56,29 @@ export default function ManageSchedulesPage() {
       setLoading(false)
     }
   }, [])
+
+  const handleSync = async () => {
+    try {
+      setSyncing(true)
+      setSyncMessage(null)
+      const res = await fetch("/api/admin/sync-landing-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section: "schedules" }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setSyncMessage(`Successfully synchronized ${data.schedulesSynced || "all"} training schedules with the database!`)
+        await loadEvents()
+      } else {
+        await loadEvents()
+      }
+    } catch (err) {
+      console.error("Sync error:", err)
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   useEffect(() => {
     if (status === "loading") return
@@ -125,20 +150,63 @@ export default function ManageSchedulesPage() {
           <h1 className="text-2xl font-bold text-slate-900">Manage Schedules</h1>
           <p className="mt-1 text-sm text-slate-500">Add or update the training and certification events shown on the public homepage.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleSync}
+            disabled={syncing || loading}
+            className="rounded-xl border-slate-200 text-sm font-semibold text-slate-700 hover:text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50/50"
+            title="Synchronize default landing page schedules to database"
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 text-emerald-600 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Syncing..." : "Sync Default Schedules"}
+          </Button>
           <Button asChild variant="outline" className="rounded-xl"><a href="/#upcoming-events" target="_blank" rel="noreferrer"><ExternalLink className="mr-2 h-4 w-4" />View homepage</a></Button>
           <Button onClick={openCreate} className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"><Plus className="mr-2 h-4 w-4" />Add event</Button>
         </div>
       </div>
 
+      {syncMessage && (
+        <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>{syncMessage}</span>
+          </div>
+          <button
+            onClick={() => setSyncMessage(null)}
+            className="text-xs font-bold text-emerald-700 hover:underline ml-4"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {error && !dialogOpen && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
 
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         {events.length === 0 ? (
-          <div className="flex flex-col items-center px-6 py-14 text-center">
-            <CalendarClock className="mb-3 h-10 w-10 text-slate-300" />
-            <p className="font-semibold text-slate-700">No upcoming events yet</p>
-            <Button onClick={openCreate} variant="link" className="mt-1 text-emerald-700">Add the first event</Button>
+          <div className="flex flex-col items-center px-6 py-14 text-center space-y-3">
+            <CalendarClock className="h-12 w-12 text-slate-300" />
+            <div>
+              <p className="font-semibold text-slate-800 text-base">No upcoming events yet</p>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                No events found in the database. Sync the default landing page events or add a custom schedule.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <Button
+                onClick={handleSync}
+                disabled={syncing}
+                className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 text-sm font-semibold"
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+                {syncing ? "Syncing..." : "Sync Default Schedules"}
+              </Button>
+              <Button onClick={openCreate} variant="outline" className="rounded-xl text-sm font-semibold">
+                <Plus className="mr-1.5 h-4 w-4" />
+                Add Event
+              </Button>
+            </div>
           </div>
         ) : (
           <Table>

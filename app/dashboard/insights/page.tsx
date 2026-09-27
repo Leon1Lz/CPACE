@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
-import { Newspaper, Plus, Search, Calendar, MessageCircle, Star, Pencil, Trash2, ArrowLeft, Loader2, Sparkles } from "lucide-react"
+import { Newspaper, Plus, Search, Calendar, MessageCircle, Star, Pencil, Trash2, ArrowLeft, Loader2, Sparkles, RefreshCw, CheckCircle2 } from "lucide-react"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 
 function generateSlug(text: string) {
@@ -42,6 +42,8 @@ export default function ManageInsightsPage() {
   // Articles state
   const [articles, setArticles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMessage, setSyncMessage] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("ALL")
   
@@ -78,6 +80,29 @@ export default function ManageInsightsPage() {
       console.error("Error fetching articles:", err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSync = async () => {
+    try {
+      setSyncing(true)
+      setSyncMessage(null)
+      const res = await fetch("/api/admin/sync-landing-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section: "articles" }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setSyncMessage(`Successfully synchronized ${data.articlesSynced || "all"} landing page articles with the database!`)
+        await fetchArticles()
+      } else {
+        await fetchArticles()
+      }
+    } catch (err) {
+      console.error("Sync error:", err)
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -224,14 +249,41 @@ export default function ManageInsightsPage() {
             Create, update, and manage professional certification articles and announcements shown on the public feed.
           </p>
         </div>
-        <Button 
-          onClick={openCreateForm}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 px-5 py-5 rounded-xl text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Create Article
-        </Button>
+        <div className="flex items-center gap-2.5">
+          <Button
+            variant="outline"
+            onClick={handleSync}
+            disabled={syncing || loading}
+            className="rounded-xl border-gray-200 text-sm font-semibold flex items-center gap-2 h-11 px-4 text-gray-700 hover:text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50/50 transition-colors"
+            title="Synchronize all 22 official landing page articles with the database"
+          >
+            <RefreshCw className={`w-4 h-4 text-emerald-600 ${syncing ? "animate-spin" : ""}`} />
+            {syncing ? "Syncing..." : "Sync Landing Articles"}
+          </Button>
+          <Button 
+            onClick={openCreateForm}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 px-5 h-11 rounded-xl text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Create Article
+          </Button>
+        </div>
       </div>
+
+      {syncMessage && (
+        <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>{syncMessage}</span>
+          </div>
+          <button
+            onClick={() => setSyncMessage(null)}
+            className="text-xs font-bold text-emerald-700 hover:underline ml-4"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Control Bar */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -268,12 +320,34 @@ export default function ManageInsightsPage() {
               <p className="text-sm font-medium">Fetching articles...</p>
             </div>
           ) : filteredArticles.length === 0 ? (
-            <div className="text-center py-16 text-gray-400 space-y-3">
+            <div className="text-center py-16 px-4 text-gray-400 space-y-4">
               <Newspaper className="w-12 h-12 mx-auto text-gray-300 stroke-[1.5]" />
-              <h3 className="font-semibold text-gray-700">No articles found</h3>
-              <p className="text-xs max-w-xs mx-auto">
-                No matching insights were found in the database. Create a new article to get started.
-              </p>
+              <div>
+                <h3 className="font-semibold text-gray-800 text-base">No articles found</h3>
+                <p className="text-xs text-gray-500 max-w-md mx-auto mt-1">
+                  {search || categoryFilter !== "ALL"
+                    ? "No articles matched your search or category filter. Try clearing filters."
+                    : "No matching insights were found in the database. Sync the default landing page articles or create a new one to get started."}
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                <Button
+                  onClick={handleSync}
+                  disabled={syncing}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-2 rounded-xl text-sm px-4 py-2.5 shadow-sm"
+                >
+                  <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+                  {syncing ? "Syncing..." : "Sync Default Landing Page Articles"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={openCreateForm}
+                  className="rounded-xl border-gray-200 text-sm font-semibold flex items-center gap-1.5 px-4 py-2.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Custom Article
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="overflow-x-auto">

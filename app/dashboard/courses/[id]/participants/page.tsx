@@ -1,14 +1,20 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ChevronLeft, Download, Search, Loader2, Users, CheckCircle, XCircle, Clock, Award } from "lucide-react"
+import {
+  ChevronLeft, Download, Search, Loader2, Users, CheckCircle,
+  XCircle, Clock, Award, UserPlus, Trash2, AlertCircle
+} from "lucide-react"
 import Link from "next/link"
 
 type AssessmentResult = {
@@ -33,20 +39,114 @@ export default function ParticipantsPage() {
   const [participants, setParticipants] = useState<Participant[]>([])
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [courseTitle, setCourseTitle] = useState("")
+  const [courseStatus, setCourseStatus] = useState("PUBLISHED")
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
 
-  useEffect(() => {
-    if (role === "learner" || role === "proctor") { router.push("/dashboard"); return }
-    Promise.all([
-      fetch(`/api/courses/${courseId}/participants`).then(r => r.json()),
-      fetch(`/api/courses/${courseId}`).then(r => r.json()),
-    ]).then(([pd, cd]) => {
+  // Direct enrollment state
+  const [enrollOpen, setEnrollOpen] = useState(false)
+  const [availableLearners, setAvailableLearners] = useState<any[]>([])
+  const [loadingLearners, setLoadingLearners] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState("")
+  const [enrolling, setEnrolling] = useState(false)
+  const [enrollError, setEnrollError] = useState("")
+  const [enrollSuccess, setEnrollSuccess] = useState("")
+  const [unenrollBusy, setUnenrollBusy] = useState<string | null>(null)
+
+  const loadData = useCallback(async () => {
+    try {
+      const [pd, cd] = await Promise.all([
+        fetch(`/api/courses/${courseId}/participants`).then(r => r.json()),
+        fetch(`/api/courses/${courseId}`).then(r => r.json()),
+      ])
       setParticipants(pd.participants ?? [])
       setAssessments(pd.assessments ?? [])
       setCourseTitle(cd.title ?? "Course")
-    }).finally(() => setLoading(false))
-  }, [courseId, role, router])
+      setCourseStatus(cd.status ?? "PUBLISHED")
+    } finally {
+      setLoading(false)
+    }
+  }, [courseId])
+
+  useEffect(() => {
+    if (role === "learner" || role === "proctor") { router.push("/dashboard"); return }
+    void loadData()
+  }, [role, router, loadData])
+
+  const handleOpenEnrollDialog = async () => {
+    setEnrollOpen(true)
+    setEnrollError("")
+    setEnrollSuccess("")
+    setSelectedUserId("")
+    setLoadingLearners(true)
+    try {
+      const res = await fetch("/api/users?role=LEARNER&limit=100")
+      const data = await res.json()
+      setAvailableLearners(data.users ?? [])
+    } catch {
+      setEnrollError("Failed to fetch learners list")
+    } finally {
+      setLoadingLearners(false)
+    }
+  }
+
+  const handleEnrollLearner = async () => {
+    if (!selectedUserId) return
+    setEnrolling(true)
+    setEnrollError("")
+    setEnrollSuccess("")
+    try {
+      const res = await fetch("/api/enrollments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: selectedUserId, courseId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setEnrollError(data.error || "Failed to enroll learner")
+        return
+      }
+      setEnrollSuccess("Learner successfully enrolled!")
+      await loadData()
+      setTimeout(() => {
+        setEnrollOpen(false)
+        setSelectedUserId("")
+        setEnrollSuccess("")
+      }, 900)
+    } catch {
+      setEnrollError("Network error while enrolling learner")
+    } finally {
+      setEnrolling(false)
+    }
+  }
+
+  const handleUnenroll = async (userId: string, userName: string) => {
+    if (!confirm(`Are you sure you want to unenroll ${userName}? Their enrollment and course record will be removed.`)) {
+      return
+    }
+    setUnenrollBusy(userId)
+    try {
+      const res = await fetch("/api/enrollments", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, courseId }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error || "Failed to unenroll participant")
+        return
+      }
+      await loadData()
+    } catch {
+      alert("Network error while unenrolling participant")
+    } finally {
+      setUnenrollBusy(null)
+    }
+  }
+
+  const nonEnrolledLearners = availableLearners.filter(
+    u => !participants.some(p => p.userId === u.id)
+  )
 
   const filtered = participants.filter(p =>
     `${p.firstName} ${p.lastName} ${p.email}`.toLowerCase().includes(search.toLowerCase())
@@ -112,14 +212,100 @@ export default function ParticipantsPage() {
             <Link href="/dashboard/courses"><ChevronLeft className="h-4 w-4" /></Link>
           </Button>
           <div>
-            <h1 className="text-xl font-black text-gray-900">Participants</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-black text-gray-900">Participants</h1>
+              <Badge variant="outline" className={`text-xs ${
+                courseStatus === "PUBLISHED" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"
+              }`}>
+                {courseStatus}
+              </Badge>
+            </div>
             <p className="text-sm text-gray-500 mt-0.5">{courseTitle}</p>
           </div>
         </div>
-        <Button onClick={exportCSV} variant="outline" className="rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50">
-          <Download className="h-4 w-4 mr-2" /> Export CSV
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={handleOpenEnrollDialog} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
+            <UserPlus className="h-4 w-4 mr-2" /> Enroll Learner
+          </Button>
+          <Button onClick={exportCSV} variant="outline" className="rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+            <Download className="h-4 w-4 mr-2" /> Export CSV
+          </Button>
+        </div>
       </div>
+
+      {/* Direct Enroll Dialog */}
+      <Dialog open={enrollOpen} onOpenChange={setEnrollOpen}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Enroll Learner into Course</DialogTitle>
+          </DialogHeader>
+
+          {courseStatus !== "PUBLISHED" && (
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Course is in {courseStatus} status</p>
+                <p className="mt-0.5 text-amber-700">Learners can only be enrolled in published courses. Please publish this course from the course editor before enrolling learners.</p>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Select Learner</Label>
+              {loadingLearners ? (
+                <div className="flex items-center gap-2 text-xs text-slate-500 py-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-emerald-600" /> Loading available learners...
+                </div>
+              ) : nonEnrolledLearners.length === 0 ? (
+                <p className="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  {availableLearners.length === 0 ? "No active learners found in the system." : "All registered learners are already enrolled in this course."}
+                </p>
+              ) : (
+                <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder="Choose a learner to enroll" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {nonEnrolledLearners.map(u => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.firstName} {u.lastName} ({u.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            {enrollError && (
+              <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{enrollError}</span>
+              </div>
+            )}
+
+            {enrollSuccess && (
+              <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                <CheckCircle className="h-4 w-4 shrink-0" />
+                <span>{enrollSuccess}</span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setEnrollOpen(false)} className="rounded-xl">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEnrollLearner}
+              disabled={enrolling || !selectedUserId || courseStatus !== "PUBLISHED"}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl"
+            >
+              {enrolling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Enroll
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -164,12 +350,13 @@ export default function ParticipantsPage() {
                   </TableHead>
                 ))}
                 <TableHead className="text-gray-500 font-semibold text-center">Certificate</TableHead>
+                <TableHead className="text-gray-500 font-semibold text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4 + assessments.length} className="text-center py-12 text-gray-400">
+                  <TableCell colSpan={5 + assessments.length} className="text-center py-12 text-gray-400">
                     No participants found
                   </TableCell>
                 </TableRow>
@@ -229,6 +416,22 @@ export default function ParticipantsPage() {
                       <span className="text-xs text-gray-300">—</span>
                     )}
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleUnenroll(p.userId, `${p.firstName} ${p.lastName}`)}
+                      disabled={unenrollBusy === p.userId}
+                      className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50"
+                      title="Unenroll learner"
+                    >
+                      {unenrollBusy === p.userId ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -238,3 +441,4 @@ export default function ParticipantsPage() {
     </div>
   )
 }
+

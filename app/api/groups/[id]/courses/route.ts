@@ -18,22 +18,41 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!(await canManageGroup(user, groupId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     const { courseId } = await request.json()
     if (!courseId) return NextResponse.json({ error: "courseId is required" }, { status: 400 })
-    if (!(await canManageCourse(user, courseId))) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-    // Assign course to group
-    await prisma.groupCourse.create({ data: { groupId, courseId } })
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { id: true, instructorId: true, creatorId: true, status: true },
+    })
+    if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 })
 
-    // Batch enroll all current group members into this course
+    const canAssign = user.role === "ADMIN" ||
+      course.instructorId === user.id ||
+      course.creatorId === user.id ||
+      course.status === "PUBLISHED"
+
+    if (!canAssign) {
+      return NextResponse.json({ error: "Cannot assign an unpublished course you do not manage" }, { status: 403 })
+    }
+
+    // Assign course to group (upsert to avoid duplicate key crash)
+    await prisma.groupCourse.upsert({
+      where: { groupId_courseId: { groupId, courseId } },
+      create: { groupId, courseId },
+      update: {},
+    })
+
+    // Batch enroll all current group members into this course if published
     const members = await prisma.groupMember.findMany({ where: { groupId } })
-    if (members.length > 0) {
+    if (members.length > 0 && course.status === "PUBLISHED") {
       await prisma.enrollment.createMany({
         data: members.map(m => ({ userId: m.userId, courseId })),
         skipDuplicates: true,
       })
     }
 
-    return NextResponse.json({ enrolled: members.length })
-  } catch {
+    return NextResponse.json({ success: true, enrolled: members.length })
+  } catch (err) {
+    console.error("[POST /api/groups/[id]/courses]", err)
     return NextResponse.json({ error: "Failed to assign course" }, { status: 500 })
   }
 }

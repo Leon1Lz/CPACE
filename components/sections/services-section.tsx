@@ -16,7 +16,7 @@ const services = [
     number: "01",
     title: "Professional Certification",
     description: "Elevate your career with industry-recognized certifications designed to validate your expertise and boost your professional standing.",
-    href: "/services",
+    href: "/services#certifications",
   },
   {
     icon: <Briefcase className="w-7 h-7 text-white" />,
@@ -28,7 +28,7 @@ const services = [
     number: "02",
     title: "Business Consultancy",
     description: "Expert guidance for businesses seeking ISO certification, intellectual property protection, and seamless business registration processes.",
-    href: "/services",
+    href: "/services#consultancy",
   },
   {
     icon: <BookOpen className="w-7 h-7 text-white" />,

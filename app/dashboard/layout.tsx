@@ -18,6 +18,7 @@ import { ExamLockProvider, useExamLock } from "@/lib/exam-lock-context"
 const pageTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/dashboard/courses": "Courses & Assessments",
+  "/dashboard/assessments": "Assessments",
   "/dashboard/calendar": "Calendar",
   "/dashboard/content": "Website Content",
   "/dashboard/audit": "Audit Log",
@@ -82,7 +83,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const getBreadcrumbParent = (path: string) => {
     if (path.startsWith("/dashboard/proctor/")) return { label: "Exam Monitor", href: "/dashboard/proctor" }
-    if (path.startsWith("/dashboard/assessments/")) return { label: "Courses & Assessments", href: "/dashboard/courses" }
+    if (path === "/dashboard/assessments" || path.startsWith("/dashboard/assessments/")) return { label: "Courses & Assessments", href: "/dashboard/courses" }
     if (path.startsWith("/dashboard/courses/")) return { label: "Courses & Assessments", href: "/dashboard/courses" }
     if (path.startsWith("/dashboard/groups/")) return { label: "Groups", href: "/dashboard/groups" }
     return null

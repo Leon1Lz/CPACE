@@ -111,7 +111,7 @@ export function AppSidebar({ role = "learner", userName = "User", userEmail = ""
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
               {group.items.map((item) => {
-                const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`)) || (item.id === "courses" && pathname.startsWith("/dashboard/assessments/"))
+                const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`)) || (item.id === "courses" && (pathname === "/dashboard/assessments" || pathname.startsWith("/dashboard/assessments/")))
                 return (
                   <SidebarMenuItem key={item.id}>
                     {isExamTaking ? (

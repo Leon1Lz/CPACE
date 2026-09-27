@@ -10,37 +10,43 @@ export function NextScrollSection() {
       icon: <Award className="h-6 w-6" />,
       title: "Professional Certification",
       description: "Elevate your career with industry-recognized certifications designed to validate your expertise and boost your professional standing.",
-      color: "from-emerald-500 to-teal-500"
+      color: "from-emerald-500 to-teal-500",
+      href: "/services#certifications"
     },
     {
       icon: <Briefcase className="h-6 w-6" />,
       title: "Business Consultancy",
       description: "Expert guidance for businesses seeking ISO certification, intellectual property protection, and seamless business registration processes.",
-      color: "from-blue-500 to-cyan-500"
+      color: "from-blue-500 to-cyan-500",
+      href: "/services#consultancy"
     },
     {
       icon: <BookOpen className="h-6 w-6" />,
       title: "Certificate & Short Courses",
       description: "Acquire new skills or specialize in a field with our flexible diploma and targeted short courses.",
-      color: "from-purple-500 to-pink-500"
+      color: "from-purple-500 to-pink-500",
+      href: "/services#certifications"
     },
     {
       icon: <Users className="h-6 w-6" />,
       title: "Management Training",
       description: "Develop essential leadership qualities and strategic thinking to inspire teams and drive organizational success.",
-      color: "from-orange-500 to-red-500"
+      color: "from-orange-500 to-red-500",
+      href: "/services#certifications"
     },
     {
       icon: <TrendingUp className="h-6 w-6" />,
       title: "Reskilling & Upskilling",
       description: "Enhance individual and organizational capabilities through our diverse and practical training and workshops.",
-      color: "from-green-500 to-emerald-500"
+      color: "from-green-500 to-emerald-500",
+      href: "/services#certifications"
     },
     {
       icon: <Monitor className="h-6 w-6" />,
       title: "Seminars & Webinars",
       description: "Stay informed and connect with industry experts through our insightful seminars and online webinars.",
-      color: "from-indigo-500 to-purple-500"
+      color: "from-indigo-500 to-purple-500",
+      href: "/services#certifications"
     }
   ]
 
@@ -87,7 +93,7 @@ export function NextScrollSection() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mt-12 text-left">
             {services.map((service, index) => (
               <Link 
-                href="/services" 
+                href={service.href} 
                 key={index} 
                 className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1.5 overflow-hidden border border-gray-100 flex flex-col justify-between"
               >
