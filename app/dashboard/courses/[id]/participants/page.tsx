@@ -52,6 +52,11 @@ export default function ParticipantsPage() {
   const [enrollError, setEnrollError] = useState("")
   const [enrollSuccess, setEnrollSuccess] = useState("")
   const [unenrollBusy, setUnenrollBusy] = useState<string | null>(null)
+  const [enrollMode, setEnrollMode] = useState<"select" | "create">("select")
+  const [newFirstName, setNewFirstName] = useState("")
+  const [newLastName, setNewLastName] = useState("")
+  const [newEmail, setNewEmail] = useState("")
+  const [learnerSearch, setLearnerSearch] = useState("")
 
   const loadData = useCallback(async () => {
     try {
@@ -78,11 +83,20 @@ export default function ParticipantsPage() {
     setEnrollError("")
     setEnrollSuccess("")
     setSelectedUserId("")
+    setEnrollMode("select")
+    setNewFirstName("")
+    setNewLastName("")
+    setNewEmail("")
+    setLearnerSearch("")
     setLoadingLearners(true)
     try {
       const res = await fetch("/api/users?role=LEARNER&limit=100")
       const data = await res.json()
-      setAvailableLearners(data.users ?? [])
+      const list = Array.isArray(data.data) ? data.data : Array.isArray(data.users) ? data.users : []
+      setAvailableLearners(list)
+      if (list.length === 0) {
+        setEnrollMode("create")
+      }
     } catch {
       setEnrollError("Failed to fetch learners list")
     } finally {
@@ -120,6 +134,67 @@ export default function ParticipantsPage() {
     }
   }
 
+  const handleCreateAndEnroll = async () => {
+    if (!newFirstName.trim() || !newLastName.trim() || !newEmail.trim()) {
+      setEnrollError("Please provide first name, last name, and email.")
+      return
+    }
+    setEnrolling(true)
+    setEnrollError("")
+    setEnrollSuccess("")
+    try {
+      const userRes = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: newFirstName.trim(),
+          lastName: newLastName.trim(),
+          email: newEmail.trim(),
+          role: "LEARNER",
+        }),
+      })
+      const userData = await userRes.json()
+      if (!userRes.ok) {
+        setEnrollError(userData.error || "Failed to create learner account")
+        return
+      }
+
+      const createdUser = userData.user || userData.data
+      const newUserId = createdUser?.id
+      if (!newUserId) {
+        setEnrollError("Learner account created, but missing user identifier")
+        return
+      }
+
+      const enrollRes = await fetch("/api/enrollments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: newUserId, courseId }),
+      })
+      const enrollData = await enrollRes.json()
+      if (!enrollRes.ok) {
+        setEnrollError(enrollData.error || "Learner created, but failed to enroll into course")
+        return
+      }
+
+      setEnrollSuccess(`${createdUser.firstName} ${createdUser.lastName} created and successfully enrolled!`)
+      await loadData()
+      setTimeout(() => {
+        setEnrollOpen(false)
+        setEnrollMode("select")
+        setNewFirstName("")
+        setNewLastName("")
+        setNewEmail("")
+        setSelectedUserId("")
+        setEnrollSuccess("")
+      }, 1000)
+    } catch {
+      setEnrollError("Network error while creating and enrolling learner")
+    } finally {
+      setEnrolling(false)
+    }
+  }
+
   const handleUnenroll = async (userId: string, userName: string) => {
     if (!confirm(`Are you sure you want to unenroll ${userName}? Their enrollment and course record will be removed.`)) {
       return
@@ -144,9 +219,16 @@ export default function ParticipantsPage() {
     }
   }
 
-  const nonEnrolledLearners = availableLearners.filter(
-    u => !participants.some(p => p.userId === u.id)
-  )
+  const nonEnrolledLearners = availableLearners
+    .filter(u => !participants.some(p => p.userId === u.id))
+    .filter(u => {
+      if (!learnerSearch.trim()) return true
+      const q = learnerSearch.toLowerCase().trim()
+      return (
+        `${u.firstName ?? ""} ${u.lastName ?? ""}`.toLowerCase().includes(q) ||
+        (u.email ?? "").toLowerCase().includes(q)
+      )
+    })
 
   const filtered = participants.filter(p =>
     `${p.firstName} ${p.lastName} ${p.email}`.toLowerCase().includes(search.toLowerCase())
@@ -250,32 +332,133 @@ export default function ParticipantsPage() {
             </div>
           )}
 
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label>Select Learner</Label>
-              {loadingLearners ? (
-                <div className="flex items-center gap-2 text-xs text-slate-500 py-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-emerald-600" /> Loading available learners...
+          {/* Mode Switch Tabs */}
+          <div className="flex rounded-xl bg-slate-100 p-1 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => { setEnrollMode("select"); setEnrollError(""); }}
+              className={`flex-1 py-1.5 px-3 rounded-lg transition-all ${
+                enrollMode === "select"
+                  ? "bg-white text-emerald-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              Select Existing Learner
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEnrollMode("create"); setEnrollError(""); }}
+              className={`flex-1 py-1.5 px-3 rounded-lg transition-all ${
+                enrollMode === "create"
+                  ? "bg-white text-emerald-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              + Create & Enroll New
+            </button>
+          </div>
+
+          <div className="space-y-4 py-1">
+            {enrollMode === "select" ? (
+              <div className="space-y-2">
+                <Label>Select Learner</Label>
+                {loadingLearners ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-500 py-3">
+                    <Loader2 className="h-4 w-4 animate-spin text-emerald-600" /> Loading available learners...
+                  </div>
+                ) : availableLearners.length === 0 ? (
+                  <div className="text-xs text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-2">
+                    <p>No registered learners found in the system yet.</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setEnrollMode("create")}
+                      className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3"
+                    >
+                      <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Create New Learner
+                    </Button>
+                  </div>
+                ) : nonEnrolledLearners.length === 0 ? (
+                  <div className="text-xs text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-2">
+                    <p>
+                      {availableLearners.length > 0 && learnerSearch.trim()
+                        ? "No matching learners found for this search."
+                        : "All registered learners are already enrolled in this course."}
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setEnrollMode("create")}
+                      className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3"
+                    >
+                      <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Create Another Learner
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {availableLearners.length > 3 && (
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                        <Input
+                          value={learnerSearch}
+                          onChange={e => setLearnerSearch(e.target.value)}
+                          placeholder="Filter by name or email..."
+                          className="pl-8 h-8 text-xs rounded-lg"
+                        />
+                      </div>
+                    )}
+                    <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder="Choose a learner to enroll" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        {nonEnrolledLearners.map(u => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.firstName} {u.lastName} ({u.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">First Name *</Label>
+                    <Input
+                      value={newFirstName}
+                      onChange={e => setNewFirstName(e.target.value)}
+                      placeholder="e.g. Maria"
+                      className="rounded-xl text-xs h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Last Name *</Label>
+                    <Input
+                      value={newLastName}
+                      onChange={e => setNewLastName(e.target.value)}
+                      placeholder="e.g. Santos"
+                      className="rounded-xl text-xs h-9"
+                    />
+                  </div>
                 </div>
-              ) : nonEnrolledLearners.length === 0 ? (
-                <p className="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  {availableLearners.length === 0 ? "No active learners found in the system." : "All registered learners are already enrolled in this course."}
+                <div className="space-y-1">
+                  <Label className="text-xs">Email Address *</Label>
+                  <Input
+                    type="email"
+                    value={newEmail}
+                    onChange={e => setNewEmail(e.target.value)}
+                    placeholder="learner@example.com"
+                    className="rounded-xl text-xs h-9"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                  💡 A learner account will be created with default password <span className="font-mono font-semibold text-slate-700">cpace1234</span> and enrolled directly into this course.
                 </p>
-              ) : (
-                <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Choose a learner to enroll" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-60">
-                    {nonEnrolledLearners.map(u => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.firstName} {u.lastName} ({u.email})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
+              </div>
+            )}
 
             {enrollError && (
               <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">
@@ -296,13 +479,23 @@ export default function ParticipantsPage() {
             <Button variant="outline" onClick={() => setEnrollOpen(false)} className="rounded-xl">
               Cancel
             </Button>
-            <Button
-              onClick={handleEnrollLearner}
-              disabled={enrolling || !selectedUserId || courseStatus !== "PUBLISHED"}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl"
-            >
-              {enrolling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Enroll
-            </Button>
+            {enrollMode === "select" ? (
+              <Button
+                onClick={handleEnrollLearner}
+                disabled={enrolling || !selectedUserId || courseStatus !== "PUBLISHED"}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl"
+              >
+                {enrolling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Enroll
+              </Button>
+            ) : (
+              <Button
+                onClick={handleCreateAndEnroll}
+                disabled={enrolling || !newFirstName.trim() || !newLastName.trim() || !newEmail.trim() || courseStatus !== "PUBLISHED"}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl"
+              >
+                {enrolling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Create & Enroll
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
