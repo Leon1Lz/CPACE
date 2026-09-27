@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sanitizeHtml, stripTags } from "@/lib/sanitize"
 
+import { articlesData } from "@/data/articles"
+
 // Helper to generate slug from title
 function generateSlug(title: string): string {
   return title
@@ -28,6 +30,23 @@ export async function GET(
     }
 
     if (!article) {
+      const staticArt = articlesData.find(a => a.id === id || a.slug === id)
+      if (staticArt) {
+        return NextResponse.json({
+          id: staticArt.id,
+          title: staticArt.title,
+          slug: staticArt.slug,
+          excerpt: staticArt.excerpt,
+          content: staticArt.content,
+          category: staticArt.category,
+          categoryColor: staticArt.categoryColor,
+          iconName: staticArt.iconName,
+          image: staticArt.image,
+          featured: staticArt.featured,
+          createdAt: staticArt.createdAt || new Date().toISOString(),
+          updatedAt: staticArt.createdAt || new Date().toISOString(),
+        })
+      }
       return NextResponse.json({ error: "Article not found" }, { status: 404 })
     }
 
@@ -59,7 +78,31 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const existingArticle = await prisma.article.findUnique({ where: { id } })
+    let existingArticle = await prisma.article.findUnique({ where: { id } })
+    if (!existingArticle) {
+      existingArticle = await prisma.article.findUnique({ where: { slug: id } })
+    }
+
+    // If still not found in DB, check if it's in static articlesData and create it
+    if (!existingArticle) {
+      const staticArt = articlesData.find(a => a.id === id || a.slug === id)
+      if (staticArt) {
+        existingArticle = await prisma.article.create({
+          data: {
+            title: staticArt.title,
+            slug: staticArt.slug,
+            excerpt: staticArt.excerpt,
+            content: staticArt.content,
+            category: staticArt.category,
+            categoryColor: staticArt.categoryColor,
+            iconName: staticArt.iconName,
+            image: staticArt.image,
+            featured: staticArt.featured,
+          }
+        })
+      }
+    }
+
     if (!existingArticle) {
       return NextResponse.json({ error: "Article not found" }, { status: 404 })
     }
@@ -108,7 +151,7 @@ export async function PATCH(
     }
 
     const updatedArticle = await prisma.article.update({
-      where: { id },
+      where: { id: existingArticle.id },
       data: updateData,
     })
 
@@ -140,12 +183,16 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const existingArticle = await prisma.article.findUnique({ where: { id } })
+    let existingArticle = await prisma.article.findUnique({ where: { id } })
+    if (!existingArticle) {
+      existingArticle = await prisma.article.findUnique({ where: { slug: id } })
+    }
+
     if (!existingArticle) {
       return NextResponse.json({ error: "Article not found" }, { status: 404 })
     }
 
-    await prisma.article.delete({ where: { id } })
+    await prisma.article.delete({ where: { id: existingArticle.id } })
 
     return NextResponse.json({ message: "Article deleted successfully" })
   } catch (error: any) {

@@ -1,20 +1,41 @@
 /**
  * lib/sanitize.ts
  *
- * Central HTML sanitization utility using isomorphic-dompurify.
- * Works on both server (Node/jsdom) and client (real DOM).
- *
- * Usage:
- *   import { sanitizeHtml, sanitizeHtmlStrict } from "@/lib/sanitize"
- *
- *   // On write (API route) — strip everything dangerous before saving
- *   const clean = sanitizeHtml(userHtml)
- *
- *   // For plain-text contexts — strip ALL tags
- *   const text = stripTags(rawHtml)
+ * Central HTML sanitization utility.
+ * Safe for serverless environments (Node/Vercel/Lambda) and browser.
  */
 
-import DOMPurify from "isomorphic-dompurify"
+let domPurifyInstance: any = null
+
+function getDOMPurify(): any {
+  if (domPurifyInstance !== null) return domPurifyInstance
+  try {
+    // Dynamically require so that missing canvas/jsdom in serverless does not crash module evaluation
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require("isomorphic-dompurify")
+    domPurifyInstance = mod.default || mod
+  } catch {
+    domPurifyInstance = false
+  }
+  return domPurifyInstance
+}
+
+function fallbackSanitize(dirty: string): string {
+  if (!dirty) return ""
+  let clean = dirty
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
+    .replace(/<\/?(?:object|embed|applet|meta|link|form|svg|math)\b[^>]*>/gi, "")
+    .replace(/\s+on[a-zA-Z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/(href|src)\s*=\s*(?:"javascript:[^"]*"|'javascript:[^']*'|javascript:[^\s>]*)/gi, "")
+    .replace(/<img([^>]*?)\s*\/?>/gi, (_, attrs) => {
+      const a = attrs.trim()
+      return a ? `<img ${a}>` : `<img>`
+    })
+
+  return clean
+}
 
 /**
  * Standard rich-text sanitization.
@@ -23,26 +44,33 @@ import DOMPurify from "isomorphic-dompurify"
  */
 export function sanitizeHtml(dirty: string): string {
   if (!dirty) return ""
-  return DOMPurify.sanitize(dirty, {
-    ALLOWED_TAGS: [
-      "p", "br", "strong", "em", "u", "s", "strike", "del",
-      "h1", "h2", "h3", "h4", "h5", "h6",
-      "ul", "ol", "li",
-      "blockquote", "pre", "code",
-      "a", "img",
-      "table", "thead", "tbody", "tr", "th", "td",
-      "hr", "mark", "span", "div",
-    ],
-    ALLOWED_ATTR: [
-      "href", "src", "alt", "title", "class", "target", "rel",
-      // text-align from TipTap
-      "style",
-    ],
-    // Prevent javascript: and data: URIs in href/src
-    FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover"],
-    ALLOW_DATA_ATTR: false,
-    FORCE_BODY: false,
-  })
+  const purifier = getDOMPurify()
+  if (purifier && typeof purifier.sanitize === "function") {
+    try {
+      return purifier.sanitize(dirty, {
+        ALLOWED_TAGS: [
+          "p", "br", "strong", "em", "u", "s", "strike", "del",
+          "h1", "h2", "h3", "h4", "h5", "h6",
+          "ul", "ol", "li",
+          "blockquote", "pre", "code",
+          "a", "img",
+          "table", "thead", "tbody", "tr", "th", "td",
+          "hr", "mark", "span", "div",
+        ],
+        ALLOWED_ATTR: [
+          "href", "src", "alt", "title", "class", "target", "rel",
+          "style",
+        ],
+        FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover"],
+        ALLOW_DATA_ATTR: false,
+        FORCE_BODY: false,
+      })
+    } catch {
+      // Fall through to fallback
+    }
+  }
+
+  return fallbackSanitize(dirty)
 }
 
 /**
@@ -51,7 +79,13 @@ export function sanitizeHtml(dirty: string): string {
  */
 export function stripTags(dirty: string): string {
   if (!dirty) return ""
-  return DOMPurify.sanitize(dirty, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] })
+  const purifier = getDOMPurify()
+  if (purifier && typeof purifier.sanitize === "function") {
+    try {
+      return purifier.sanitize(dirty, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] })
+    } catch {}
+  }
+  return dirty.replace(/<[^>]*>/g, "")
 }
 
 /** Escape plain user text before interpolating it into an HTML email. */

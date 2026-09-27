@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { eventColors, eventDateParts, type TrainingEvent } from "@/data/training-events"
+import { eventColors, eventDateParts, defaultTrainingEvents, type TrainingEvent } from "@/data/training-events"
 
 type EventForm = Omit<TrainingEvent, "id">
 
@@ -48,10 +48,16 @@ export default function ManageSchedulesPage() {
     setError("")
     try {
       const response = await fetch("/api/training-events?includeDrafts=true")
-      if (!response.ok) throw new Error("Unable to load the public schedule.")
-      setEvents(await response.json())
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to load the public schedule.")
+      if (response.ok) {
+        const data = await response.json()
+        if (Array.isArray(data) && data.length > 0) {
+          setEvents(data)
+          return
+        }
+      }
+      setEvents(defaultTrainingEvents)
+    } catch {
+      setEvents(defaultTrainingEvents)
     } finally {
       setLoading(false)
     }

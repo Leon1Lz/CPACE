@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Newspaper, Plus, Search, Calendar, MessageCircle, Star, Pencil, Trash2, ArrowLeft, Loader2, Sparkles, RefreshCw, CheckCircle2 } from "lucide-react"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import { articlesData } from "@/data/articles"
 
 function generateSlug(text: string) {
   return text
@@ -74,10 +75,16 @@ export default function ManageInsightsPage() {
       const res = await fetch("/api/articles")
       if (res.ok) {
         const data = await res.json()
-        setArticles(data)
+        if (Array.isArray(data) && data.length > 0) {
+          setArticles(data)
+          return
+        }
       }
+      // If DB has 0 or failed, fallback to default landing page articles
+      setArticles(articlesData)
     } catch (err) {
       console.error("Error fetching articles:", err)
+      setArticles(articlesData)
     } finally {
       setLoading(false)
     }

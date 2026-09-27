@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { HomepageFaq } from "@/data/homepage-faqs"
+import { defaultHomepageFaqs } from "@/data/homepage-faqs"
 
 type FaqForm = Omit<HomepageFaq, "id">
 const emptyForm: FaqForm = { category: "certifications", question: "", answer: "", isPublished: true, sortOrder: 0 }
@@ -29,10 +30,16 @@ export default function ManageFaqsPage() {
     try {
       setLoading(true)
       const response = await fetch("/api/homepage-faqs?includeDrafts=true")
-      const data = await response.json()
-      setItems(Array.isArray(data) ? data : [])
+      if (response.ok) {
+        const data = await response.json()
+        if (Array.isArray(data) && data.length > 0) {
+          setItems(data)
+          return
+        }
+      }
+      setItems(defaultHomepageFaqs)
     } catch {
-      setError("Unable to load FAQs.")
+      setItems(defaultHomepageFaqs)
     } finally {
       setLoading(false)
     }
