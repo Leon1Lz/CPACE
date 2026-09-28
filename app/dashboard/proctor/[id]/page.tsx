@@ -155,7 +155,7 @@ export default function MotionMonitorPage({ params }: { params: Promise<{ id: st
   const latest = latestEvent ? parseReason(latestEvent.reason) : null
 
   return (
-    <div className="-m-6 min-h-[calc(100vh-4rem)] space-y-6 bg-[#F5F8F6] p-6 pb-10">
+    <div className="space-y-6">
       <div className="flex flex-col gap-4 rounded-2xl bg-[#105C2E] p-5 text-white shadow-lg lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-start gap-3">
           <Button asChild variant="outline" size="icon" className="rounded-xl shrink-0 border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"><Link href="/dashboard/proctor"><ArrowLeft className="h-4 w-4" /></Link></Button>
@@ -170,7 +170,7 @@ export default function MotionMonitorPage({ params }: { params: Promise<{ id: st
             <p className="text-sm text-green-100 mt-1">{candidateName} · {data.session.assessment.title}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 self-start">
+        <div className="flex items-center gap-2 self-start flex-wrap">
           {!id.startsWith("simulation-") && (
             <Button variant="outline" onClick={() => document.getElementById("chat-fab")?.click()} className="rounded-xl gap-2 border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white">
               <MessageCircle className="h-4 w-4" /> Chat with examinee
@@ -198,7 +198,7 @@ export default function MotionMonitorPage({ params }: { params: Promise<{ id: st
         ))}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.45fr_0.8fr]">
+      <div className="grid gap-6 lg:grid-cols-1 xl:grid-cols-[1.3fr_0.9fr] 2xl:grid-cols-[1.45fr_0.8fr]">
         <div className="space-y-6">
           <Card className="border-0 shadow-lg overflow-hidden bg-slate-950">
             <CardHeader className="border-b border-white/10 flex-row items-center justify-between space-y-0">

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { AlertTriangle, Camera, CameraOff, ScanFace, ShieldCheck } from "lucide-react"
+import { AlertTriangle, Camera, CameraOff, ChevronDown, ChevronUp, ScanFace, ShieldCheck } from "lucide-react"
 
 export type DetectorStatus = "idle" | "loading" | "active" | "error"
 
@@ -73,6 +73,7 @@ export function ExamMotionMonitor({ enabled, videoRef, onViolation, onStatusChan
   const [error, setError] = useState("")
   const [lastEvent, setLastEvent] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
+  const [isMinimized, setIsMinimized] = useState(false)
 
   useEffect(() => {
     onViolationRef.current = onViolation
@@ -274,48 +275,58 @@ export function ExamMotionMonitor({ enabled, videoRef, onViolation, onStatusChan
     : "Waiting for exam session"
 
   return (
-    <aside className="fixed bottom-4 right-4 z-40 w-52 overflow-hidden rounded-2xl border border-emerald-400/70 bg-white shadow-2xl shadow-slate-900/20">
+    <aside className={`fixed bottom-4 right-4 z-40 transition-all duration-200 overflow-hidden rounded-2xl border border-emerald-400/70 bg-white shadow-2xl shadow-slate-900/20 ${isMinimized ? "w-36 sm:w-44" : "w-48 sm:w-52"}`}>
       <div className="relative aspect-video bg-slate-950">
         <video ref={setVideoRef} className="h-full w-full scale-x-[-1] object-cover" autoPlay playsInline muted />
         <div className="absolute inset-[10%] rounded-[28%] border border-white/20">
           <span className="absolute -left-px -top-px h-5 w-5 rounded-tl-lg border-l-2 border-t-2 border-emerald-400" />
           <span className="absolute -bottom-px -right-px h-5 w-5 rounded-br-lg border-b-2 border-r-2 border-emerald-400" />
         </div>
-        <div className="absolute left-2 top-2 flex items-center gap-1.5 rounded-full bg-slate-950/75 px-2 py-1 backdrop-blur-sm">
+        <div className="absolute left-2 top-2 flex items-center gap-1.5 rounded-full bg-slate-950/75 px-2 py-0.5 backdrop-blur-sm">
           <span className={`h-1.5 w-1.5 rounded-full ${status === "active" ? "animate-pulse bg-emerald-400" : status === "error" ? "bg-rose-400" : "animate-pulse bg-amber-400"}`} />
-          <span className="text-[8px] font-black uppercase tracking-wider text-white">Proctor live</span>
+          <span className="text-[8px] font-black uppercase tracking-wider text-white">Live</span>
         </div>
+        <button
+          type="button"
+          onClick={() => setIsMinimized(prev => !prev)}
+          className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-950/60 text-white/80 hover:text-white transition"
+          title={isMinimized ? "Expand monitor details" : "Minimize monitor details"}
+        >
+          {isMinimized ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </button>
         {status !== "active" && (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-950/45 text-white">
             {status === "error" ? <CameraOff className="h-6 w-6" /> : <Camera className="h-6 w-6 animate-pulse" />}
           </div>
         )}
       </div>
-      <div className="space-y-2.5 p-3">
-        <div className="flex items-start gap-2">
-          <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${status === "active" ? "bg-emerald-50 text-emerald-600" : status === "error" ? "bg-rose-50 text-rose-600" : "bg-amber-50 text-amber-600"}`}>
-            {status === "error" ? <AlertTriangle className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}
-          </span>
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold text-slate-800">{statusLabel}</p>
-            <p className="text-[9px] leading-3.5 text-slate-400">{error || "Movement is analyzed during the final exam."}</p>
-            {status === "error" && (
-              <button
-                type="button"
-                onClick={() => setRetryKey(value => value + 1)}
-                className="mt-1 text-[10px] font-bold text-emerald-700 underline underline-offset-2 hover:text-emerald-800"
-              >
-                Retry detector
-              </button>
-            )}
+      {!isMinimized && (
+        <div className="space-y-2 p-2.5 sm:space-y-2.5 sm:p-3">
+          <div className="flex items-start gap-2">
+            <span className={`mt-0.5 flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-lg ${status === "active" ? "bg-emerald-50 text-emerald-600" : status === "error" ? "bg-rose-50 text-rose-600" : "bg-amber-50 text-amber-600"}`}>
+              {status === "error" ? <AlertTriangle className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <ShieldCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-bold text-slate-800">{statusLabel}</p>
+              <p className="text-[8px] sm:text-[9px] leading-3.5 text-slate-400">{error || "Movement is analyzed during the final exam."}</p>
+              {status === "error" && (
+                <button
+                  type="button"
+                  onClick={() => setRetryKey(value => value + 1)}
+                  className="mt-1 text-[9px] sm:text-[10px] font-bold text-emerald-700 underline underline-offset-2 hover:text-emerald-800"
+                >
+                  Retry detector
+                </button>
+              )}
+            </div>
           </div>
+          {lastEvent && (
+            <div className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[8px] sm:text-[9px] font-semibold text-amber-700">
+              <ScanFace className="h-3 w-3 shrink-0" /> Last event: {lastEvent}
+            </div>
+          )}
         </div>
-        {lastEvent && (
-          <div className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-2 py-1.5 text-[9px] font-semibold text-amber-700">
-            <ScanFace className="h-3 w-3 shrink-0" /> Last event: {lastEvent}
-          </div>
-        )}
-      </div>
+      )}
     </aside>
   )
 }

@@ -167,62 +167,62 @@ export default function ResetPasswordPage() {
         <div className="absolute top-16 left-16 w-40 h-40 bg-emerald-500/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-16 right-16 w-56 h-56 bg-teal-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
 
-        <div className="relative z-10 flex flex-col justify-between p-12 w-full">
-          <div className="flex items-center gap-3">
-            <div className="relative w-52 h-14">
+        <div className="relative z-10 flex flex-col justify-between p-8 xl:p-12 w-full overflow-y-auto max-h-screen">
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="relative w-44 sm:w-52 h-12 sm:h-14">
               <Image src="/cpace-logo.png" alt="CPACE Philippines" fill className="object-contain object-left brightness-0 invert" priority />
             </div>
           </div>
 
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 rounded-full text-xs font-semibold">
+          <div className="space-y-5 xl:space-y-7 my-auto py-4">
+            <div className="space-y-3 xl:space-y-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 rounded-full text-xs font-semibold">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 Secure Connection Established
               </div>
-              <h2 className="text-4xl font-bold text-white leading-tight">
+              <h2 className="text-2xl sm:text-3xl xl:text-4xl font-bold text-white leading-tight">
                 Create a Strong Password for{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">
                   Your Account
                 </span>
               </h2>
-              <p className="text-white/70 leading-relaxed">
+              <p className="text-sm xl:text-base text-white/70 leading-relaxed">
                 Choose a strong and secure password containing letters, numbers, and symbols to protect your personal dashboard.
               </p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3 xl:space-y-4">
               {features.map((f, i) => (
-                <div key={i} className="flex items-start gap-4 group">
-                  <div className="w-10 h-10 bg-white/10 border border-white/20 rounded-xl flex items-center justify-center text-emerald-300 shrink-0 group-hover:bg-emerald-500/20 transition-colors duration-200">
+                <div key={i} className="flex items-start gap-3.5 group">
+                  <div className="w-9 h-9 xl:w-10 xl:h-10 bg-white/10 border border-white/20 rounded-xl flex items-center justify-center text-emerald-300 shrink-0 group-hover:bg-emerald-500/20 transition-colors duration-200">
                     {f.icon}
                   </div>
                   <div>
-                    <p className="font-semibold text-white text-sm">{f.title}</p>
-                    <p className="text-white/60 text-xs leading-relaxed">{f.desc}</p>
+                    <p className="font-semibold text-white text-xs xl:text-sm">{f.title}</p>
+                    <p className="text-white/60 text-[11px] xl:text-xs leading-relaxed">{f.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10">
+            <div className="grid grid-cols-3 gap-3 xl:gap-4 pt-4 xl:pt-6 border-t border-white/10">
               {stats.map((s, i) => (
                 <div key={i} className="text-center">
-                  <div className="text-2xl font-bold text-white">{s.value}</div>
-                  <div className="text-xs text-white/50 mt-0.5">{s.label}</div>
+                  <div className="text-xl xl:text-2xl font-bold text-white">{s.value}</div>
+                  <div className="text-[11px] xl:text-xs text-white/50 mt-0.5">{s.label}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4">
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-3.5 xl:p-4 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
-                <Star className="w-5 h-5 text-white" />
+              <div className="w-9 h-9 xl:w-10 xl:h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shrink-0">
+                <Star className="w-4 h-4 xl:w-5 xl:h-5 text-white" />
               </div>
               <div>
-                <p className="text-white font-semibold text-sm">Industry Recognized</p>
-                <p className="text-white/60 text-xs">Certifications trusted by top Philippine employers</p>
+                <p className="text-white font-semibold text-xs xl:text-sm">Industry Recognized</p>
+                <p className="text-white/60 text-[11px] xl:text-xs">Certifications trusted by top Philippine employers</p>
               </div>
             </div>
           </div>
@@ -230,7 +230,7 @@ export default function ResetPasswordPage() {
       </div>
 
       {/* Right Form Panel */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center min-h-screen bg-gray-50 p-6 lg:p-12">
+      <div className="w-full lg:w-1/2 flex items-center justify-center min-h-screen bg-gray-50 p-6 lg:p-8 xl:p-12 overflow-y-auto">
         <div className="w-full max-w-md space-y-8">
           <div className="lg:hidden flex flex-col items-center gap-2">
             <div className="relative w-52 h-14">

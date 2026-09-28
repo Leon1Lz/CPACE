@@ -159,13 +159,13 @@ export function ExamChat({ sessionId, currentUserId, currentUserRole, show }: Ex
       <button
         id="chat-fab"
         onClick={() => setOpen(true)}
-        className={`fixed bottom-6 left-72 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-200 ring-4 ring-violet-300/30 ${
+        className={`fixed bottom-5 left-5 md:left-[calc(var(--sidebar-width,16rem)+1.25rem)] z-50 h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-200 ring-4 ring-violet-300/30 ${
           open ? "scale-0 opacity-0 pointer-events-none" : "scale-100 opacity-100"
         }`}
         aria-label="Open Proctor Chat"
         title="Proctor Chat"
       >
-        <MessageCircle className="h-6 w-6" />
+        <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" />
         {unread > 0 && (
           <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-[11px] font-black flex items-center justify-center animate-bounce">
             {unread > 9 ? "9+" : unread}
@@ -176,7 +176,7 @@ export function ExamChat({ sessionId, currentUserId, currentUserRole, show }: Ex
       {/* Slide-out Sidebar Drawer */}
       <div
         id="exam-chat"
-        className={`fixed top-4 bottom-4 right-4 w-[320px] md:w-[360px] bg-slate-950/95 backdrop-blur-xl border border-white/10 rounded-3xl shadow-[-10px_0_40px_rgba(0,0,0,0.5)] z-50 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
+        className={`fixed top-4 bottom-4 right-4 w-[min(360px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] bg-slate-950/95 backdrop-blur-xl border border-white/10 rounded-3xl shadow-[-10px_0_40px_rgba(0,0,0,0.5)] z-50 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
           open ? "translate-x-0 opacity-100" : "translate-x-[110%] opacity-0 pointer-events-none"
         }`}
       >

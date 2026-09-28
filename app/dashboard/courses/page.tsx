@@ -949,7 +949,7 @@ function LearnerAssessmentsContent({
   if (!selectedProgram) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 lg:gap-6">
           {displayedPrograms.map((prog) => {
             const Icon = prog.icon
             const progAssessments = getProgramAssessments(prog.key)
@@ -962,33 +962,33 @@ function LearnerAssessmentsContent({
                 onClick={() => setSelectedProgram(prog.key)}
                 className="group text-left bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
               >
-                <div className={`bg-gradient-to-r ${prog.gradient} px-6 pt-8 pb-6`}>
-                  <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center mb-4">
-                    <Icon className="h-7 w-7 text-white" />
+                <div className={`bg-gradient-to-r ${prog.gradient} px-5 sm:px-6 pt-7 pb-5`}>
+                  <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-white/20 flex items-center justify-center mb-4">
+                    <Icon className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
                   </div>
-                  <h2 className="text-2xl font-black text-white tracking-tight">{prog.label}</h2>
-                  <p className="text-sm text-white/75 mt-1 leading-snug">{prog.fullName}</p>
+                  <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">{prog.label}</h2>
+                  <p className="text-xs sm:text-sm text-white/75 mt-1 leading-snug">{prog.fullName}</p>
                 </div>
-                <div className="px-6 py-4 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-4">
+                <div className="px-5 sm:px-6 py-4 flex items-center justify-between gap-2">
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2.5 sm:gap-3 xl:gap-4">
                       <div className="text-center">
-                        <p className="text-xl font-black text-gray-900">{progAssessments.length}</p>
-                        <p className="text-xs text-gray-400 font-medium">Total</p>
+                        <p className="text-lg sm:text-xl font-black text-gray-900">{progAssessments.length}</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400 font-medium">Total</p>
                       </div>
-                      <div className="h-8 w-px bg-gray-100" />
+                      <div className="h-7 w-px bg-gray-100" />
                       <div className="text-center">
-                        <p className="text-xl font-black text-gray-900">{practiceCount}</p>
-                        <p className="text-xs text-gray-400 font-medium">Practice</p>
+                        <p className="text-lg sm:text-xl font-black text-gray-900">{practiceCount}</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400 font-medium">Practice</p>
                       </div>
-                      <div className="h-8 w-px bg-gray-100" />
+                      <div className="h-7 w-px bg-gray-100" />
                       <div className="text-center">
-                        <p className="text-xl font-black text-gray-900">{finalCount}</p>
-                        <p className="text-xs text-gray-400 font-medium">Final</p>
+                        <p className="text-lg sm:text-xl font-black text-gray-900">{finalCount}</p>
+                        <p className="text-[10px] sm:text-xs text-gray-400 font-medium">Final</p>
                       </div>
                     </div>
                   </div>
-                  <div className={`h-9 w-9 rounded-xl bg-gradient-to-br ${prog.gradient} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300`}>
+                  <div className={`h-8 w-8 sm:h-9 sm:w-9 shrink-0 rounded-xl bg-gradient-to-br ${prog.gradient} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-300`}>
                     <ChevronRight className="h-4 w-4 text-white" />
                   </div>
                 </div>

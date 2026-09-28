@@ -1374,12 +1374,12 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
         </div>
 
         {/* Two-column layout: Question + Palette */}
-        <div className="flex gap-4 items-start">
+        <div className="flex flex-col lg:flex-row gap-4 items-start">
 
           {/* ── Left: Question Card ────────────────────────────────────── */}
-          <div className="flex-1 space-y-4 min-w-0">
+          <div className="w-full flex-1 space-y-4 min-w-0">
             <Card className="border-0 shadow-md">
-              <CardContent className="p-6 space-y-5">
+              <CardContent className="p-4 sm:p-6 space-y-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1">
                     <span className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black flex items-center justify-center shrink-0 mt-0.5">
@@ -1398,7 +1398,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                 </div>
 
                 {(q.type === "MULTIPLE_CHOICE" || q.type === "TRUE_FALSE") && (
-                  <div className="space-y-2.5 ml-10">
+                  <div className="space-y-2.5 sm:ml-10">
                     {q.options.map((opt) => {
                       const selected = answers[q.id]?.selectedOptionId === opt.id
                       return (
@@ -1425,7 +1425,7 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                 {(q.type === "SHORT_ANSWER" || q.type === "ESSAY") && (
                   <textarea
                     disabled={timeLeft !== null && timeLeft <= 0}
-                    className="w-full ml-10 border border-gray-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    className="w-full sm:ml-10 border border-gray-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400"
                     rows={4}
                     placeholder="Type your answer here..."
                     value={answers[q.id]?.content ?? ""}
@@ -1453,13 +1453,13 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
           </div>
 
           {/* ── Right: Question Palette ────────────────────────────────── */}
-          <div className="w-56 shrink-0 sticky top-4">
+          <div className="w-full lg:w-56 shrink-0 lg:sticky lg:top-4">
             <Card className="border-0 shadow-md">
               <CardContent className="p-4 space-y-3">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Question Palette</p>
 
                 {/* Grid of question numbers */}
-                <div className="grid grid-cols-5 gap-1.5 max-h-[320px] overflow-y-auto pr-1">
+                <div className="grid grid-cols-6 sm:grid-cols-10 lg:grid-cols-5 gap-1.5 max-h-[320px] overflow-y-auto pr-1">
                   {assessment.questions.map((sq, i) => {
                     const isAnswered = !!answers[sq.id]
                     const isFlaggedQ = flagged.has(sq.id)

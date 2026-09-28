@@ -51,7 +51,7 @@ function LogoCard({ filename }: { filename: string }) {
       <img
         src={src}
         alt={name}
-        className="object-contain max-w-full max-h-full w-auto h-auto"
+        className="object-contain max-w-full max-h-full w-auto h-auto mix-blend-multiply"
         loading="lazy"
       />
     </div>

@@ -3,12 +3,11 @@
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { CheckCircle, Users, Award, BookOpen } from "lucide-react"
-import { cpaceStats } from "@/data/stats"
 
 export function HeroSection() {
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-[calc(100vh-4.5rem)] flex items-center justify-center overflow-hidden">
       {/* Professional Background Image with Overlay */}
       <div className="absolute inset-0">
         {/* Hero Background Image */}
@@ -33,13 +32,13 @@ export function HeroSection() {
       <div className="absolute bottom-12 left-1/4 w-20 h-20 bg-gradient-to-br from-teal-400/30 to-emerald-600/30 rounded-full blur-2xl animate-pulse delay-2000"></div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Left Column - Content */}
-          <div className="space-y-8">
+          <div className="space-y-6 lg:space-y-8">
             {/* CPACE Philippines Heading with Green Gradient */}
-            <div className="space-y-4">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight">
+            <div className="space-y-3 sm:space-y-4">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-bold leading-tight tracking-tight">
                 <span className="block text-white drop-shadow-lg">
                   Advance Your
                 </span>
@@ -50,7 +49,7 @@ export function HeroSection() {
                   with CPACE Philippines
                 </span>
               </h1>
-              <p className="text-lg text-white/90 leading-relaxed max-w-xl font-light drop-shadow">
+              <p className="text-base sm:text-lg text-white/90 leading-relaxed max-w-xl font-light drop-shadow">
                 The Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines), is a professional organization that provides professional development and continuing education opportunities to individuals and organizations for their career and professional growth.
               </p>
             </div>
@@ -148,31 +147,6 @@ export function HeroSection() {
                       Start Your Journey
                     </Button>
                   </Link>
-                </div>
-              </div>
-
-              {/* Floating Badges */}
-              <div className="absolute -top-4 -right-4 bg-slate-900/80 backdrop-blur-xl rounded-2xl shadow-xl border border-emerald-400/30 p-3.5 transform rotate-2 hover:rotate-0 transition-all duration-300">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-400/30">
-                    <Users className="h-4 w-4 text-emerald-300" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-white text-sm">{cpaceStats.certifiedProfessionals.value}</div>
-                    <div className="text-[11px] text-emerald-200">Certified Pros</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="absolute -bottom-4 -left-4 bg-slate-900/80 backdrop-blur-xl rounded-2xl shadow-xl border border-teal-400/30 p-3.5 transform -rotate-2 hover:rotate-0 transition-all duration-300">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-teal-500/20 rounded-xl flex items-center justify-center border border-teal-400/30">
-                    <Award className="h-4 w-4 text-teal-300" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-white text-sm">{cpaceStats.chraPassers.value}</div>
-                    <div className="text-[11px] text-teal-200">CHRA™ Passers</div>
-                  </div>
                 </div>
               </div>
             </div>

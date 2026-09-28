@@ -59,13 +59,13 @@ export function Header() {
         <div className="flex justify-between items-center h-18 py-3">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative w-64 sm:w-80 h-14 sm:h-16">
+          <Link href="/" className="flex items-center gap-3 group shrink-0">
+            <div className="relative w-48 sm:w-60 xl:w-72 h-12 sm:h-14 xl:h-16">
               <Image
                 src="/cpace-logo.png"
                 alt="CPACE Philippines - Center for Professional Advancement and Continuing Education"
                 fill
-                sizes="(max-width: 640px) 256px, 320px"
+                sizes="(max-width: 640px) 192px, (max-width: 1280px) 240px, 288px"
                 className="object-contain"
                 priority
               />
@@ -73,7 +73,7 @@ export function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-5 xl:gap-8">
             {navLinks.map((link) => {
               const isActive = pathname === link.href
               return (

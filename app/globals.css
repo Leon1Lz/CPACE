@@ -122,11 +122,15 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
   }
 }
 
@@ -262,6 +266,8 @@
 
 .portal-main {
   background: linear-gradient(135deg, #f0f7f2 0%, #f8faf9 35%, #f6f8fb 100%);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .portal-shell [data-slot="sidebar-menu-button"] {

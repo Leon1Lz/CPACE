@@ -93,13 +93,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const isExamTaking = isExamLocked
 
   return (
-    <SidebarProvider className="portal-shell" style={{ "--sidebar-width": "17.5rem" } as React.CSSProperties}>
+    <SidebarProvider className="portal-shell" style={{ "--sidebar-width": "16rem" } as React.CSSProperties}>
       <AppSidebar role={userRole} userName={userName} userEmail={userEmail} isExamTaking={isExamTaking} />
-      <SidebarInset>
-        <header className="flex h-[76px] shrink-0 items-center gap-2 sm:gap-4 border-b border-slate-200/70 bg-white/95 backdrop-blur-md px-4 lg:px-8 sticky top-0 z-20">
+      <SidebarInset className="min-w-0">
+        <header className="flex h-16 lg:h-[68px] shrink-0 items-center gap-2 sm:gap-4 border-b border-slate-200/70 bg-white/95 backdrop-blur-md px-4 sm:px-6 lg:px-7 sticky top-0 z-20">
           <SidebarTrigger className="-ml-1 text-slate-400 hover:text-slate-700" />
           <Separator orientation="vertical" className="h-5 bg-slate-200" />
-          <Breadcrumb className="min-w-0 [&_ol]:flex-nowrap [&_li]:truncate">
+          <Breadcrumb className="min-w-0 flex-1 [&_ol]:flex-nowrap [&_li]:truncate">
             <BreadcrumbList>
               <BreadcrumbItem>
                 {isExamTaking ? (
@@ -114,14 +114,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               </BreadcrumbItem>
               {pathname !== "/dashboard" && breadcrumbParent && (
                 <>
-                  <BreadcrumbSeparator className="text-slate-300" />
-                  <BreadcrumbItem>
+                  <BreadcrumbSeparator className="text-slate-300 shrink-0" />
+                  <BreadcrumbItem className="min-w-0 truncate">
                     {isExamTaking ? (
-                      <span className="text-slate-400 text-sm cursor-not-allowed select-none opacity-60">
+                      <span className="text-slate-400 text-sm cursor-not-allowed select-none opacity-60 truncate">
                         {breadcrumbParent.label}
                       </span>
                     ) : (
-                      <BreadcrumbLink href={breadcrumbParent.href} className="text-slate-500 hover:text-emerald-700 text-sm font-medium transition-colors">
+                      <BreadcrumbLink href={breadcrumbParent.href} className="text-slate-500 hover:text-emerald-700 text-sm font-medium transition-colors truncate">
                         {breadcrumbParent.label}
                       </BreadcrumbLink>
                     )}
@@ -130,9 +130,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               )}
               {pathname !== "/dashboard" && (
                 <>
-                  <BreadcrumbSeparator className="text-slate-300" />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage className="text-slate-900 font-semibold text-sm">{pageTitle}</BreadcrumbPage>
+                  <BreadcrumbSeparator className="text-slate-300 shrink-0" />
+                  <BreadcrumbItem className="min-w-0 truncate">
+                    <BreadcrumbPage className="text-slate-900 font-semibold text-sm truncate">{pageTitle}</BreadcrumbPage>
                   </BreadcrumbItem>
                 </>
               )}
@@ -140,15 +140,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           </Breadcrumb>
 
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
-            {!isExamTaking && <Link href="/" className="hidden xl:inline-flex items-center gap-1.5 mr-2 text-xs font-medium text-slate-500 hover:text-emerald-800">CPACE website<ArrowUpRight className="h-3.5 w-3.5" /></Link>}
-            <span className={`hidden md:inline-flex text-[10px] font-bold tracking-wide px-2.5 py-1 rounded-full ${roleColors[userRole]}`}>
+            {!isExamTaking && <Link href="/" className="hidden 2xl:inline-flex items-center gap-1.5 mr-2 text-xs font-medium text-slate-500 hover:text-emerald-800">CPACE website<ArrowUpRight className="h-3.5 w-3.5" /></Link>}
+            <span className={`hidden sm:inline-flex text-[10px] font-bold tracking-wide px-2.5 py-1 rounded-full ${roleColors[userRole]}`}>
               {userRole.toUpperCase()}
             </span>
             <NotificationBell />
           </div>
         </header>
-        <main className="portal-main flex-1 min-w-0 overflow-auto p-4 sm:p-6 lg:p-8 animate-in fade-in duration-300">
-          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
+        <main className="portal-main flex-1 min-w-0 overflow-auto p-4 sm:p-5 lg:p-6 xl:p-7 animate-in fade-in duration-300">
+          <div className="mx-auto w-full max-w-[1600px] min-w-0">{children}</div>
         </main>
       </SidebarInset>
     </SidebarProvider>

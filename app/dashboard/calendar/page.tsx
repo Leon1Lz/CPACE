@@ -80,34 +80,51 @@ export default function CalendarPage() {
   return (
     <div className="space-y-6">
       <div><h1 className="flex items-center gap-2 text-2xl font-black text-slate-900"><CalendarDays className="h-6 w-6 text-emerald-600" /> Calendar</h1><p className="mt-1 text-sm text-slate-500">Training events, assessment windows, and result-release dates in one place.</p></div>
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]">
         <Card className="gap-0 overflow-hidden rounded-2xl border-slate-200 py-0 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 px-5 py-4">
             <Button size="icon" variant="ghost" onClick={() => moveMonth(-1)} aria-label="Previous month"><ChevronLeft className="h-4 w-4" /></Button>
             <CardTitle className="text-base font-black text-slate-900">{monthData.label}</CardTitle>
             <Button size="icon" variant="ghost" onClick={() => moveMonth(1)} aria-label="Next month"><ChevronRight className="h-4 w-4" /></Button>
           </CardHeader>
-          <CardContent className="p-0">
-            <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => <div key={day} className="py-2">{day}</div>)}</div>
-            <div className="grid grid-cols-7">
-              {monthData.cells.map(cell => (
-                <div key={cell.date} className={`min-h-24 border-b border-r border-slate-100 p-1.5 sm:min-h-28 sm:p-2 ${cell.currentMonth ? "bg-white" : "bg-slate-50/50"}`}>
-                  <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${cell.date === today ? "bg-emerald-600 text-white" : cell.currentMonth ? "text-slate-700" : "text-slate-300"}`}>{cell.day}</span>
-                  <div className="mt-1 space-y-1">{(itemsByDay[cell.date] ?? []).slice(0, 3).map(item => <Link key={item.id} href={item.href} target={item.href.startsWith("http") ? "_blank" : undefined} className={`block truncate rounded-md px-1.5 py-1 text-[9px] font-semibold sm:text-[10px] ${itemStyle[item.type].className}`} title={item.title}>{item.title}</Link>)}</div>
-                </div>
-              ))}
+          <CardContent className="p-0 overflow-x-auto">
+            <div className="min-w-[600px]">
+              <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => <div key={day} className="py-2">{day}</div>)}</div>
+              <div className="grid grid-cols-7">
+                {monthData.cells.map(cell => (
+                  <div key={cell.date} className={`min-h-24 border-b border-r border-slate-100 p-1.5 sm:min-h-28 sm:p-2 ${cell.currentMonth ? "bg-white" : "bg-slate-50/50"}`}>
+                    <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${cell.date === today ? "bg-emerald-600 text-white" : cell.currentMonth ? "text-slate-700" : "text-slate-300"}`}>{cell.day}</span>
+                    <div className="mt-1 space-y-1">{(itemsByDay[cell.date] ?? []).slice(0, 3).map(item => <Link key={item.id} href={item.href} target={item.href.startsWith("http") ? "_blank" : undefined} className={`block truncate rounded-md px-1.5 py-1 text-[9px] font-semibold sm:text-[10px] ${itemStyle[item.type].className}`} title={item.title}>{item.title}</Link>)}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="h-fit rounded-2xl border-slate-200 shadow-sm">
           <CardHeader><CardTitle className="text-base">{monthData.label} agenda</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {visibleItems.length ? visibleItems.map(item => {
-              const meta = itemStyle[item.type]
-              const Icon = meta.icon
-              return <Link key={item.id} href={item.href} target={item.href.startsWith("http") ? "_blank" : undefined} className="flex gap-3 rounded-xl border border-slate-100 p-3 transition hover:border-emerald-200 hover:bg-emerald-50/30"><div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${meta.className}`}><Icon className="h-4 w-4" /></div><div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{new Date(item.date).toLocaleString([], { dateStyle: "medium", timeStyle: item.type === "TRAINING" ? undefined : "short" })} · {meta.label}</p><p className="truncate text-sm font-bold text-slate-800">{item.title}</p><p className="truncate text-xs text-slate-500">{item.subtitle}</p></div></Link>
-            }) : <div className="py-12 text-center"><CalendarDays className="mx-auto h-9 w-9 text-slate-200" /><p className="mt-3 text-sm font-semibold text-slate-500">Nothing scheduled this month</p></div>}
+          <CardContent>
+            {visibleItems.length ? (
+              <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-1">
+                {visibleItems.map(item => {
+                  const meta = itemStyle[item.type]
+                  const Icon = meta.icon
+                  return (
+                    <Link key={item.id} href={item.href} target={item.href.startsWith("http") ? "_blank" : undefined} className="flex gap-3 rounded-xl border border-slate-100 p-3 transition hover:border-emerald-200 hover:bg-emerald-50/30">
+                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${meta.className}`}><Icon className="h-4 w-4" /></div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{new Date(item.date).toLocaleString([], { dateStyle: "medium", timeStyle: item.type === "TRAINING" ? undefined : "short" })} · {meta.label}</p>
+                        <p className="truncate text-sm font-bold text-slate-800">{item.title}</p>
+                        <p className="truncate text-xs text-slate-500">{item.subtitle}</p>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="py-12 text-center"><CalendarDays className="mx-auto h-9 w-9 text-slate-200" /><p className="mt-3 text-sm font-semibold text-slate-500">Nothing scheduled this month</p></div>
+            )}
           </CardContent>
         </Card>
       </div>

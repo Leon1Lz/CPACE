@@ -165,8 +165,11 @@ export function FloatingCalculator({ show }: FloatingCalculatorProps) {
 
   // Set initial bottom-right position after mount
   useEffect(() => {
-    if (!initialized.current) {
-      setPos({ x: window.innerWidth - 280, y: window.innerHeight - 520 })
+    if (!initialized.current && typeof window !== "undefined") {
+      setPos({
+        x: Math.max(16, window.innerWidth - 280),
+        y: Math.max(16, window.innerHeight - 460),
+      })
       initialized.current = true
     }
   }, [])
@@ -240,11 +243,11 @@ export function FloatingCalculator({ show }: FloatingCalculatorProps) {
       <button
         id="calc-fab"
         onClick={() => { setOpen(true); dispatch("AC") }}
-        className="fixed bottom-6 left-88 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-200 ring-4 ring-emerald-300/30"
+        className="fixed bottom-5 left-20 md:left-[calc(var(--sidebar-width,16rem)+5.25rem)] z-50 h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-200 ring-4 ring-emerald-300/30"
         aria-label="Open Calculator"
         title="Open Calculator"
       >
-        <Calculator className="h-6 w-6" />
+        <Calculator className="h-5 w-5 sm:h-6 sm:w-6" />
       </button>
     )
   }
