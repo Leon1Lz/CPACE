@@ -16,7 +16,9 @@ import {
   Send,
   CheckCircle2,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Navigation,
+  ExternalLink
 } from "lucide-react"
 
 export function ContactSection() {
@@ -27,6 +29,8 @@ export function ContactSection() {
     program: "Professional Certification",
     message: "",
   })
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
+  const [activeMapTab, setActiveMapTab] = useState<"manila" | "dubai">("manila")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -40,6 +44,7 @@ export function ContactSection() {
       await submitPublicForm("/api/contact", formData)
 
       setSubmitted(true)
+      setSelectedPreset(null)
       setFormData({
         name: "",
         email: "",
@@ -92,6 +97,23 @@ export function ContactSection() {
     }
   ]
 
+  const mapLocations = {
+    manila: {
+      name: "Manila Headquarters (BGC)",
+      address: "Unit 1510, High Street South Corporate Plaza Tower 1, 26th St. Corner 9th Ave., BGC Taguig City, Philippines (1634)",
+      embedUrl: "https://www.openstreetmap.org/export/embed.html?bbox=121.0475%2C14.5475%2C121.0555%2C14.5535&layer=mapnik&marker=14.5503%2C121.0515",
+      googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=High+Street+South+Corporate+Plaza+Tower+1,+26th+St+Corner+9th+Ave,+BGC+Taguig+City",
+      wazeUrl: "https://waze.com/ul?q=High+Street+South+Corporate+Plaza+Tower+1+BGC&navigate=yes",
+    },
+    dubai: {
+      name: "Dubai Regional Office",
+      address: "StratEd Global – Level 41, Emirates Towers, Sheikh Zayed Road, Dubai, UAE PO Box 31303",
+      embedUrl: "https://www.openstreetmap.org/export/embed.html?bbox=55.2780%2C25.2140%2C55.2880%2C25.2230&layer=mapnik&marker=25.2185%2C55.2829",
+      googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Emirates+Towers+Sheikh+Zayed+Road+Dubai",
+      wazeUrl: "https://waze.com/ul?q=Emirates+Towers+Dubai&navigate=yes",
+    },
+  }
+
   const presets = [
     { label: "Certification (CFMS® / CMMS® / COMS®)", program: "Professional Certification", placeholder: "I would like to inquire about upcoming examination dates, review materials, and fees for CFMS®, CMMS®, and COMS® certifications." },
     { label: "Business & ISO Consultancy", program: "Business Consultancy", placeholder: "We are interested in consulting services for ISO certification (ISO 9001/14001/45001) / IP registration for our organization." },
@@ -100,11 +122,20 @@ export function ContactSection() {
   ]
 
   const selectPreset = (preset: typeof presets[0]) => {
-    setFormData({
-      ...formData,
-      program: preset.program,
-      message: formData.message || preset.placeholder,
-    })
+    if (selectedPreset === preset.label) {
+      setSelectedPreset(null)
+      setFormData((prev) => ({
+        ...prev,
+        message: prev.message === preset.placeholder ? "" : prev.message,
+      }))
+    } else {
+      setSelectedPreset(preset.label)
+      setFormData((prev) => ({
+        ...prev,
+        program: preset.program,
+        message: preset.placeholder,
+      }))
+    }
   }
 
   return (
@@ -148,8 +179,8 @@ export function ContactSection() {
                       type="button"
                       onClick={() => selectPreset(preset)}
                       className={`text-xs px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
-                        formData.program === preset.program
-                          ? "bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold shadow-xs"
+                        selectedPreset === preset.label
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold shadow-xs ring-1 ring-emerald-300"
                           : "bg-gray-50/80 text-gray-600 border-gray-200 hover:bg-emerald-50/60 hover:text-emerald-700"
                       }`}
                     >
@@ -239,7 +270,18 @@ export function ContactSection() {
                       id="contact-program"
                       value={formData.program}
                       disabled={isSubmitting}
-                      onChange={(e) => setFormData({ ...formData, program: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        const matchedPreset = presets.find((p) => p.program === val)
+                        setSelectedPreset(matchedPreset ? matchedPreset.label : null)
+                        setFormData((prev) => ({
+                          ...prev,
+                          program: val,
+                          message: matchedPreset && (prev.message === "" || presets.some((p) => p.placeholder === prev.message))
+                            ? matchedPreset.placeholder
+                            : prev.message,
+                        }))
+                      }}
                       className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white disabled:bg-gray-50 transition-all"
                     >
                       <option value="Professional Certification">Professional Certification (CFMS®, CMMS®, COMS®)</option>
@@ -289,7 +331,7 @@ export function ContactSection() {
           </div>
 
           {/* Right: Office Cards */}
-          <div className="lg:col-span-5 space-y-6 flex flex-col justify-between">
+          <div className="lg:col-span-5 flex flex-col gap-6 justify-start">
             {contactInfo.map((location, index) => (
               <Card key={index} className="border border-gray-200/80 rounded-2xl shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
@@ -321,27 +363,85 @@ export function ContactSection() {
           </div>
         </div>
 
-        {/* Google Maps */}
+        {/* Interactive Location Map */}
         <div className="mb-16">
-          <h3 className="text-2xl font-bold text-gray-900 text-center mb-8">
-            Visit Our Office
-          </h3>
-          <div className="rounded-2xl overflow-hidden shadow-lg border border-gray-200/80">
+          <div className="text-center mb-6">
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">
+              Visit Our Office
+            </h3>
+            <p className="text-sm text-gray-600 max-w-xl mx-auto">
+              Find our physical offices in Bonifacio Global City, Taguig and Dubai, UAE.
+            </p>
+
+            {/* Location Switcher Tabs */}
+            <div className="inline-flex p-1 bg-gray-100 rounded-xl mt-4 border border-gray-200">
+              <button
+                type="button"
+                onClick={() => setActiveMapTab("manila")}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  activeMapTab === "manila"
+                    ? "bg-white text-emerald-800 shadow-xs"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                🇵🇭 Manila (BGC)
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveMapTab("dubai")}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  activeMapTab === "dubai"
+                    ? "bg-white text-emerald-800 shadow-xs"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                🇦🇪 Dubai (UAE)
+              </button>
+            </div>
+          </div>
+
+          <div className="relative rounded-2xl overflow-hidden shadow-lg border border-gray-200/80 bg-slate-100">
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3861.802!2d121.0508!3d14.5503!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3397c8f7b1c9c4f3%3A0x3a3b1b1b1b1b1b1b!2sHigh%20Street%20South%20Corporate%20Plaza%2C%20BGC%2C%20Taguig%20City!5e0!3m2!1sen!2sph!4v1693500000000!5m2!1sen!2sph"
+              key={activeMapTab}
+              src={mapLocations[activeMapTab].embedUrl}
               width="100%"
-              height="350"
+              height="380"
               style={{ border: 0 }}
-              allowFullScreen
               loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              title="CPACE Philippines Office - High Street South Corporate Plaza, BGC Taguig City"
+              title={`CPACE Office Location - ${mapLocations[activeMapTab].name}`}
               className="w-full"
             ></iframe>
+
+            {/* Office Info & Direction Actions */}
+            <div className="p-4 bg-white/95 backdrop-blur-sm border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-start gap-2.5">
+                <MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span className="text-gray-700 font-medium">
+                  {mapLocations[activeMapTab].address}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={mapLocations[activeMapTab].googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs transition-colors"
+                >
+                  <Navigation className="w-3.5 h-3.5" />
+                  Google Maps
+                </a>
+                <a
+                  href={mapLocations[activeMapTab].wazeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium border border-slate-200 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Waze
+                </a>
+              </div>
+            </div>
           </div>
-          <p className="text-center text-sm text-gray-500 mt-3">
-            Unit 1510, High Street South Corporate Plaza Tower 1, 26th St. Corner 9th Ave., BGC Taguig City
-          </p>
         </div>
 
         {/* Departments */}

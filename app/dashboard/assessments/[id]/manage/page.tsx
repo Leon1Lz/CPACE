@@ -12,7 +12,7 @@ import {
   ChevronLeft, Plus, Trash2, CheckCircle, Circle, Loader2,
   ClipboardCheck, ListChecks, ToggleLeft, FileText, AlignLeft,
   GripVertical, AlertCircle, Upload, Download, FileSpreadsheet,
-  Settings, Eye, FlaskConical, X as XIcon, CalendarClock, BarChart3, ShieldCheck
+  Settings, Eye, FlaskConical, X as XIcon, CalendarClock, BarChart3, ShieldCheck, Database
 } from "lucide-react"
 import Link from "next/link"
 import { Textarea } from "@/components/ui/textarea"
@@ -120,6 +120,15 @@ export default function ManageQuestionsPage() {
   const [editSaving, setEditSaving] = useState(false)
   const [uploadingMaterial, setUploadingMaterial] = useState(false)
   const [materialViewerOpen, setMaterialViewerOpen] = useState(false)
+
+  // Test Bank Import State
+  const [bankModalOpen, setBankModalOpen] = useState(false)
+  const [availableBanks, setAvailableBanks] = useState<any[]>([])
+  const [selectedBankId, setSelectedBankId] = useState<string>("")
+  const [bankQuestions, setBankQuestions] = useState<any[]>([])
+  const [loadingBankQuestions, setLoadingBankQuestions] = useState(false)
+  const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(new Set())
+  const [importingFromBank, setImportingFromBank] = useState(false)
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("motionTest") === "1") {
@@ -300,6 +309,93 @@ export default function ManageQuestionsPage() {
       const url = new URL(window.location.href)
       url.searchParams.delete("motionTest")
       window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`)
+    }
+  }
+
+  const openBankImportModal = async () => {
+    setBankModalOpen(true)
+    setSelectedQuestionIds(new Set())
+    try {
+      const res = await fetch("/api/banks")
+      if (res.ok) {
+        const data = await res.json()
+        setAvailableBanks(Array.isArray(data) ? data : [])
+        if (data.length > 0) {
+          const defaultBankId = data[0].id
+          setSelectedBankId(defaultBankId)
+          void loadBankQuestions(defaultBankId)
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load test banks:", e)
+    }
+  }
+
+  const loadBankQuestions = async (bankId: string) => {
+    if (!bankId) return
+    setLoadingBankQuestions(true)
+    setSelectedQuestionIds(new Set())
+    try {
+      const res = await fetch(`/api/banks/${bankId}/questions`)
+      if (res.ok) {
+        const data = await res.json()
+        setBankQuestions(Array.isArray(data) ? data : [])
+      }
+    } catch (e) {
+      console.error("Failed to load questions from bank:", e)
+    } finally {
+      setLoadingBankQuestions(false)
+    }
+  }
+
+  const handleBankSelectChange = (newBankId: string) => {
+    setSelectedBankId(newBankId)
+    void loadBankQuestions(newBankId)
+  }
+
+  const toggleQuestionSelection = (qId: string) => {
+    setSelectedQuestionIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(qId)) next.delete(qId)
+      else next.add(qId)
+      return next
+    })
+  }
+
+  const toggleSelectAllBankQuestions = () => {
+    if (selectedQuestionIds.size === bankQuestions.length) {
+      setSelectedQuestionIds(new Set())
+    } else {
+      setSelectedQuestionIds(new Set(bankQuestions.map((q) => q.id)))
+    }
+  }
+
+  const handleImportFromBank = async () => {
+    if (selectedQuestionIds.size === 0) return
+    setImportingFromBank(true)
+    try {
+      const res = await fetch(`/api/assessments/${assessmentId}/import-from-bank`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionIds: Array.from(selectedQuestionIds) }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to import questions")
+      }
+      const data = await res.json()
+      alert(data.message || `Successfully imported ${selectedQuestionIds.size} questions!`)
+      setBankModalOpen(false)
+      // Refresh assessment questions
+      const qRes = await fetch(`/api/assessments/${assessmentId}/questions`)
+      if (qRes.ok) {
+        const newQs = await qRes.json()
+        setQuestions(newQs)
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to import questions from test bank.")
+    } finally {
+      setImportingFromBank(false)
     }
   }
 
@@ -664,6 +760,161 @@ export default function ManageQuestionsPage() {
                 <Button onClick={handleUpdateAssessment} disabled={editSaving || !editForm.title || !editForm.courseId} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
                   {editSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Save Details
                 </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Import from Test Bank Button & Dialog */}
+          <Dialog open={bankModalOpen} onOpenChange={setBankModalOpen}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={openBankImportModal}
+              className="rounded-xl border-emerald-300 text-[#105C2E] hover:bg-emerald-50 gap-2"
+            >
+              <Database className="h-4 w-4 text-[#105C2E]" /> Import from Test Bank
+            </Button>
+            <DialogContent className="rounded-2xl max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-gray-900">
+                  <Database className="h-5 w-5 text-[#105C2E]" /> Import Questions from Test Bank
+                </DialogTitle>
+                <DialogDescription className="text-xs text-gray-500">
+                  Select a central question bank and choose questions to duplicate into this exam.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-2">
+                {/* Bank Selector */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="flex-1">
+                    <Label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-1 block">
+                      Source Test Bank
+                    </Label>
+                    <Select value={selectedBankId} onValueChange={handleBankSelectChange}>
+                      <SelectTrigger className="rounded-xl bg-white text-xs">
+                        <SelectValue placeholder="Select a question bank..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableBanks.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>
+                            <span className="font-semibold">{b.course?.category || "COURSE"}</span> - {b.title} ({b._count?.questions || 0} questions)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {bankQuestions.length > 0 && (
+                    <div className="flex items-center gap-2 self-end sm:self-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={toggleSelectAllBankQuestions}
+                        className="rounded-xl text-xs"
+                      >
+                        {selectedQuestionIds.size === bankQuestions.length ? "Deselect All" : "Select All"}
+                      </Button>
+                      <span className="text-xs font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-lg">
+                        {selectedQuestionIds.size} Selected
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Questions Preview List */}
+                {loadingBankQuestions ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 className="h-7 w-7 animate-spin text-[#105C2E]" />
+                  </div>
+                ) : bankQuestions.length === 0 ? (
+                  <div className="text-center py-12 border border-dashed rounded-xl p-6">
+                    <p className="text-sm text-gray-500">This test bank has no questions yet.</p>
+                    <Link
+                      href={selectedBankId ? `/dashboard/question-banks/${selectedBankId}` : "/dashboard/question-banks"}
+                      target="_blank"
+                      className="text-xs text-[#105C2E] hover:underline font-semibold mt-1 inline-block"
+                    >
+                      Open Test Bank to add questions →
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1">
+                    {bankQuestions.map((bq, idx) => {
+                      const isSelected = selectedQuestionIds.has(bq.id)
+                      const diffColors: Record<string, string> = {
+                        EASY: "bg-emerald-100 text-emerald-800",
+                        MEDIUM: "bg-amber-100 text-amber-800",
+                        HARD: "bg-rose-100 text-rose-800",
+                      }
+
+                      return (
+                        <div
+                          key={bq.id}
+                          onClick={() => toggleQuestionSelection(bq.id)}
+                          className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
+                            isSelected
+                              ? "border-emerald-500 bg-emerald-50/50 shadow-xs"
+                              : "border-gray-200 bg-white hover:border-emerald-300"
+                          }`}
+                        >
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleQuestionSelection(bq.id)}
+                            className="mt-0.5"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-bold text-gray-400">#{idx + 1}</span>
+                              <span
+                                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                  diffColors[bq.difficulty] || "bg-gray-100 text-gray-700"
+                                }`}
+                              >
+                                {bq.difficulty}
+                              </span>
+                              {bq.topic && (
+                                <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                                  {bq.topic}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-gray-400">{bq.points} pt</span>
+                            </div>
+                            <p className="text-xs font-semibold text-gray-900 line-clamp-2 leading-relaxed">
+                              {bq.question}
+                            </p>
+                            {bq.explanation && (
+                              <p className="text-[11px] text-emerald-800 bg-emerald-50/80 rounded-md p-1.5 mt-1 line-clamp-1">
+                                💡 {bq.explanation}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                <span className="text-xs text-gray-500">
+                  {selectedQuestionIds.size} of {bankQuestions.length} questions selected
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" onClick={() => setBankModalOpen(false)} className="rounded-xl">
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleImportFromBank}
+                    disabled={selectedQuestionIds.size === 0 || importingFromBank}
+                    className="rounded-xl bg-[#105C2E] hover:bg-[#0B4523] text-white"
+                  >
+                    {importingFromBank ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+                    Import {selectedQuestionIds.size > 0 ? `${selectedQuestionIds.size} ` : ""}Questions
+                  </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>

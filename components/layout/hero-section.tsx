@@ -1,29 +1,34 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
-import { CheckCircle, Users, Award, BookOpen } from "lucide-react"
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { CheckCircle, Users, Award, BookOpen } from "lucide-react";
 
 export function HeroSection() {
-
   return (
     <section className="relative min-h-[calc(100vh-4.5rem)] flex items-center justify-center overflow-hidden">
       {/* Professional Background Image with Overlay */}
       <div className="absolute inset-0">
-        {/* Hero Background Image */}
-        <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{
-          backgroundImage: `url("https://images.unsplash.com/photo-1521791136064-7986c2920216?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80")`
-        }}></div>
-        
+        {/* Hero Background Image - Asian Professional Collaborative Workspace */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url("/assets/asian-professionals.jpg")`,
+          }}
+        ></div>
+
         {/* Multi-layer Gradient Overlay for Better Text Readability */}
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/60 to-emerald-900/60"></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-transparent to-slate-900/40"></div>
-        
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-900/80 to-emerald-950/75"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-transparent to-slate-950/50"></div>
+
         {/* Subtle Pattern Overlay */}
-        <div className="absolute inset-0 opacity-[0.05]" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          backgroundSize: '60px 60px'
-        }}></div>
+        <div
+          className="absolute inset-0 opacity-[0.05]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            backgroundSize: "60px 60px",
+          }}
+        ></div>
       </div>
 
       {/* Premium Floating Elements */}
@@ -32,39 +37,44 @@ export function HeroSection() {
       <div className="absolute bottom-12 left-1/4 w-20 h-20 bg-gradient-to-br from-teal-400/30 to-emerald-600/30 rounded-full blur-2xl animate-pulse delay-2000"></div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-16">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Left Column - Content */}
           <div className="space-y-6 lg:space-y-8">
             {/* CPACE Philippines Heading with Green Gradient */}
             <div className="space-y-3 sm:space-y-4">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-bold leading-tight tracking-tight">
+              <h1 className="text-4xl sm:text-5xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-tight tracking-tight">
                 <span className="block text-white drop-shadow-lg">
                   Advance Your
                 </span>
                 <span className="block bg-gradient-to-r from-emerald-400 via-emerald-300 to-teal-400 bg-clip-text text-transparent drop-shadow-lg">
-                  Career & Business
+                  Career and Business
                 </span>
                 <span className="block text-white drop-shadow-lg">
                   with CPACE Philippines
                 </span>
               </h1>
               <p className="text-base sm:text-lg text-white/90 leading-relaxed max-w-xl font-light drop-shadow">
-                The Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines), is a professional organization that provides professional development and continuing education opportunities to individuals and organizations for their career and professional growth.
+                The Center for Professional Advancement and Continuing
+                Education, Inc. (CPACE Philippines), is a professional
+                organization that provides professional development and
+                continuing education opportunities to individuals and
+                organizations for their career and professional growth.
               </p>
             </div>
 
             {/* Premium CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4">
               <Link href="/about">
-                <Button 
-                  className="bg-white text-emerald-800 hover:bg-emerald-50 font-bold px-7 py-3.5 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 rounded-xl"
-                >
+                <Button className="bg-white text-emerald-800 hover:bg-emerald-50 font-bold px-7 py-3.5 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 rounded-xl">
                   LEARN MORE
                 </Button>
               </Link>
               <Link href="/services">
-                <Button variant="ghost" className="border-2 border-white/40 text-white hover:bg-white/15 hover:text-white hover:border-white/70 font-semibold px-7 py-3.5 transition-all duration-300 transform hover:scale-105 backdrop-blur-sm rounded-xl">
+                <Button
+                  variant="ghost"
+                  className="border-2 border-white/40 text-white hover:bg-white/15 hover:text-white hover:border-white/70 font-semibold px-7 py-3.5 transition-all duration-300 transform hover:scale-105 backdrop-blur-sm rounded-xl"
+                >
                   Explore Programs
                 </Button>
               </Link>
@@ -74,15 +84,21 @@ export function HeroSection() {
             <div className="flex flex-wrap items-center gap-5 pt-2">
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-emerald-400" />
-                <span className="text-xs font-medium text-white/90">Certified Programs</span>
+                <span className="text-xs font-medium text-white/90">
+                  Certified Programs
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-emerald-400" />
-                <span className="text-xs font-medium text-white/90">Expert Instructors</span>
+                <span className="text-xs font-medium text-white/90">
+                  Expert Instructors
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Award className="h-4 w-4 text-emerald-400" />
-                <span className="text-xs font-medium text-white/90">Industry Recognized</span>
+                <span className="text-xs font-medium text-white/90">
+                  Industry Recognized
+                </span>
               </div>
             </div>
           </div>
@@ -93,7 +109,7 @@ export function HeroSection() {
             <div className="relative group">
               {/* Background Glow */}
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/25 to-teal-500/25 rounded-3xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
-              
+
               {/* Main Card */}
               <div className="relative bg-slate-900/60 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 p-7 lg:p-8 transition-all duration-500">
                 <div className="space-y-6">
@@ -103,10 +119,12 @@ export function HeroSection() {
                       <BookOpen className="h-8 w-8 text-emerald-300" />
                     </div>
                     <h3 className="text-2xl font-bold text-white mb-2 drop-shadow-md">
-                      Continuing Education & Professional Certifications
+                      Continuing Education and Professional Certifications
                     </h3>
                     <p className="text-white/80 leading-relaxed text-sm">
-                      Your journey to impact starts here. Continuing education isn&apos;t just about gaining credentials; it&apos;s about seizing new opportunities and making a lasting difference.
+                      Your journey to impact starts here. Continuing education
+                      isn&apos;t just about gaining credentials; it&apos;s about
+                      seizing new opportunities and making a lasting difference.
                     </p>
                   </div>
 
@@ -114,11 +132,16 @@ export function HeroSection() {
                   <div className="space-y-3.5">
                     <div className="flex items-start gap-3.5 p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
                       <div className="w-7 h-7 bg-emerald-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 border border-emerald-400/20">
-                        <CheckCircle className="h-4 w-4 text-emerald-300" />
+                        <Award className="h-4 w-4 text-emerald-300" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-white text-sm">Powerful Programs</h4>
-                        <p className="text-white/70 text-xs leading-relaxed">Relevant programs designed to equip you with insights and abilities</p>
+                        <h4 className="font-semibold text-white text-sm">
+                          Industry Recognized
+                        </h4>
+                        <p className="text-white/70 text-xs leading-relaxed">
+                          Globally aligned credentials and certifications valued
+                          by top employers, universities, and industry leaders
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3.5 p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
@@ -126,8 +149,13 @@ export function HeroSection() {
                         <CheckCircle className="h-4 w-4 text-emerald-300" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-white text-sm">Lead & Innovate</h4>
-                        <p className="text-white/70 text-xs leading-relaxed">Thrive in today&apos;s competitive professional landscape</p>
+                        <h4 className="font-semibold text-white text-sm">
+                          Lead and Innovate
+                        </h4>
+                        <p className="text-white/70 text-xs leading-relaxed">
+                          Thrive in today&apos;s competitive professional
+                          landscape
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3.5 p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
@@ -135,8 +163,13 @@ export function HeroSection() {
                         <CheckCircle className="h-4 w-4 text-emerald-300" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-white text-sm">Stay Relevant</h4>
-                        <p className="text-white/70 text-xs leading-relaxed">In the fast-evolving landscape, staying relevant is a necessity</p>
+                        <h4 className="font-semibold text-white text-sm">
+                          Stay Relevant
+                        </h4>
+                        <p className="text-white/70 text-xs leading-relaxed">
+                          In the fast-evolving landscape, staying relevant is a
+                          necessity
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -154,5 +187,5 @@ export function HeroSection() {
         </div>
       </div>
     </section>
-  )
+  );
 }

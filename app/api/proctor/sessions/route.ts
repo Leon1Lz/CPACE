@@ -102,8 +102,8 @@ export async function DELETE(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const user = await prisma.user.findUnique({ where: { id: session.user.id } })
-    if (!user || user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Only administrators can delete exam history" }, { status: 403 })
+    if (!user || (user.role !== "ADMIN" && user.role !== "PROCTOR")) {
+      return NextResponse.json({ error: "Only administrators and proctors can clear exam history" }, { status: 403 })
     }
 
     const body = await req.json()
@@ -125,11 +125,9 @@ export async function DELETE(req: NextRequest) {
     if (records.length !== ids.length) {
       return NextResponse.json({ error: "One or more history records no longer exist" }, { status: 404 })
     }
-    if (records.some((record) => record.status === "IN_PROGRESS")) {
-      return NextResponse.json({ error: "Active exam sessions cannot be deleted" }, { status: 409 })
-    }
 
     const deleted = await prisma.$transaction(async (transaction) => {
+      await transaction.webRtcSignal.deleteMany({ where: { sessionId: { in: ids } } })
       const result = await transaction.examSession.deleteMany({ where: { id: { in: ids } } })
       await transaction.auditLog.create({
         data: {

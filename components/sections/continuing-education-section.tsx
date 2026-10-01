@@ -5,7 +5,7 @@
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import Link from "next/link"
-import { ChevronDown, ChevronUp, BookOpen, Users, Award, TrendingUp, Target, Lightbulb } from "lucide-react"
+import { ChevronDown, ChevronUp, BookOpen, Users, Award, Target, Lightbulb } from "lucide-react"
 
 export function ContinuingEducationSection() {
   const [showMore, setShowMore] = useState(false)
@@ -44,7 +44,7 @@ export function ContinuingEducationSection() {
 
             {/* Enhanced Main Heading */}
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
-              <span className="block text-gray-900">Continuing Education &</span>
+              <span className="block text-gray-900">Continuing Education and</span>
               <span className="block bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                 Professional Certifications
               </span>
@@ -99,8 +99,8 @@ export function ContinuingEducationSection() {
               <div className="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-emerald-100">
                 <div className="aspect-[4/3] relative">
                   <img 
-                    src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
-                    alt="Professional Education"
+                    src="/assets/asian-professionals.jpg"
+                    alt="Asian Professional Education"
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
@@ -122,30 +122,6 @@ export function ContinuingEducationSection() {
                 </div>
               </div>
 
-              {/* Floating Stat Cards */}
-              <div className="absolute -top-2 -right-2 lg:-top-3 lg:-right-3 bg-white rounded-lg shadow-lg p-2.5 lg:p-3 border border-emerald-100 transform rotate-3 hover:rotate-6 transition-all duration-300">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
-                    <Users className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-gray-900 text-sm">10K+</div>
-                    <div className="text-xs text-gray-600">Graduates</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="absolute -bottom-2 -left-2 lg:-bottom-3 lg:-left-3 bg-white rounded-lg shadow-lg p-2.5 lg:p-3 border border-emerald-100 transform -rotate-3 hover:-rotate-6 transition-all duration-300">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-gray-900 text-sm">95%</div>
-                    <div className="text-xs text-gray-600">Success Rate</div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>

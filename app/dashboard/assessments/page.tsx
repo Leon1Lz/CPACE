@@ -39,17 +39,6 @@ type Assessment = {
 
 const GROUPS = [
   {
-    type: "REVIEWER",
-    label: "Reviewer",
-    subtitle: "Open-book study aid — retake as many times as you need",
-    icon: BookOpen,
-    gradient: "from-sky-500 to-cyan-600",
-    bg: "bg-sky-50",
-    border: "border-sky-100",
-    badge: "bg-sky-100 text-sky-700",
-    pill: "bg-sky-500",
-  },
-  {
     type: "PRACTICE_EXAM",
     label: "Practice Exam",
     subtitle: "Timed drill to prepare for the real thing — retakable",
@@ -59,17 +48,6 @@ const GROUPS = [
     border: "border-violet-100",
     badge: "bg-violet-100 text-violet-700",
     pill: "bg-violet-500",
-  },
-  {
-    type: "RULES_GUIDELINES",
-    label: "Rules & Guidelines",
-    subtitle: "Read and acknowledge exam rules before proceeding",
-    icon: ScrollText,
-    gradient: "from-amber-500 to-orange-500",
-    bg: "bg-amber-50",
-    border: "border-amber-100",
-    badge: "bg-amber-100 text-amber-700",
-    pill: "bg-amber-500",
   },
   {
     type: "FINAL_EXAM",
@@ -88,7 +66,7 @@ const PROGRAMS = [
   {
     key: "CFMS",
     label: "CFMS",
-    fullName: "Certificate in Financial Management Services",
+    fullName: "Certified Financial Management Specialist",
     icon: BarChart3,
     gradient: "from-emerald-600 to-teal-700",
     lightBg: "bg-emerald-50",
@@ -98,7 +76,7 @@ const PROGRAMS = [
   {
     key: "CMMS",
     label: "CMMS",
-    fullName: "Certificate in Marketing Management Services",
+    fullName: "Certified Marketing Management Specialist",
     icon: Building2,
     gradient: "from-blue-600 to-indigo-700",
     lightBg: "bg-blue-50",
@@ -108,7 +86,7 @@ const PROGRAMS = [
   {
     key: "COMS",
     label: "COMS",
-    fullName: "Certificate in Operations Management Services",
+    fullName: "Certified Operational Management Specialist",
     icon: Wrench,
     gradient: "from-orange-500 to-amber-600",
     lightBg: "bg-orange-50",
@@ -119,7 +97,7 @@ const PROGRAMS = [
 
 function AssessmentCard({ a, role, groupBadge, onTogglePublish, onDelete }: { a: Assessment; role?: string; groupBadge: string; onTogglePublish?: (id: string, current: boolean) => void; onDelete?: (id: string) => void }) {
   const myResult = a.results?.[0]
-  const isUnlimited = a.type === "REVIEWER" || a.type === "PRACTICE_EXAM"
+  const isUnlimited = a.type === "PRACTICE_EXAM"
   const isFinal = a.type === "FINAL_EXAM"
 
   return (
@@ -226,7 +204,7 @@ export default function AssessmentsPage() {
   const [form, setForm] = useState({
     title: "",
     description: "",
-    type: "REVIEWER",
+    type: "PRACTICE_EXAM",
     courseId: "",
     timeLimit: "",
     passingScore: "70",
@@ -348,7 +326,7 @@ export default function AssessmentsPage() {
     }
   }
 
-  const isUnlimitedType = form.type === "REVIEWER" || form.type === "PRACTICE_EXAM"
+  const isUnlimitedType = form.type === "PRACTICE_EXAM"
 
   // Assessments for the selected program
   const programAssessments = selectedProgram
@@ -394,7 +372,7 @@ export default function AssessmentsPage() {
                 courses.find(c => c.id === a.courseId)?.category === prog.key
               )
               const finalCount = progAssessments.filter(a => a.type === "FINAL_EXAM").length
-              const practiceCount = progAssessments.filter(a => a.type === "PRACTICE_EXAM" || a.type === "REVIEWER").length
+              const practiceCount = progAssessments.filter(a => a.type === "PRACTICE_EXAM").length
 
               return (
                 <button
@@ -464,7 +442,7 @@ export default function AssessmentsPage() {
               </span>
             </div>
             <p className="text-sm text-gray-500 mt-0.5">
-              {programAssessments.length} assessment{programAssessments.length !== 1 ? "s" : ""} across 4 categories
+              {programAssessments.length} assessment{programAssessments.length !== 1 ? "s" : ""} across Practice &amp; Final Exam tracks
             </p>
           </div>
         </div>
@@ -497,16 +475,14 @@ export default function AssessmentsPage() {
               <div className="space-y-4 mt-2">
                 <div className="space-y-1.5">
                   <Label>Title</Label>
-                  <Input placeholder="e.g. Module 1 Reviewer" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="rounded-xl" />
+                  <Input placeholder="e.g. Comprehensive Practice Exam" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="rounded-xl" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Type</Label>
                   <Select value={form.type} onValueChange={v => setForm(p => ({ ...p, type: v }))}>
                     <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="REVIEWER">Reviewer</SelectItem>
                       <SelectItem value="PRACTICE_EXAM">Practice Exam</SelectItem>
-                      <SelectItem value="RULES_GUIDELINES">Rules & Guidelines</SelectItem>
                       <SelectItem value="FINAL_EXAM">Final Examination</SelectItem>
                     </SelectContent>
                   </Select>
@@ -542,8 +518,7 @@ export default function AssessmentsPage() {
                     </Select>
                   )}
                 </div>
-                 {form.type !== "REVIEWER" && form.type !== "RULES_GUIDELINES" && (
-                   <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label>Time Limit (min)</Label>
                       <Input type="number" placeholder="No limit" value={form.timeLimit} onChange={e => setForm(p => ({ ...p, timeLimit: e.target.value }))} className="rounded-xl" />
@@ -553,7 +528,6 @@ export default function AssessmentsPage() {
                       <Input type="number" value={form.passingScore} onChange={e => setForm(p => ({ ...p, passingScore: e.target.value }))} className="rounded-xl" />
                     </div>
                   </div>
-                 )}
                 {!isUnlimitedType && (
                   <div className="space-y-1.5">
                     <Label>Max Attempts</Label>

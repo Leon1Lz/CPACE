@@ -1,22 +1,22 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import Link from "next/link";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
 import {
   Award,
   DollarSign,
   BarChart3,
   Settings,
   Users,
-  ShieldCheck,
   ArrowRight,
   Star,
   CheckCircle,
   GraduationCap,
   BookOpen,
   Zap,
-  } from "lucide-react"
-import { cpaceStats } from "@/data/stats"
+} from "lucide-react";
+import { cpaceStats } from "@/data/stats";
 
 const certifications = [
   {
@@ -25,15 +25,16 @@ const certifications = [
     description:
       "Validate your expertise in financial management, budgeting, financial analysis, and strategic financial planning. The CFMS® credential distinguishes professionals who demonstrate advanced competency in managing organizational finances.",
     icon: <DollarSign className="w-8 h-8 text-white" />,
+    badgeImage: "/assets/badges/cfms-badge.png",
     gradient: "from-emerald-500 to-teal-600",
     lightBg: "bg-emerald-50",
     lightText: "text-emerald-700",
     lightBorder: "border-emerald-200",
     highlights: [
-      "Financial Analysis & Reporting",
-      "Budgeting & Forecasting",
+      "Financial Analysis and Reporting",
+      "Budgeting and Forecasting",
       "Strategic Financial Planning",
-      "Risk & Compliance Management",
+      "Risk and Compliance Management",
     ],
   },
   {
@@ -42,15 +43,16 @@ const certifications = [
     description:
       "Demonstrate your proficiency in modern marketing management, digital marketing strategy, brand development, and consumer insights. The CMMS® certification equips professionals to lead impactful marketing initiatives.",
     icon: <BarChart3 className="w-8 h-8 text-white" />,
+    badgeImage: "/assets/badges/cmms-badge.png",
     gradient: "from-blue-500 to-cyan-600",
     lightBg: "bg-blue-50",
     lightText: "text-blue-700",
     lightBorder: "border-blue-200",
     highlights: [
       "Digital Marketing Strategy",
-      "Brand Management & Development",
-      "Consumer Behavior & Insights",
-      "Marketing Analytics & ROI",
+      "Brand Management and Development",
+      "Consumer Behavior and Insights",
+      "Marketing Analytics and ROI",
     ],
   },
   {
@@ -59,52 +61,37 @@ const certifications = [
     description:
       "Prove your capability in operations excellence, supply chain management, process optimization, and quality assurance. The COMS® credential is designed for professionals driving operational efficiency.",
     icon: <Settings className="w-8 h-8 text-white" />,
+    badgeImage: "/assets/badges/coms-badge.png",
     gradient: "from-violet-500 to-purple-600",
     lightBg: "bg-violet-50",
     lightText: "text-violet-700",
     lightBorder: "border-violet-200",
     highlights: [
       "Supply Chain Management",
-      "Process Optimization & Lean",
+      "Process Optimization and Lean",
       "Quality Assurance Systems",
-      "Project & Resource Management",
+      "Project and Resource Management",
     ],
   },
   {
-    acronym: "CHRA™",
-    fullName: "Certified Human Resource Associate",
+    acronym: "LLL",
+    fullName: "Labor Law Lecture (A CHRA™ Online Review)",
     description:
-      "Enhance your HR expertise through the CHRA™ Review Lecture and Credential Program. Prepare for the HR profession with comprehensive training in talent management, labor law, and organizational development.",
+      "Deepen your expertise in Philippine labor relations, statutory standards, and HR compliance through CPACE's specialized Labor Law Lecture. An intensive online review program designed to thoroughly prepare candidates for the CHRA™ assessment and practical employment practice.",
     icon: <Users className="w-8 h-8 text-white" />,
-    gradient: "from-orange-500 to-amber-600",
-    lightBg: "bg-orange-50",
-    lightText: "text-orange-700",
-    lightBorder: "border-orange-200",
+    badgeImage: "/assets/badges/lll-badge.png",
+    gradient: "from-emerald-700 to-green-900",
+    lightBg: "bg-emerald-50",
+    lightText: "text-emerald-800",
+    lightBorder: "border-emerald-200",
     highlights: [
-      "Talent Acquisition & Management",
-      "Philippine Labor Law & Compliance",
-      "Compensation & Benefits Design",
-      "Organizational Development",
+      "Philippine Labor Law and Compliance",
+      "Employee Relations and Due Process",
+      "CHRA™ Online Review and Assessment Prep",
+      "HR Legal Compliance and Practical Application",
     ],
   },
-  {
-    acronym: "DPODPS",
-    fullName: "Data Privacy Officer / Data Protection Specialist",
-    description:
-      "Become a certified Data Privacy Officer or Data Protection Specialist. Master the Philippine Data Privacy Act (RA 10173), NPC guidelines, and global data protection frameworks to safeguard organizational data.",
-    icon: <ShieldCheck className="w-8 h-8 text-white" />,
-    gradient: "from-rose-500 to-pink-600",
-    lightBg: "bg-rose-50",
-    lightText: "text-rose-700",
-    lightBorder: "border-rose-200",
-    highlights: [
-      "RA 10173 – Data Privacy Act",
-      "NPC Compliance & Registration",
-      "Privacy Impact Assessment (PIA)",
-      "Breach Management & Response",
-    ],
-  },
-]
+];
 
 const stats = [
   {
@@ -127,7 +114,7 @@ const stats = [
     label: cpaceStats.successRate.label,
     icon: <Zap className="w-5 h-5" />,
   },
-]
+];
 
 export function ProfessionalCertifications() {
   return (
@@ -169,9 +156,10 @@ export function ProfessionalCertifications() {
                 Programs
               </h2>
               <p className="text-lg text-white/70 leading-relaxed">
-                Elevate your career with CPACE Philippines&apos; industry-recognized certifications. Each program is
-                designed to validate your expertise, boost your professional standing, and open doors to new
-                opportunities.
+                Elevate your career with CPACE Philippines&apos;
+                industry-recognized certifications. Each program is designed to
+                validate your expertise, boost your professional standing, and
+                open doors to new opportunities.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link href="/#contact">
@@ -180,7 +168,11 @@ export function ProfessionalCertifications() {
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
                 </Link>
-                <Link href="https://linktr.ee/cpaceph" target="_blank" rel="noopener noreferrer">
+                <Link
+                  href="https://linktr.ee/cpaceph"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   <Button
                     variant="ghost"
                     className="border-2 border-white/30 text-white hover:bg-white/10 hover:text-white hover:border-white/50 font-semibold px-8 py-3 backdrop-blur-sm transition-all duration-300"
@@ -201,7 +193,9 @@ export function ProfessionalCertifications() {
                   <div className="w-10 h-10 bg-gradient-to-br from-emerald-500/30 to-teal-500/30 rounded-xl flex items-center justify-center mb-4 text-emerald-300 group-hover:scale-110 transition-transform duration-300">
                     {stat.icon}
                   </div>
-                  <div className="text-3xl font-bold text-white mb-1">{stat.value}</div>
+                  <div className="text-3xl font-bold text-white mb-1">
+                    {stat.value}
+                  </div>
                   <div className="text-sm text-white/60">{stat.label}</div>
                 </div>
               ))}
@@ -231,8 +225,9 @@ export function ProfessionalCertifications() {
               </span>
             </h3>
             <p className="text-gray-600 text-lg leading-relaxed">
-              Each certification is recognized by leading employers, corporate institutions, and 20+ top academic
-              universities across the Philippines.
+              Each certification is recognized by leading employers, corporate
+              institutions, and 20+ top academic universities across the
+              Philippines.
             </p>
           </div>
 
@@ -248,13 +243,31 @@ export function ProfessionalCertifications() {
                   <div
                     className={`lg:col-span-3 bg-gradient-to-br ${cert.gradient} p-8 lg:p-10 flex flex-col items-center justify-center text-center text-white space-y-4`}
                   >
-                    <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                      {cert.icon}
-                    </div>
-                    <div>
-                      <div className="text-3xl lg:text-4xl font-black tracking-tight">{cert.acronym}</div>
-                      <div className="text-sm text-white/80 font-medium mt-1">Certification Program</div>
-                    </div>
+                    {cert.badgeImage ? (
+                      <div className="relative w-40 h-40 lg:w-48 lg:h-48 group-hover:scale-110 transition-transform duration-300 drop-shadow-lg">
+                        <Image
+                          src={cert.badgeImage}
+                          alt={`${cert.acronym} Badge`}
+                          fill
+                          className="object-contain"
+                          sizes="(max-width: 1024px) 160px, 192px"
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                          {cert.icon}
+                        </div>
+                        <div>
+                          <div className="text-3xl lg:text-4xl font-black tracking-tight">
+                            {cert.acronym}
+                          </div>
+                          <div className="text-sm text-white/80 font-medium mt-1">
+                            Certification Program
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Right: Details */}
@@ -263,7 +276,9 @@ export function ProfessionalCertifications() {
                       <h4 className="text-2xl font-bold text-gray-900 group-hover:text-emerald-700 transition-colors duration-200">
                         {cert.fullName}
                       </h4>
-                      <p className="text-gray-600 leading-relaxed">{cert.description}</p>
+                      <p className="text-gray-600 leading-relaxed">
+                        {cert.description}
+                      </p>
                     </div>
 
                     {/* Highlights Grid */}
@@ -273,9 +288,13 @@ export function ProfessionalCertifications() {
                           <div
                             className={`w-6 h-6 ${cert.lightBg} rounded-lg flex items-center justify-center flex-shrink-0`}
                           >
-                            <CheckCircle className={`w-3.5 h-3.5 ${cert.lightText}`} />
+                            <CheckCircle
+                              className={`w-3.5 h-3.5 ${cert.lightText}`}
+                            />
                           </div>
-                          <span className="text-sm text-gray-700 font-medium">{highlight}</span>
+                          <span className="text-sm text-gray-700 font-medium">
+                            {highlight}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -290,8 +309,12 @@ export function ProfessionalCertifications() {
                           <ArrowRight className="ml-2 w-4 h-4" />
                         </Button>
                       </Link>
-                      
-                      <Link href="https://linktr.ee/cpaceph" target="_blank" rel="noopener noreferrer">
+
+                      <Link
+                        href="https://linktr.ee/cpaceph"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
                         <Button
                           variant="outline"
                           className={`${cert.lightBorder} ${cert.lightText} hover:${cert.lightBg} font-semibold px-6 py-2.5 transition-all duration-200`}
@@ -316,9 +339,12 @@ export function ProfessionalCertifications() {
             <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
               <GraduationCap className="w-8 h-8 text-white" />
             </div>
-            <h4 className="text-3xl font-bold text-gray-900 mb-4">Not sure which certification is right for you?</h4>
+            <h4 className="text-3xl font-bold text-gray-900 mb-4">
+              Not sure which certification is right for you?
+            </h4>
             <p className="text-gray-600 mb-8 max-w-2xl mx-auto text-lg">
-              Our admissions team can help you choose the best certification program based on your career goals, experience, and aspirations.
+              Our admissions team can help you choose the best certification
+              program based on your career goals, experience, and aspirations.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/#contact">
@@ -327,7 +353,11 @@ export function ProfessionalCertifications() {
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
               </Link>
-              <Link href="https://linktr.ee/cpaceph" target="_blank" rel="noopener noreferrer">
+              <Link
+                href="https://linktr.ee/cpaceph"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <Button
                   variant="outline"
                   className="border-emerald-600 text-emerald-600 hover:bg-emerald-50 font-semibold px-8 py-4 text-base"
@@ -340,5 +370,5 @@ export function ProfessionalCertifications() {
         </div>
       </div>
     </section>
-  )
+  );
 }

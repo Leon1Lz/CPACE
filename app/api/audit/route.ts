@@ -102,3 +102,40 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to record audit log" }, { status: 500 })
   }
 }
+
+// DELETE — clear staff audit and security logs
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
+    if (!user || user.role !== "ADMIN") return NextResponse.json({ error: "Only administrators can clear audit logs" }, { status: 403 })
+
+    const { searchParams } = new URL(request.url)
+    const category = searchParams.get("category") // "STAFF", "EXAM_SECURITY", or "ALL"
+
+    const where: Prisma.AuditLogWhereInput = {}
+    if (category && category !== "ALL") {
+      where.category = category
+    }
+
+    const result = await prisma.auditLog.deleteMany({ where })
+
+    await prisma.auditLog.create({
+      data: {
+        actorId: user.id,
+        actorName: `${user.firstName} ${user.lastName}`,
+        actorEmail: user.email,
+        action: "AUDIT_LOGS_CLEAR",
+        category: "STAFF",
+        details: `Cleared ${result.count} audit log entries (${category && category !== "ALL" ? category : "ALL"})`,
+      },
+    })
+
+    return NextResponse.json({ deleted: result.count })
+  } catch (err) {
+    console.error("Audit log DELETE error:", err)
+    return NextResponse.json({ error: "Failed to clear audit logs" }, { status: 500 })
+  }
+}
+

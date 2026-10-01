@@ -59,6 +59,9 @@ import {
   BarChart3,
   Trash2,
   AlertCircle,
+  PlayCircle,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { PaginationControls } from "@/components/ui/pagination-controls"
@@ -120,17 +123,6 @@ type Assessment = {
 
 const GROUPS = [
   {
-    type: "REVIEWER",
-    label: "Reviewer",
-    subtitle: "Open-book study aid — retake as many times as you need",
-    icon: BookOpen,
-    gradient: "from-sky-500 to-cyan-600",
-    bg: "bg-sky-50",
-    border: "border-sky-100",
-    badge: "bg-sky-100 text-sky-700",
-    pill: "bg-sky-500",
-  },
-  {
     type: "PRACTICE_EXAM",
     label: "Practice Exam",
     subtitle: "Timed drill to prepare for the real thing — retakable",
@@ -140,17 +132,6 @@ const GROUPS = [
     border: "border-violet-100",
     badge: "bg-violet-100 text-violet-700",
     pill: "bg-violet-500",
-  },
-  {
-    type: "RULES_GUIDELINES",
-    label: "Rules & Guidelines",
-    subtitle: "Read and acknowledge exam rules before proceeding",
-    icon: ScrollText,
-    gradient: "from-amber-500 to-orange-500",
-    bg: "bg-amber-50",
-    border: "border-amber-100",
-    badge: "bg-amber-100 text-amber-700",
-    pill: "bg-amber-500",
   },
   {
     type: "FINAL_EXAM",
@@ -169,7 +150,7 @@ const PROGRAMS = [
   {
     key: "CFMS",
     label: "CFMS",
-    fullName: "Certificate in Financial Management Services",
+    fullName: "Certified Financial Management Specialist",
     icon: BarChart3,
     gradient: "from-emerald-600 to-teal-700",
     lightBg: "bg-emerald-50",
@@ -179,7 +160,7 @@ const PROGRAMS = [
   {
     key: "CMMS",
     label: "CMMS",
-    fullName: "Certificate in Marketing Management Services",
+    fullName: "Certified Marketing Management Specialist",
     icon: Building2,
     gradient: "from-blue-600 to-indigo-700",
     lightBg: "bg-blue-50",
@@ -189,7 +170,7 @@ const PROGRAMS = [
   {
     key: "COMS",
     label: "COMS",
-    fullName: "Certificate in Operations Management Services",
+    fullName: "Certified Operational Management Specialist",
     icon: Wrench,
     gradient: "from-orange-500 to-amber-600",
     lightBg: "bg-orange-50",
@@ -204,7 +185,7 @@ const PROGRAMS = [
 
 function AssessmentCard({ a, role, groupBadge, onTogglePublish, onDelete }: { a: Assessment; role?: string; groupBadge: string; onTogglePublish?: (id: string, current: boolean) => void; onDelete?: (id: string) => void }) {
   const myResult = a.results?.[0]
-  const isUnlimited = a.type === "REVIEWER" || a.type === "PRACTICE_EXAM"
+  const isUnlimited = a.type === "PRACTICE_EXAM"
   const isFinal = a.type === "FINAL_EXAM"
 
   return (
@@ -365,6 +346,7 @@ export default function CoursesAndAssessmentsPage() {
   const [filterCategory, setFilterCategory] = useState("ALL")
   const [filterStatus, setFilterStatus] = useState("ALL")
   const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set())
+  const [learnerEnrollments, setLearnerEnrollments] = useState<any[]>([])
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
   const [total, setTotal] = useState(0)
@@ -381,7 +363,7 @@ export default function CoursesAndAssessmentsPage() {
   const [assessmentForm, setAssessmentForm] = useState({
     title: "",
     description: "",
-    type: "REVIEWER",
+    type: "PRACTICE_EXAM",
     courseId: "",
     timeLimit: "",
     passingScore: "70",
@@ -409,7 +391,7 @@ export default function CoursesAndAssessmentsPage() {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: limit.toString(),
+        limit: (role === "learner" ? "50" : limit.toString()),
       })
       if (filterCategory && filterCategory !== "ALL") params.append("category", filterCategory)
       if (filterStatus && filterStatus !== "ALL") params.append("status", filterStatus)
@@ -430,13 +412,16 @@ export default function CoursesAndAssessmentsPage() {
     } finally {
       setCoursesLoading(false)
     }
-  }, [page, limit, filterCategory, filterStatus, debouncedSearch])
+  }, [page, limit, filterCategory, filterStatus, debouncedSearch, role])
 
   useEffect(() => {
     fetchCourses()
     if (role === "learner") {
       fetch("/api/enrollments").then(r => r.json()).then(data => {
-        if (Array.isArray(data)) setEnrolledIds(new Set(data.map((e: any) => e.courseId)))
+        if (Array.isArray(data)) {
+          setEnrolledIds(new Set(data.map((e: any) => e.courseId)))
+          setLearnerEnrollments(data)
+        }
       })
     }
   }, [fetchCourses, role, session])
@@ -543,7 +528,7 @@ export default function CoursesAndAssessmentsPage() {
   const handleCreateAssessment = async () => {
     setAssessmentSaving(true)
     setAssessmentError("")
-    const isUnlimited = assessmentForm.type === "REVIEWER" || assessmentForm.type === "PRACTICE_EXAM"
+    const isUnlimited = assessmentForm.type === "PRACTICE_EXAM"
     const targetCourseId = assessmentForm.courseId || programCourses.find((c: any) => c.status === "PUBLISHED")?.id || programCourses[0]?.id
 
     if (!targetCourseId) {
@@ -576,7 +561,7 @@ export default function CoursesAndAssessmentsPage() {
       setAssessmentForm({
         title: "",
         description: "",
-        type: "REVIEWER",
+        type: "PRACTICE_EXAM",
         courseId: targetCourseId,
         timeLimit: "",
         passingScore: "70",
@@ -591,7 +576,7 @@ export default function CoursesAndAssessmentsPage() {
     }
   }
 
-  const isUnlimitedType = assessmentForm.type === "REVIEWER" || assessmentForm.type === "PRACTICE_EXAM"
+  const isUnlimitedType = assessmentForm.type === "PRACTICE_EXAM"
 
   // Assessments for the selected program
   const programAssessments = selectedProgram
@@ -600,7 +585,7 @@ export default function CoursesAndAssessmentsPage() {
 
   const activeProgram = PROGRAMS.find(p => p.key === selectedProgram)
 
-  const isLoading = role === "learner" ? assessmentsLoading : (activeTab === "courses" ? coursesLoading : assessmentsLoading)
+  const isLoading = activeTab === "courses" ? coursesLoading : assessmentsLoading
 
   // ── Auto-select single enrolled program for learners ─────
   useEffect(() => {
@@ -631,18 +616,40 @@ export default function CoursesAndAssessmentsPage() {
   if (role === "learner") {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Learning</h1>
-          <p className="text-sm text-gray-500 mt-1">Reviewers, practice exams, and certification examinations</p>
+        {/* Header + Tabs */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Courses & Assessments</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Access your enrolled certification courses, interactive modules, reviewers, and examinations
+            </p>
+          </div>
+          <TabBar activeTab={activeTab} onTabChange={handleTabChange} />
         </div>
 
-        <LearnerAssessmentsContent
-          assessments={assessments}
-          assessmentCourses={assessmentCourses}
-          selectedProgram={selectedProgram}
-          setSelectedProgram={setSelectedProgram}
-          role={role}
-        />
+        {activeTab === "courses" ? (
+          <LearnerCoursesContent
+            courses={courses}
+            enrollments={learnerEnrollments}
+            loading={coursesLoading}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            filterCategory={filterCategory}
+            setFilterCategory={setFilterCategory}
+            onGoToAssessments={(cat) => {
+              if (cat) setSelectedProgram(cat)
+              handleTabChange("assessments")
+            }}
+          />
+        ) : (
+          <LearnerAssessmentsContent
+            assessments={assessments}
+            assessmentCourses={assessmentCourses}
+            selectedProgram={selectedProgram}
+            setSelectedProgram={setSelectedProgram}
+            role={role}
+          />
+        )}
       </div>
     )
   }
@@ -790,29 +797,36 @@ export default function CoursesAndAssessmentsPage() {
                       <TableRow>
                         <TableHead>Course</TableHead>
                         <TableHead>Category</TableHead>
+                        <TableHead>Modules</TableHead>
                         <TableHead>Students</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Updated</TableHead>
-                        <TableHead className="w-[100px]">Actions</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {courses.map((course) => (
-                        <TableRow key={course.id}>
-                          <TableCell>
+                        <TableRow key={course.id} className="hover:bg-gray-50/80 transition-colors">
+                          <TableCell className="max-w-md py-4">
                             <div>
-                              <div className="font-medium">{course.title}</div>
-                              <div className="text-sm text-gray-500 line-clamp-1">
+                              <div className="font-semibold text-gray-900">{course.title}</div>
+                              <div className="text-xs text-gray-500 line-clamp-1 mt-0.5">
                                 {course.description}
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline">{course.category}</Badge>
+                            <Badge variant="outline" className="font-medium">{course.category}</Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center space-x-1">
-                              <Users className="h-4 w-4 text-gray-400" />
+                            <div className="flex items-center space-x-1.5 text-sm font-medium text-emerald-700">
+                              <BookOpen className="h-4 w-4 text-emerald-600 shrink-0" />
+                              <span>{course._count.modules} modules</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-1.5 text-sm text-gray-600">
+                              <Users className="h-4 w-4 text-gray-400 shrink-0" />
                               <span>{course._count.enrollments}</span>
                             </div>
                           </TableCell>
@@ -821,52 +835,58 @@ export default function CoursesAndAssessmentsPage() {
                               {course.status}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            <div className="text-sm text-gray-500">
-                              {new Date(course.updatedAt).toLocaleDateString()}
-                            </div>
+                          <TableCell className="text-sm text-gray-500 whitespace-nowrap">
+                            {new Date(course.updatedAt).toLocaleDateString()}
                           </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/dashboard/courses/${course.id}`}>
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    View
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/dashboard/courses/${course.id}/edit`}>
-                                    <Edit className="mr-2 h-4 w-4" />
-                                    Edit
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/dashboard/courses/${course.id}/participants`}>
-                                    <Users className="mr-2 h-4 w-4" />
-                                    Participants
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handlePublishToggle(course.id, course.status)}>
-                                  {course.status === "PUBLISHED"
-                                    ? <><EyeOff className="mr-2 h-4 w-4" />Unpublish</>
-                                    : <><Globe className="mr-2 h-4 w-4 text-emerald-600" />Publish</>
-                                  }
-                                </DropdownMenuItem>
-                                {course.status !== "ARCHIVED" && (
-                                  <DropdownMenuItem onClick={() => handleArchive(course.id)} className="text-gray-500">
-                                    <Archive className="mr-2 h-4 w-4" />
-                                    Archive
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button asChild size="sm" variant="outline" className="rounded-xl text-xs font-semibold border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 shrink-0">
+                                <Link href={`/dashboard/courses/${course.id}/edit`}>
+                                  <Edit className="h-3.5 w-3.5 mr-1.5" />
+                                  Edit Modules
+                                </Link>
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0 rounded-lg">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`/dashboard/courses/${course.id}`}>
+                                      <Eye className="mr-2 h-4 w-4" />
+                                      View Course
+                                    </Link>
                                   </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`/dashboard/courses/${course.id}/edit`}>
+                                      <Edit className="mr-2 h-4 w-4" />
+                                      Full Course Editor
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`/dashboard/courses/${course.id}/participants`}>
+                                      <Users className="mr-2 h-4 w-4" />
+                                      Participants
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handlePublishToggle(course.id, course.status)}>
+                                    {course.status === "PUBLISHED"
+                                      ? <><EyeOff className="mr-2 h-4 w-4" />Unpublish</>
+                                      : <><Globe className="mr-2 h-4 w-4 text-emerald-600" />Publish</>
+                                    }
+                                  </DropdownMenuItem>
+                                  {course.status !== "ARCHIVED" && (
+                                    <DropdownMenuItem onClick={() => handleArchive(course.id)} className="text-gray-500">
+                                      <Archive className="mr-2 h-4 w-4" />
+                                      Archive
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -915,6 +935,312 @@ export default function CoursesAndAssessmentsPage() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// LEARNER COURSES CONTENT
+// ═══════════════════════════════════════════════════════════════
+
+function LearnerCoursesContent({
+  courses,
+  enrollments,
+  loading,
+  searchTerm,
+  setSearchTerm,
+  filterCategory,
+  setFilterCategory,
+  onGoToAssessments,
+}: {
+  courses: Course[]
+  enrollments: any[]
+  loading: boolean
+  searchTerm: string
+  setSearchTerm: (s: string) => void
+  filterCategory: string
+  setFilterCategory: (c: string) => void
+  onGoToAssessments: (category?: string | null) => void
+}) {
+  const totalEnrolled = courses.length
+  const totalModules = courses.reduce((acc, c) => acc + (c._count?.modules || 0), 0)
+  const totalCompleted = enrollments.reduce((acc, e) => acc + (Array.isArray(e.completedModules) ? e.completedModules.length : 0), 0)
+  const overallProgress = totalEnrolled > 0
+    ? Math.round(courses.reduce((acc, c) => {
+        const e = enrollments.find((item: any) => item.courseId === c.id)
+        return acc + (e?.progress || 0)
+      }, 0) / totalEnrolled)
+    : 0
+
+  const programs = [
+    { key: "ALL", label: "All Programs" },
+    ...PROGRAMS.map(p => ({ key: p.key, label: p.label })),
+  ]
+
+  return (
+    <div className="space-y-6">
+      {/* Learner Metrics Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <GraduationCap className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Enrolled Courses</p>
+            <p className="text-2xl font-black text-gray-900 mt-0.5">{totalEnrolled}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Active certification tracks</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <BookOpen className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Modules Completed</p>
+            <p className="text-2xl font-black text-gray-900 mt-0.5">
+              {totalCompleted} <span className="text-sm font-semibold text-gray-400">/ {totalModules}</span>
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">Across all enrolled curriculums</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+            <TrendingUp className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Average Progress</p>
+            <p className="text-2xl font-black text-gray-900 mt-0.5">{overallProgress}%</p>
+            <p className="text-xs text-gray-500 mt-0.5">Overall learning track completion</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 p-1 bg-gray-100/80 rounded-2xl overflow-x-auto w-full sm:w-auto">
+          {programs.map((prog) => {
+            const isActive = filterCategory === prog.key
+            return (
+              <button
+                key={prog.key}
+                type="button"
+                onClick={() => setFilterCategory(prog.key)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                  isActive
+                    ? "bg-white text-emerald-700 shadow-xs"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+              >
+                {prog.label}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search enrolled courses..."
+            className="pl-9 h-10 rounded-xl bg-white border-gray-200 text-sm"
+          />
+        </div>
+      </div>
+
+      {/* Courses Grid */}
+      {courses.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-gray-100 p-12 text-center shadow-sm space-y-4 max-w-xl mx-auto">
+          <div className="h-16 w-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+            <BookOpen className="h-8 w-8" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">No Enrolled Courses Found</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              {searchTerm || filterCategory !== "ALL"
+                ? "No courses matched your search or selected program filter."
+                : "You have not been assigned any courses yet. Please check back later or contact your administrator."}
+            </p>
+          </div>
+          {(searchTerm || filterCategory !== "ALL") && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearchTerm("")
+                setFilterCategory("ALL")
+              }}
+              className="rounded-xl text-xs"
+            >
+              Reset Filters
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {courses.map((course) => {
+            const enrollment = enrollments.find((e: any) => e.courseId === course.id)
+            const progress = typeof enrollment?.progress === "number" ? Math.round(enrollment.progress) : 0
+            const completedCount = Array.isArray(enrollment?.completedModules) ? enrollment.completedModules.length : 0
+            const totalCourseModules = course._count?.modules || 0
+            const progInfo = PROGRAMS.find(p => p.key === course.category) || {
+              key: course.category,
+              label: course.category,
+              fullName: course.title,
+              icon: BookOpen,
+              gradient: "from-emerald-600 to-teal-700",
+              lightBg: "bg-emerald-50",
+              border: "border-emerald-100",
+              accent: "text-emerald-700",
+            }
+            const Icon = progInfo.icon
+
+            return (
+              <div
+                key={course.id}
+                className="group bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col justify-between"
+              >
+                <div>
+                  {/* Top Gradient Banner */}
+                  <div className={`bg-gradient-to-r ${progInfo.gradient} p-5 text-white relative overflow-hidden`}>
+                    <div className="flex items-center justify-between gap-3 relative z-10">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0">
+                          <Icon className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold uppercase tracking-wider text-white/80 block">
+                            {progInfo.label} Certification
+                          </span>
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white/20 text-white inline-block mt-0.5">
+                            {course.level || "Professional"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {progress === 100 ? (
+                        <span className="flex items-center gap-1 text-xs font-bold bg-white text-emerald-800 px-2.5 py-1 rounded-full shadow-sm">
+                          <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> Completed
+                        </span>
+                      ) : progress > 0 ? (
+                        <span className="text-xs font-bold bg-white/20 text-white px-2.5 py-1 rounded-full">
+                          {progress}% Complete
+                        </span>
+                      ) : (
+                        <span className="text-xs font-medium bg-black/20 text-white/90 px-2.5 py-1 rounded-full">
+                          Enrolled
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Body */}
+                  <div className="p-5 sm:p-6 space-y-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 leading-snug group-hover:text-emerald-700 transition-colors">
+                        {course.title}
+                      </h3>
+                      <p className="text-xs text-gray-500 line-clamp-2 mt-1.5 leading-relaxed">
+                        {course.description || "Master professional standards and practical competencies through structured interactive modules."}
+                      </p>
+                    </div>
+
+                    {/* Metadata Chips */}
+                    <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600">
+                      <div className="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
+                        <BookOpen className="h-3.5 w-3.5 text-emerald-600" />
+                        <span className="font-semibold text-gray-800">{totalCourseModules}</span>
+                        <span className="text-gray-500">Modules</span>
+                      </div>
+                      {course.duration && (
+                        <div className="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
+                          <Clock className="h-3.5 w-3.5 text-blue-600" />
+                          <span className="text-gray-700">{course.duration}</span>
+                        </div>
+                      )}
+                      {course._count?.assessments > 0 && (
+                        <div className="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
+                          <ClipboardCheck className="h-3.5 w-3.5 text-purple-600" />
+                          <span className="font-semibold text-gray-800">{course._count.assessments}</span>
+                          <span className="text-gray-500">Assessments</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-500 font-medium">Curriculum Progress</span>
+                        <span className="font-bold text-gray-900">
+                          {completedCount} of {totalCourseModules} completed ({progress}%)
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            progress === 100
+                              ? "bg-emerald-600"
+                              : progress > 0
+                              ? "bg-gradient-to-r from-emerald-500 to-teal-500"
+                              : "bg-gray-200"
+                          }`}
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="p-5 sm:p-6 pt-0 space-y-2">
+                  <Button
+                    asChild
+                    className={`w-full rounded-xl font-semibold shadow-sm transition-all duration-200 ${
+                      progress === 100
+                        ? "bg-slate-900 hover:bg-slate-800 text-white"
+                        : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                    }`}
+                  >
+                    <Link href={`/dashboard/courses/${course.id}`}>
+                      {progress === 100 ? (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Review Course Modules
+                        </>
+                      ) : progress > 0 ? (
+                        <>
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          Continue Learning
+                          <ChevronRight className="h-4 w-4 ml-auto" />
+                        </>
+                      ) : (
+                        <>
+                          <PlayCircle className="h-4 w-4 mr-2" />
+                          Start Course
+                          <ChevronRight className="h-4 w-4 ml-auto" />
+                        </>
+                      )}
+                    </Link>
+                  </Button>
+
+                  {course._count?.assessments > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => onGoToAssessments(course.category)}
+                      className="w-full rounded-xl text-xs font-semibold text-gray-500 hover:text-emerald-700 hover:bg-emerald-50/60"
+                    >
+                      <ClipboardCheck className="h-3.5 w-3.5 mr-1.5" />
+                      View Practice & Final Exams
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
 // LEARNER ASSESSMENTS CONTENT
 // ═══════════════════════════════════════════════════════════════
 
@@ -940,7 +1266,7 @@ function LearnerAssessmentsContent({
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-gray-100">
         <ClipboardCheck className="h-12 w-12 text-gray-200 mb-3" />
-        <p className="text-sm font-semibold text-gray-700">No assessments or reviewers assigned yet</p>
+        <p className="text-sm font-semibold text-gray-700">No practice or final assessments assigned yet</p>
         <p className="text-xs text-gray-400 mt-1">Contact your administrator if you expect access to a certification program</p>
       </div>
     )
@@ -954,7 +1280,7 @@ function LearnerAssessmentsContent({
             const Icon = prog.icon
             const progAssessments = getProgramAssessments(prog.key)
             const finalCount = progAssessments.filter(a => a.type === "FINAL_EXAM").length
-            const practiceCount = progAssessments.filter(a => a.type === "PRACTICE_EXAM" || a.type === "REVIEWER").length
+            const practiceCount = progAssessments.filter(a => a.type === "PRACTICE_EXAM").length
 
             return (
               <button
@@ -1021,7 +1347,7 @@ function LearnerAssessmentsContent({
             </span>
           </div>
           <p className="text-sm text-gray-500 mt-0.5">
-            {programAssessments.length} assessment{programAssessments.length !== 1 ? "s" : ""} across 4 categories
+            {programAssessments.length} assessment{programAssessments.length !== 1 ? "s" : ""} across Practice &amp; Final Exam tracks
           </p>
         </div>
       </div>
@@ -1120,7 +1446,7 @@ function AdminAssessmentsContent({
               assessmentCourses.find((c: any) => c.id === a.courseId)?.category === prog.key
             )
             const finalCount = progAssessments.filter(a => a.type === "FINAL_EXAM").length
-            const practiceCount = progAssessments.filter(a => a.type === "PRACTICE_EXAM" || a.type === "REVIEWER").length
+            const practiceCount = progAssessments.filter(a => a.type === "PRACTICE_EXAM").length
 
             return (
               <button
@@ -1166,7 +1492,7 @@ function AdminAssessmentsContent({
     )
   }
 
-  // Level 2: Program selected — show 4 group cards + create dialog
+  // Level 2: Program selected — show group cards + create dialog
   const activeCourse = programCourses.find((c: any) => c.id === assessmentForm.courseId) || programCourses.find((c: any) => c.status === "PUBLISHED") || programCourses[0]
 
   return (
@@ -1187,7 +1513,7 @@ function AdminAssessmentsContent({
               </span>
             </div>
             <p className="text-sm text-gray-500 mt-0.5">
-              {programAssessments.length} assessment{programAssessments.length !== 1 ? "s" : ""} across 4 categories
+              {programAssessments.length} assessment{programAssessments.length !== 1 ? "s" : ""} across Practice &amp; Final Exam tracks
             </p>
           </div>
         </div>
@@ -1213,16 +1539,14 @@ function AdminAssessmentsContent({
             <div className="space-y-4 mt-2">
               <div className="space-y-1.5">
                 <Label>Title</Label>
-                <Input placeholder="e.g. Module 1 Reviewer" value={assessmentForm.title} onChange={e => setAssessmentForm((p: any) => ({ ...p, title: e.target.value }))} className="rounded-xl" />
+                <Input placeholder="e.g. Comprehensive Practice Exam" value={assessmentForm.title} onChange={e => setAssessmentForm((p: any) => ({ ...p, title: e.target.value }))} className="rounded-xl" />
               </div>
               <div className="space-y-1.5">
                 <Label>Type</Label>
                 <Select value={assessmentForm.type} onValueChange={v => setAssessmentForm((p: any) => ({ ...p, type: v }))}>
                   <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="REVIEWER">Reviewer</SelectItem>
                     <SelectItem value="PRACTICE_EXAM">Practice Exam</SelectItem>
-                    <SelectItem value="RULES_GUIDELINES">Rules & Guidelines</SelectItem>
                     <SelectItem value="FINAL_EXAM">Final Examination</SelectItem>
                   </SelectContent>
                 </Select>
@@ -1260,18 +1584,16 @@ function AdminAssessmentsContent({
                 )}
               </div>
 
-              {assessmentForm.type !== "REVIEWER" && assessmentForm.type !== "RULES_GUIDELINES" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Time Limit (min)</Label>
-                    <Input type="number" placeholder="No limit" value={assessmentForm.timeLimit} onChange={e => setAssessmentForm((p: any) => ({ ...p, timeLimit: e.target.value }))} className="rounded-xl" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Passing Score (%)</Label>
-                    <Input type="number" value={assessmentForm.passingScore} onChange={e => setAssessmentForm((p: any) => ({ ...p, passingScore: e.target.value }))} className="rounded-xl" />
-                  </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Time Limit (min)</Label>
+                  <Input type="number" placeholder="No limit" value={assessmentForm.timeLimit} onChange={e => setAssessmentForm((p: any) => ({ ...p, timeLimit: e.target.value }))} className="rounded-xl" />
                 </div>
-              )}
+                <div className="space-y-1.5">
+                  <Label>Passing Score (%)</Label>
+                  <Input type="number" value={assessmentForm.passingScore} onChange={e => setAssessmentForm((p: any) => ({ ...p, passingScore: e.target.value }))} className="rounded-xl" />
+                </div>
+              </div>
               {!isUnlimitedType && (
                 <div className="space-y-1.5">
                   <Label>Max Attempts</Label>

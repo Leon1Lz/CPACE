@@ -78,6 +78,7 @@ model Course {
   groups       GroupCourse[]
   learningPathSteps LearningPathStep[]
   proctorAssignments ProctorAssignment[]
+  questionBanks QuestionBank[]
 
   @@map("courses")
 }
@@ -235,6 +236,7 @@ model Assessment {
   results      AssessmentResult[]
   examSessions ExamSession[]
   learningPathSteps LearningPathStep[]
+  questionPools AssessmentQuestionPool[]
 
   @@map("assessments")
 }
@@ -641,4 +643,89 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@map("audit_logs")
+}
+
+// ==========================================
+// Test Bank / Question Bank Models
+// ==========================================
+
+model QuestionBank {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  code        String?
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  questions   BankQuestion[]
+  pools       AssessmentQuestionPool[]
+
+  @@index([courseId])
+  @@map("question_banks")
+}
+
+model BankQuestion {
+  id           String             @id @default(cuid())
+  question     String
+  type         QuestionType       @default(MULTIPLE_CHOICE)
+  difficulty   QuestionDifficulty @default(MEDIUM)
+  points       Float              @default(1.0)
+  topic        String?
+  tags         String[]
+  explanation  String?
+  formula      String?
+  order        Int                @default(0)
+  timesUsed    Int                @default(0)
+  timesCorrect Int                @default(0)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  bankId       String
+  bank         QuestionBank       @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  options      BankQuestionOption[]
+
+  @@index([bankId, difficulty])
+  @@index([bankId, topic])
+  @@map("bank_questions")
+}
+
+model BankQuestionOption {
+  id         String       @id @default(cuid())
+  text       String
+  isCorrect  Boolean      @default(false)
+  order      Int          @default(0)
+
+  questionId String
+  question   BankQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("bank_question_options")
+}
+
+enum QuestionDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model AssessmentQuestionPool {
+  id            String              @id @default(cuid())
+  assessmentId  String
+  assessment    Assessment          @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  bankId        String
+  bank          QuestionBank        @relation(fields: [bankId], references: [id], onDelete: Cascade)
+
+  drawCount     Int                 @default(10)
+  difficulty    QuestionDifficulty?
+  topic         String?
+  pointsPerItem Float               @default(1.0)
+  order         Int                 @default(0)
+  createdAt     DateTime            @default(now())
+
+  @@index([assessmentId])
+  @@map("assessment_question_pools")
 }

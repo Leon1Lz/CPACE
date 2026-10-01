@@ -8,7 +8,7 @@ import {
   LayoutDashboard, GraduationCap, BarChart3,
   Award, Users, Settings, LogOut, ChevronDown, ShieldCheck, UsersRound,
   Newspaper, Route, ClipboardCheck,
-  CalendarClock, CalendarDays, PanelsTopLeft, ScrollText,
+  CalendarClock, CalendarDays, PanelsTopLeft, ScrollText, Database,
 } from "lucide-react"
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
@@ -36,6 +36,7 @@ const menuItems = {
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
     { id: "calendar", label: "Calendar", icon: CalendarDays, href: "/dashboard/calendar" },
     { id: "courses", label: "Courses & Assessments", icon: GraduationCap, href: "/dashboard/courses" },
+    { id: "question-banks", label: "Test Banks", icon: Database, href: "/dashboard/question-banks" },
     { id: "schedules", label: "Manage Schedules", icon: CalendarClock, href: "/dashboard/schedules" },
     { id: "learning-paths", label: "Learning Paths", icon: Route, href: "/dashboard/learning-paths" },
     { id: "grading", label: "Grading Queue", icon: ClipboardCheck, href: "/dashboard/grading" },
@@ -52,6 +53,7 @@ const menuItems = {
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
     { id: "calendar", label: "Calendar", icon: CalendarDays, href: "/dashboard/calendar" },
     { id: "courses", label: "Courses & Assessments", icon: GraduationCap, href: "/dashboard/courses" },
+    { id: "question-banks", label: "Test Banks", icon: Database, href: "/dashboard/question-banks" },
     { id: "learning-paths", label: "Learning Paths", icon: Route, href: "/dashboard/learning-paths" },
     { id: "grading", label: "Grading Queue", icon: ClipboardCheck, href: "/dashboard/grading" },
     { id: "groups", label: "Groups", icon: UsersRound, href: "/dashboard/groups" },
@@ -84,7 +86,7 @@ export function AppSidebar({ role = "learner", userName = "User", userEmail = ""
   const items = menuItems[role]
   const groups = [
     { label: "Overview", ids: ["dashboard", "calendar"] },
-    { label: "Learning", ids: ["courses", "learning-paths"] },
+    { label: "Learning", ids: ["courses", "question-banks", "learning-paths"] },
     { label: role === "learner" ? "My Results" : "Exams & Results", ids: ["proctor", "grading", "reports", "certificates"] },
     { label: "Administration", ids: ["content", "schedules", "groups", "users", "insights", "audit"] },
   ].map(group => ({ ...group, items: group.ids.flatMap(id => items.filter(item => item.id === id)) })).filter(group => group.items.length)

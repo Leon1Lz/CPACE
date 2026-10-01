@@ -147,8 +147,8 @@ export function AboutSection() {
               
               <div className="relative">
                 <img 
-                  src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
-                  alt="Professional Education"
+                  src="/assets/asian-professionals.jpg"
+                  alt="Asian Professional Education"
                   className="rounded-2xl shadow-2xl w-full h-80 object-cover"
                 />
                 <div className="absolute bottom-6 left-6 right-6">

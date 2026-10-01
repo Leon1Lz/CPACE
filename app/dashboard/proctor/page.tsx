@@ -22,14 +22,13 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   ShieldCheck, Monitor, Clock, Flag, Search, RefreshCw,
   AlertTriangle, CheckCircle, XCircle, Eye, Loader2, ClipboardCheck, MessageCircle, Send, Camera,
-  Play,
-  Grid3X3, List, GraduationCap, History, Trash2,
+  Grid3X3, List, GraduationCap, History, Trash2, Download,
 } from "lucide-react"
 import { ExamChat } from "@/components/ui/exam-chat"
 import Pusher from "pusher-js"
 import { useToast } from "@/hooks/use-toast"
 import { ToastAction } from "@/components/ui/toast"
-import { buildSimulatedSessions } from "@/lib/proctor-simulation"
+
 import { SessionEvidencePanel } from "@/components/proctoring/session-evidence-panel"
 import { loadProctorSessionList } from "@/lib/proctor-session-list"
 import { ProctorAssignments } from "@/components/proctoring/proctor-assignments"
@@ -236,8 +235,6 @@ export default function ProctorPage() {
   const [sessions, setSessions] = useState<ExamSession[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [simulationMode, setSimulationMode] = useState(false)
-  const [simulationCount, setSimulationCount] = useState(12)
   const [viewMode, setViewMode] = useState<"table" | "gallery">("gallery")
   const [galleryPage, setGalleryPage] = useState(1)
   const [pageSize, setPageSize] = useState(12)
@@ -286,6 +283,68 @@ export default function ProctorPage() {
       setAuditLoading(false)
     }
   }, [auditPage, auditCategory, auditSearch])
+
+  const [clearAuditModal, setClearAuditModal] = useState(false)
+  const [clearingAudit, setClearingAudit] = useState(false)
+
+  const handleClearAuditLogs = async () => {
+    setClearingAudit(true)
+    try {
+      const res = await fetch(`/api/audit?category=${auditCategory}`, { method: "DELETE" })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to clear audit logs")
+      toast({
+        title: "Audit logs cleared",
+        description: `Permanently removed ${data.deleted} audit log record${data.deleted === 1 ? "" : "s"}.`,
+      })
+      setClearAuditModal(false)
+      fetchAuditLogs()
+    } catch (err) {
+      toast({
+        title: "Clear audit logs failed",
+        description: err instanceof Error ? err.message : "Unable to clear logs",
+        variant: "destructive",
+      })
+    } finally {
+      setClearingAudit(false)
+    }
+  }
+
+  const extractAuditReport = () => {
+    if (!auditLogs.length) {
+      toast({
+        title: "No audit logs to export",
+        description: "There are no audit log entries matching your current filter.",
+        variant: "destructive",
+      })
+      return
+    }
+    const headers = ["Timestamp", "Category", "Action", "Staff Name", "Staff Email", "IP Address", "Details"]
+    const rows = auditLogs.map(log => [
+      `"${new Date(log.createdAt).toLocaleString()}"`,
+      `"${log.category}"`,
+      `"${log.action}"`,
+      `"${log.actorName || "System"}"`,
+      `"${log.actorEmail || "N/A"}"`,
+      `"${log.ipAddress || "N/A"}"`,
+      `"${(log.details || "").replace(/"/g, '""').replace(/\n/g, " ")}"`,
+    ])
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\r\n")
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `cpace-audit-logs-report-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+
+    toast({
+      title: "Audit report extracted",
+      description: `Downloaded report for ${auditLogs.length} activity log record${auditLogs.length === 1 ? "" : "s"}.`,
+    })
+  }
 
   useEffect(() => {
     if (proctorTab === "audit") {
@@ -419,14 +478,13 @@ export default function ProctorPage() {
 
   // Auto-refresh every 30s
   useEffect(() => {
-    if (simulationMode) return
     const t = setInterval(() => fetchSessions(true), 30000)
     return () => clearInterval(t)
-  }, [fetchSessions, simulationMode])
+  }, [fetchSessions])
 
   const visibleCameraIds = useRef("")
   useEffect(() => {
-    if (simulationMode || !canAccess) return
+    if (!canAccess) return
     const fetchFrames = async () => {
       try {
         const response = await fetch(viewMode === "gallery" ? `/api/proctor/live-feed?ids=${encodeURIComponent(visibleCameraIds.current)}` : "/api/proctor/live-feed?healthOnly=true", { cache: "no-store" })
@@ -445,7 +503,7 @@ export default function ProctorPage() {
       window.clearTimeout(initialLoad)
       window.clearInterval(poller)
     }
-  }, [viewMode, simulationMode, canAccess])
+  }, [viewMode, canAccess])
 
   const handleFlag = async () => {
     if (!selected) return
@@ -516,21 +574,61 @@ export default function ProctorPage() {
     }
   }
 
-  const startSimulation = () => {
-    setSessions(buildSimulatedSessions(Date.now(), simulationCount) as ExamSession[])
-    setSimulationMode(true)
-    setStatusFilter("ALL")
-    setFlagFilter("ALL")
-    setCourseFilter("ALL")
-    toast({
-      title: "Crowded exam simulation started",
-      description: `${simulationCount} temporary examinees are now available for monitoring.`,
-    })
-  }
+  const extractReport = () => {
+    if (!sessions.length) {
+      toast({ title: "No records to export", description: "There are no exam session records available to extract." })
+      return
+    }
 
-  const stopSimulation = () => {
-    setSimulationMode(false)
-    void fetchSessions()
+    const headers = [
+      "Session ID",
+      "Examinee Name",
+      "Examinee Email",
+      "Assessment Title",
+      "Course Program",
+      "Session Status",
+      "Flagged",
+      "Flag Reason",
+      "Started At",
+      "Submitted / Ended At",
+      "Duration",
+      "IP Address",
+      "Camera Status",
+      "Detector Status",
+    ]
+
+    const rows = sessions.map((s) => [
+      `"${s.id}"`,
+      `"${s.user.firstName} ${s.user.lastName}"`,
+      `"${s.user.email}"`,
+      `"${s.assessment.title.replace(/"/g, '""')}"`,
+      `"${courseGroup(s)}"`,
+      `"${s.status}"`,
+      `"${s.flagged ? "FLAGGED" : "NORMAL"}"`,
+      `"${(s.flagReason || "").replace(/"/g, '""').replace(/\n/g, " ")}"`,
+      `"${new Date(s.startedAt).toLocaleString()}"`,
+      `"${s.submittedAt ? new Date(s.submittedAt).toLocaleString() : "In Progress"}"`,
+      `"${elapsed(s.startedAt, s.submittedAt || undefined)}"`,
+      `"${s.ipAddress || "N/A"}"`,
+      `"${s.cameraStatus || "N/A"}"`,
+      `"${s.detectorStatus || "N/A"}"`,
+    ])
+
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\r\n")
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `cpace-exam-monitor-report-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+
+    toast({
+      title: "Report extracted",
+      description: `Downloaded exam monitoring report for ${sessions.length} session${sessions.length === 1 ? "" : "s"}.`,
+    })
   }
 
   const courseGroups = useMemo(() => {
@@ -602,17 +700,40 @@ export default function ProctorPage() {
           </h1>
           <p className="text-sm text-gray-500 mt-1">Monitor active exam sessions in real time</p>
         </div>
-        <div className="flex items-center gap-2">
-          {simulationMode ? (
-            <Button variant="outline" size="sm" onClick={stopSimulation} className="rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50">Exit Simulation</Button>
-          ) : (
-            <><label className="sr-only" htmlFor="simulation-count">Simulation examinees</label><select id="simulation-count" value={simulationCount} onChange={event => setSimulationCount(Number(event.target.value))} className="rounded-xl border border-slate-200 bg-white p-2 text-xs">{[12, 50, 100, 250].map(count => <option key={count} value={count}>{count} examinees</option>)}</select><Button size="sm" onClick={startSimulation} className="rounded-xl gap-2 bg-[#105C2E] hover:bg-[#0B4523] text-white"><Play className="h-4 w-4" /> Simulate</Button></>
-          )}
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
-            variant="outline" size="sm"
-            onClick={() => simulationMode ? setSessions(buildSimulatedSessions(Date.now(), simulationCount) as ExamSession[]) : fetchSessions(true)}
+            variant="outline"
+            size="sm"
+            onClick={extractReport}
+            className="rounded-xl border-gray-200 gap-1.5 text-slate-700 hover:bg-slate-50"
+            title="Download CSV report of examinee sessions and violations"
+          >
+            <Download className="h-4 w-4 text-emerald-600" />
+            Extract Report
+          </Button>
+
+          {sessions.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const targets = historyBaseSessions.length > 0 ? historyBaseSessions : sessions
+                setDeleteTargets(targets)
+              }}
+              className="rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 gap-1.5"
+              title="Remove session records from exam monitor"
+            >
+              <Trash2 className="h-4 w-4 text-rose-600" />
+              Clear History ({historyBaseSessions.length > 0 ? historyBaseSessions.length : sessions.length})
+            </Button>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void fetchSessions(true)}
             disabled={refreshing}
-            className="rounded-xl border-gray-200 gap-2"
+            className="rounded-xl border-gray-200 gap-1.5"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
             Refresh
@@ -620,15 +741,8 @@ export default function ProctorPage() {
         </div>
       </div>
 
-      {!simulationMode && <ProctorAssignments isAdmin={role === "ADMIN"} onChanged={() => void fetchSessions(true)} />}
-      {!simulationMode && proctorTab === "monitor" && <IncidentQueue />}
-
-      {simulationMode && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-center gap-2">
-          <Play className="h-4 w-4 fill-current" />
-          <strong>Simulation mode:</strong> {simulationCount} synthetic sessions with mixed connection states. No database changes or real camera streams; this is a UI exercise, not a production load test.
-        </div>
-      )}
+      <ProctorAssignments isAdmin={role === "ADMIN"} onChanged={() => void fetchSessions(true)} />
+      {proctorTab === "monitor" && <IncidentQueue />}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
         <div className="mb-2 flex items-center gap-2 px-1 text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -714,7 +828,7 @@ export default function ProctorPage() {
                 <h2 className="flex items-center gap-2 font-bold text-gray-900"><History className="h-5 w-5 text-violet-600" /> Exam Session History</h2>
                 <p className="mt-1 text-xs text-gray-500">Completed and abandoned monitoring records. Exam results and certificates are stored separately.</p>
               </div>
-              {role === "ADMIN" && historySessions.length > 0 && (
+              {canAccess && historySessions.length > 0 && (
                 <div className="flex items-center gap-2">
                   {historySelected.size > 0 && (
                     <Button variant="outline" size="sm" onClick={() => setDeleteTargets(historySessions.filter((item) => historySelected.has(item.id)))} className="rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50">
@@ -798,7 +912,7 @@ export default function ProctorPage() {
                         <TableCell className="whitespace-nowrap text-xs text-gray-500">{new Date(item.startedAt).toLocaleString()}</TableCell>
                         <TableCell className="whitespace-nowrap text-xs text-gray-500">{item.submittedAt ? new Date(item.submittedAt).toLocaleString() : "Not submitted"}</TableCell>
                         <TableCell>{item.flagged ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600"><Flag className="h-3 w-3" /> Flagged</span> : <span className="text-xs text-gray-300">None</span>}</TableCell>
-                        <TableCell><div className="flex justify-end gap-1.5"><Button asChild size="sm" variant="outline" className="h-7 rounded-lg text-xs"><Link href={`/dashboard/proctor/${item.id}`}><Eye className="mr-1 h-3 w-3" /> View</Link></Button>{role === "ADMIN" && <Button size="sm" variant="outline" onClick={() => setDeleteTargets([item])} className="h-7 rounded-lg border-rose-200 text-xs text-rose-600 hover:bg-rose-50"><Trash2 className="mr-1 h-3 w-3" /> Delete</Button>}</div></TableCell>
+                        <TableCell><div className="flex justify-end gap-1.5"><Button asChild size="sm" variant="outline" className="h-7 rounded-lg text-xs"><Link href={`/dashboard/proctor/${item.id}`}><Eye className="mr-1 h-3 w-3" /> View</Link></Button>{canAccess && <Button size="sm" variant="outline" onClick={() => setDeleteTargets([item])} className="h-7 rounded-lg border-rose-200 text-xs text-rose-600 hover:bg-rose-50"><Trash2 className="mr-1 h-3 w-3" /> Delete</Button>}</div></TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -819,20 +933,44 @@ export default function ProctorPage() {
                 className="pl-9 rounded-xl border-gray-200"
               />
             </div>
-            <div className="flex items-center gap-2">
-              {[
-                { key: "ALL", label: "All Logs" },
-                { key: "STAFF", label: "Staff Actions" },
-                { key: "EXAM_SECURITY", label: "Exam Security Flags" },
-              ].map(cat => (
-                <button
-                  key={cat.key}
-                  onClick={() => { setAuditCategory(cat.key); setAuditPage(1); }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${auditCategory === cat.key ? "bg-violet-600 text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                {[
+                  { key: "ALL", label: "All Logs" },
+                  { key: "STAFF", label: "Staff Actions" },
+                  { key: "EXAM_SECURITY", label: "Exam Security Flags" },
+                ].map(cat => (
+                  <button
+                    key={cat.key}
+                    onClick={() => { setAuditCategory(cat.key); setAuditPage(1); }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${auditCategory === cat.key ? "bg-violet-600 text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={extractAuditReport}
+                className="h-8 rounded-xl border-slate-200 text-xs font-semibold gap-1.5 bg-white hover:bg-slate-50"
+                title="Export audit logs report to CSV"
+              >
+                <Download className="h-3.5 w-3.5 text-slate-600" />
+                Extract Report
+              </Button>
+              {role === "ADMIN" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setClearAuditModal(true)}
+                  className="h-8 rounded-xl border-rose-200 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:border-rose-300 gap-1.5"
+                  title="Clear staff audit and security logs"
                 >
-                  {cat.label}
-                </button>
-              ))}
+                  <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                  Clear History
+                </Button>
+              )}
             </div>
           </div>
 
@@ -929,6 +1067,21 @@ export default function ProctorPage() {
                   <List className="h-3.5 w-3.5" /> List
                 </button>
               </div>
+              {sessions.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const targets = historyBaseSessions.length > 0 ? historyBaseSessions : filtered
+                    setDeleteTargets(targets)
+                  }}
+                  className="rounded-xl border-rose-200 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:border-rose-300 gap-1.5 h-9"
+                  title="Clear exam session records from live monitor"
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                  Clear History ({historyBaseSessions.length > 0 ? historyBaseSessions.length : filtered.length})
+                </Button>
+              )}
             </div>
           </CardHeader>
 
@@ -942,30 +1095,21 @@ export default function ProctorPage() {
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {gallerySessions.map((s) => {
                 const cameraFrame = liveFrames[s.id]?.snapshot || s.identityPhoto
-                const health = getProctorHealth(s, simulationMode ? s.lastHeartbeatAt : liveFrames[s.id]?.snapshotAt, tick)
-                const cameraHealth = simulationMode ? "Simulated camera" : health.camera
+                const health = getProctorHealth(s, liveFrames[s.id]?.snapshotAt, tick)
+                const cameraHealth = health.camera
                 const latestReason = s.flagReason?.replace(/^\[[^\]]+\]\s*/, "").split(":")[0]?.replaceAll("_", " ")
                 return (
                   <article key={s.id} className={`group overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${s.flagged ? "border-rose-300 ring-1 ring-rose-100" : "border-slate-200"}`}>
                     <div className="relative aspect-video overflow-hidden bg-slate-950">
-                      {simulationMode ? (
-                        cameraFrame ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={cameraFrame} alt={`${s.user.firstName} ${s.user.lastName} camera`} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-                        ) : (
-                          <div className="flex h-full items-center justify-center"><Camera className="h-9 w-9 text-white/25" /></div>
-                        )
-                      ) : (
-                        <ProctorVideoFeed
-                          sessionId={s.id}
-                          fallbackSnapshot={cameraFrame ?? null}
-                          candidateName={`${s.user.firstName} ${s.user.lastName}`}
-                          stale={cameraHealth === "Feed stale"}
-                          compact={true}
-                          fit="cover"
-                          showFullscreenButton={true}
-                        />
-                      )}
+                      <ProctorVideoFeed
+                        sessionId={s.id}
+                        fallbackSnapshot={cameraFrame ?? null}
+                        candidateName={`${s.user.firstName} ${s.user.lastName}`}
+                        stale={cameraHealth === "Feed stale"}
+                        compact={true}
+                        fit="cover"
+                        showFullscreenButton={true}
+                      />
                       {s.flagged && <span className="absolute right-2.5 top-2.5 rounded-full bg-rose-600 px-2 py-0.5 text-[9px] font-black uppercase text-white shadow z-10">High priority</span>}
                     </div>
                     <div className="p-4">
@@ -977,12 +1121,20 @@ export default function ProctorPage() {
                       <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
                         <div className="min-w-0"><p className="text-[10px] uppercase tracking-wide text-slate-400">Latest event</p><p className={`truncate text-xs font-semibold ${s.flagged ? "text-rose-600" : "text-slate-500"}`}>{latestReason || "No recent events"}</p></div>
                         <div className="flex shrink-0 items-center gap-1.5">
-                          {!simulationMode && (
-                            <Button size="sm" variant="outline" onClick={() => openSessionChat(s)} className="h-8 rounded-lg border-violet-200 px-2.5 text-xs text-violet-700 hover:bg-violet-50">
-                              <MessageCircle className="mr-1 h-3 w-3" /> Chat
-                            </Button>
-                          )}
+                          <Button size="sm" variant="outline" onClick={() => openSessionChat(s)} className="h-8 rounded-lg border-violet-200 px-2.5 text-xs text-violet-700 hover:bg-violet-50">
+                            <MessageCircle className="mr-1 h-3 w-3" /> Chat
+                          </Button>
                           <Button asChild size="sm" className="h-8 rounded-lg bg-[#105C2E] px-2.5 text-xs text-white hover:bg-[#0B4523]"><Link href={`/dashboard/proctor/${s.id}`}><Eye className="mr-1 h-3 w-3" /> View</Link></Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={(e) => { e.stopPropagation(); setDeleteTargets([s]); }}
+                            className="h-8 w-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0"
+                            title="Remove session record"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -1020,7 +1172,7 @@ export default function ProctorPage() {
               <TableBody>
                 {filtered.map(s => {
                   const initials = `${s.user.firstName[0]}${s.user.lastName[0]}`.toUpperCase()
-                  const health = getProctorHealth(s, simulationMode ? s.lastHeartbeatAt : liveFrames[s.id]?.snapshotAt, tick)
+                  const health = getProctorHealth(s, liveFrames[s.id]?.snapshotAt, tick)
                   return (
                     <TableRow key={s.id} className={`border-gray-50 hover:bg-gray-50/50 ${s.flagged ? "bg-rose-50/40" : ""}`}>
                       <TableCell>
@@ -1071,16 +1223,14 @@ export default function ProctorPage() {
                               <Eye className="h-3 w-3 mr-1" /> View
                             </Link>
                           </Button>
-                          {!simulationMode && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openSessionChat(s)}
-                              className="h-7 rounded-xl border-violet-200 text-xs text-violet-700 hover:bg-violet-50"
-                            >
-                              <MessageCircle className="mr-1 h-3 w-3" /> Chat
-                            </Button>
-                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openSessionChat(s)}
+                            className="h-7 rounded-xl border-violet-200 text-xs text-violet-700 hover:bg-violet-50"
+                          >
+                            <MessageCircle className="mr-1 h-3 w-3" /> Chat
+                          </Button>
                           {!s.flagged ? (
                             <Button
                               size="sm" variant="outline"
@@ -1098,6 +1248,15 @@ export default function ProctorPage() {
                               <CheckCircle className="h-3 w-3 mr-1" /> Unflag
                             </Button>
                           )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setDeleteTargets([s])}
+                            className="h-7 w-7 p-0 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                            title="Remove session record"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1275,7 +1434,7 @@ export default function ProctorPage() {
             <AlertDialogTitle className="flex items-center gap-2 text-rose-700"><Trash2 className="h-5 w-5" /> Delete exam history?</AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <span className="block">This permanently removes {deleteTargets.length} monitoring record{deleteTargets.length === 1 ? "" : "s"}, including associated chat messages, incident evidence, and detector events.</span>
-              <span className="block font-semibold text-gray-700">Assessment scores, results, and certificates will not be deleted. Active exams cannot be deleted.</span>
+              <span className="block font-semibold text-gray-700">Assessment scores, results, and certificates will remain preserved.</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1283,6 +1442,41 @@ export default function ProctorPage() {
             <AlertDialogAction disabled={deletingHistory} onClick={(event) => { event.preventDefault(); void deleteHistory() }} className="rounded-xl bg-rose-600 text-white hover:bg-rose-700">
               {deletingHistory ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
               Permanently delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear Audit Logs Dialog */}
+      <AlertDialog open={clearAuditModal} onOpenChange={setClearAuditModal}>
+        <AlertDialogContent className="rounded-2xl max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900 flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-rose-600" />
+              Clear Staff Audit & Security Logs
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-500 text-sm">
+              Are you sure you want to permanently clear activity logs for category:{" "}
+              <span className="font-semibold text-gray-800">
+                {auditCategory === "ALL" ? "All Logs" : auditCategory === "STAFF" ? "Staff Actions" : "Exam Security Flags"}
+              </span>
+              ? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={clearingAudit} className="rounded-xl">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                void handleClearAuditLogs()
+              }}
+              disabled={clearingAudit}
+              className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {clearingAudit ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {clearingAudit ? "Clearing…" : "Confirm Clear"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

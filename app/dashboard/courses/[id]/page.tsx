@@ -290,7 +290,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
             {/* Course Assessments Section */}
             {course.assessments && course.assessments.length > 0 && (
               <div className="pt-4 border-t border-gray-100 space-y-2 animate-fade-in">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1 mb-2">Assessments &amp; Reviewers</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1 mb-2">Practice &amp; Final Exams</p>
                 {[...course.assessments]
                   .sort((a, b) => {
                     const orderMap: Record<string, number> = { RULES_GUIDELINES: 1, REVIEWER: 2, PRACTICE_EXAM: 3, FINAL_EXAM: 4 }
@@ -368,11 +368,20 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
                         <p className="text-sm text-gray-500 mt-1">{activeModule.description}</p>
                       )}
                     </div>
-                    {activeModule.duration && (
-                      <div className="shrink-0 flex items-center gap-1.5 text-sm text-gray-400 bg-gray-50 rounded-xl px-3 py-1.5">
-                        <Clock className="h-3.5 w-3.5" /> {activeModule.duration} min
-                      </div>
-                    )}
+                    <div className="shrink-0 flex items-center gap-2">
+                      {isStaff && (
+                        <Button asChild size="sm" variant="outline" className="rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-semibold">
+                          <Link href={`/dashboard/courses/${course.id}/edit`}>
+                            <Edit className="h-3.5 w-3.5 mr-1.5" /> Edit Module Content
+                          </Link>
+                        </Button>
+                      )}
+                      {activeModule.duration && (
+                        <div className="flex items-center gap-1.5 text-sm text-gray-400 bg-gray-50 rounded-xl px-3 py-1.5">
+                          <Clock className="h-3.5 w-3.5" /> {activeModule.duration} min
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
 
