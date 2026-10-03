@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -10,9 +11,14 @@ import {
   Phone,
   MapPin,
   ShieldCheck,
+  Cloud,
+  Cookie,
 } from "lucide-react";
+import { CookieSettingsDialog } from "./cookie-settings-dialog";
 
 export function Footer() {
+  const [cookieSettingsOpen, setCookieSettingsOpen] = useState(false);
+
   const quickLinks = [
     { name: "About Us", href: "/about" },
     { name: "Services & Certifications", href: "/services" },
@@ -110,9 +116,10 @@ export function Footer() {
               </div>
             </div>
 
-            {/* National Privacy Commission (NPC) DPO/DPS Registration Seal */}
-            <div className="pt-2">
-              <div className="flex items-center gap-3.5 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 backdrop-blur-sm hover:border-emerald-500/30 transition-all max-w-md">
+            {/* Accreditations & Partnerships */}
+            <div className="pt-2 flex flex-col sm:flex-row gap-3">
+              {/* National Privacy Commission (NPC) DPO/DPS Registration Seal */}
+              <div className="flex-1 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 backdrop-blur-sm hover:border-emerald-500/30 transition-all">
                 <a
                   href="/assets/cor-seal.png"
                   target="_blank"
@@ -127,12 +134,12 @@ export function Footer() {
                     className="object-contain"
                   />
                 </a>
-                <div className="space-y-1 text-xs">
-                  <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-400">
-                    <ShieldCheck className="h-3 w-3" />
-                    NPC Registered DPO/DPS
+                <div className="space-y-1 text-xs min-w-0">
+                  <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
+                    <ShieldCheck className="h-3 w-3 shrink-0" />
+                    <span className="truncate">NPC Registered DPO/DPS</span>
                   </div>
-                  <p className="text-xs font-semibold text-white">
+                  <p className="text-xs font-semibold text-white leading-tight">
                     National Privacy Commission
                   </p>
                   <p className="text-[11px] text-gray-300 leading-tight">
@@ -140,6 +147,39 @@ export function Footer() {
                   </p>
                   <p className="text-[10px] text-gray-400">
                     Validity Period: 24 September 2027
+                  </p>
+                </div>
+              </div>
+
+              {/* Google Cloud Partner */}
+              <div className="flex-1 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 backdrop-blur-sm hover:border-sky-500/30 transition-all">
+                <a
+                  href="https://cloud.google.com/partners"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-white p-1.5 shadow-md hover:scale-105 transition-transform flex items-center justify-center"
+                  title="Click to view Google Cloud Partner directory"
+                >
+                  <Image
+                    src="/assets/google-cloud-partner.svg"
+                    alt="Google Cloud Partner"
+                    fill
+                    className="object-contain"
+                  />
+                </a>
+                <div className="space-y-1 text-xs min-w-0">
+                  <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-400">
+                    <Cloud className="h-3 w-3 shrink-0" />
+                    <span className="truncate">Google Cloud Partner</span>
+                  </div>
+                  <p className="text-xs font-semibold text-white leading-tight">
+                    Google Cloud Partner
+                  </p>
+                  <p className="text-[11px] text-gray-300 leading-tight">
+                    Authorized Education & Technology Partner
+                  </p>
+                  <p className="text-[10px] text-gray-400">
+                    Partner Advantage Program
                   </p>
                 </div>
               </div>
@@ -208,14 +248,40 @@ export function Footer() {
 
         {/* Bottom Section */}
         <div className="border-t border-gray-800 mt-10 pt-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="text-gray-400 text-sm">
+          <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
+            <div className="text-gray-400 text-sm text-center lg:text-left order-2 lg:order-1">
               © {new Date().getFullYear()} CPACE Philippines. All rights
               reserved.
             </div>
 
+            {/* Legal & Compliance Links */}
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-gray-400 order-1 lg:order-2">
+              <Link
+                href="/privacy"
+                className="hover:text-emerald-400 transition-colors"
+              >
+                Privacy Policy
+              </Link>
+              <span className="text-gray-700 hidden sm:inline">•</span>
+              <Link
+                href="/cookies"
+                className="hover:text-emerald-400 transition-colors"
+              >
+                Cookie Policy
+              </Link>
+              <span className="text-gray-700 hidden sm:inline">•</span>
+              <button
+                type="button"
+                onClick={() => setCookieSettingsOpen(true)}
+                className="hover:text-emerald-400 transition-colors cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <Cookie className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Cookie Settings</span>
+              </button>
+            </div>
+
             {/* Social Links */}
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-6 order-3">
               <a
                 href="https://www.facebook.com/cpaceph"
                 target="_blank"
@@ -247,6 +313,11 @@ export function Footer() {
           </div>
         </div>
       </div>
+
+      <CookieSettingsDialog
+        open={cookieSettingsOpen}
+        onOpenChange={setCookieSettingsOpen}
+      />
     </footer>
   );
 }

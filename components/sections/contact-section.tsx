@@ -97,18 +97,24 @@ export function ContactSection() {
     }
   ]
 
+  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
   const mapLocations = {
     manila: {
       name: "Manila Headquarters (BGC)",
       address: "Unit 1510, High Street South Corporate Plaza Tower 1, 26th St. Corner 9th Ave., BGC Taguig City, Philippines (1634)",
-      embedUrl: "https://www.openstreetmap.org/export/embed.html?bbox=121.0475%2C14.5475%2C121.0555%2C14.5535&layer=mapnik&marker=14.5503%2C121.0515",
+      embedUrl: googleMapsApiKey
+        ? `https://www.google.com/maps/embed/v1/place?key=${googleMapsApiKey}&q=High+Street+South+Corporate+Plaza+Tower+1,+26th+St+Corner+9th+Ave,+BGC+Taguig+City`
+        : "https://maps.google.com/maps?q=High%20Street%20South%20Corporate%20Plaza%20Tower%201%2C%2026th%20St%20Corner%209th%20Ave%2C%20BGC%20Taguig%20City&t=&z=16&ie=UTF8&iwloc=&output=embed",
       googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=High+Street+South+Corporate+Plaza+Tower+1,+26th+St+Corner+9th+Ave,+BGC+Taguig+City",
       wazeUrl: "https://waze.com/ul?q=High+Street+South+Corporate+Plaza+Tower+1+BGC&navigate=yes",
     },
     dubai: {
       name: "Dubai Regional Office",
       address: "StratEd Global – Level 41, Emirates Towers, Sheikh Zayed Road, Dubai, UAE PO Box 31303",
-      embedUrl: "https://www.openstreetmap.org/export/embed.html?bbox=55.2780%2C25.2140%2C55.2880%2C25.2230&layer=mapnik&marker=25.2185%2C55.2829",
+      embedUrl: googleMapsApiKey
+        ? `https://www.google.com/maps/embed/v1/place?key=${googleMapsApiKey}&q=Emirates+Towers+Sheikh+Zayed+Road+Dubai`
+        : "https://maps.google.com/maps?q=Emirates%20Towers%2C%20Sheikh%20Zayed%20Road%2C%20Dubai%20UAE&t=&z=16&ie=UTF8&iwloc=&output=embed",
       googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Emirates+Towers+Sheikh+Zayed+Road+Dubai",
       wazeUrl: "https://waze.com/ul?q=Emirates+Towers+Dubai&navigate=yes",
     },
@@ -408,6 +414,8 @@ export function ContactSection() {
               height="380"
               style={{ border: 0 }}
               loading="lazy"
+              allowFullScreen
+              referrerPolicy="no-referrer-when-downgrade"
               title={`CPACE Office Location - ${mapLocations[activeMapTab].name}`}
               className="w-full"
             ></iframe>
