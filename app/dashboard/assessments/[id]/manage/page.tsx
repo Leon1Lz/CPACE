@@ -18,6 +18,7 @@ import {
 import Link from "next/link"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
 import { localDateTime } from "@/lib/assessment-schedule"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { MotionThresholdTest } from "@/components/proctoring/motion-threshold-test"
@@ -600,29 +601,200 @@ export default function ManageQuestionsPage() {
   )
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button asChild variant="outline" size="icon" className="h-9 w-9 rounded-xl">
-            <Link href="/dashboard/assessments"><ChevronLeft className="h-4 w-4" /></Link>
-          </Button>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">{assessment?.title ?? "Manage Questions"}</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {questions.length} question{questions.length !== 1 ? "s" : ""} · {totalPoints} total points{assessment?.type !== "REVIEWER" ? ` · ${assessment?.passingScore}% passing` : ""}
-            </p>
+    <div className="space-y-6 max-w-6xl mx-auto w-full pb-10">
+      {/* Header Banner */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-start gap-3.5 min-w-0">
+            <Button asChild variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-xl border-gray-200 hover:bg-gray-50">
+              <Link href="/dashboard/assessments" aria-label="Back to assessments">
+                <ChevronLeft className="h-5 w-5 text-gray-600" />
+              </Link>
+            </Button>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
+                  {assessment?.title ?? "Manage Questions"}
+                </h1>
+                {assessment?.type && (
+                  <Badge variant="outline" className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border-emerald-200 uppercase tracking-wide">
+                    {assessment.type.replace(/_/g, " ")}
+                  </Badge>
+                )}
+                {assessment?.course?.category && (
+                  <Badge variant="outline" className="text-[11px] font-semibold text-slate-600 bg-slate-50 border-slate-200">
+                    {assessment.course.category}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500 mt-1.5 flex-wrap">
+                <span className="font-semibold text-gray-800">{questions.length} question{questions.length !== 1 ? "s" : ""}</span>
+                <span className="text-gray-300">·</span>
+                <span className="font-semibold text-gray-800">{totalPoints} total points</span>
+                {assessment?.type !== "REVIEWER" && assessment?.passingScore ? (
+                  <>
+                    <span className="text-gray-300">·</span>
+                    <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                      {assessment.passingScore}% passing
+                    </span>
+                  </>
+                ) : null}
+                {assessment?.timeLimit ? (
+                  <>
+                    <span className="text-gray-300">·</span>
+                    <span>{assessment.timeLimit} mins</span>
+                  </>
+                ) : null}
+                {assessment?.course?.title ? (
+                  <>
+                    <span className="text-gray-300">·</span>
+                    <span className="text-gray-500 truncate max-w-xs">{assessment.course.title}</span>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          {/* Primary Action Buttons */}
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+            {assessment?.type === "FINAL_EXAM" && (
+              <Button
+                type="button"
+                onClick={() => setMotionTestOpen(true)}
+                className="h-10 rounded-xl bg-blue-700 text-white hover:bg-blue-800 gap-2 text-xs sm:text-sm font-semibold shadow-xs"
+              >
+                <FlaskConical className="h-4 w-4" /> Test Motion Detector
+              </Button>
+            )}
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditOpen(true)}
+              className="h-10 rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50 gap-2 text-xs sm:text-sm font-semibold"
+            >
+              <Settings className="h-4 w-4 text-gray-500" /> Edit Details
+            </Button>
+
+            <Button
+              type="button"
+              onClick={() => {
+                setEditingQuestionId(null)
+                resetForm()
+                setOpen(true)
+              }}
+              className="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 text-xs sm:text-sm font-bold shadow-xs"
+            >
+              <Plus className="h-4 w-4" /> Add Question
+            </Button>
           </div>
         </div>
+      </div>
 
-        <div className="flex items-center gap-2">
+      {/* Navigation & Question Bank Actions Bar */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        {/* Navigation Tabs */}
+        <nav aria-label="Assessment management sections" className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xs">
+          <span aria-current="page" className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white shadow-xs">
+            <ListChecks className="h-4 w-4" />
+            Questions ({questions.length})
+          </span>
+          <button
+            type="button"
+            onClick={() => setEditOpen(true)}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+          >
+            <Settings className="h-4 w-4 text-slate-400" />
+            Details
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditOpen(true)}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+          >
+            <CalendarClock className="h-4 w-4 text-slate-400" />
+            Schedule &amp; scoring
+          </button>
           {assessment?.type === "FINAL_EXAM" && (
-            <Dialog open={motionTestOpen} onOpenChange={handleMotionTestOpenChange}>
-              <DialogTrigger asChild>
-                <Button className="h-9 rounded-xl bg-blue-700 text-white hover:bg-blue-800">
-                  <FlaskConical className="mr-2 h-4 w-4" /> Test Motion Detector
-                </Button>
-              </DialogTrigger>
+            <button
+              type="button"
+              onClick={() => setMotionTestOpen(true)}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+            >
+              <ShieldCheck className="h-4 w-4 text-slate-400" />
+              Proctoring
+            </button>
+          )}
+          <Link
+            href="/dashboard/reports"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+          >
+            <BarChart3 className="h-4 w-4 text-slate-400" />
+            Results
+          </Link>
+        </nav>
+
+        {/* Secondary Exam & Bank Tools */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={openBankImportModal}
+            className="h-9 rounded-xl border-emerald-300 text-[#105C2E] hover:bg-emerald-50 gap-1.5 text-xs font-semibold shadow-xs"
+            title="Import questions from central question bank"
+          >
+            <Database className="h-3.5 w-3.5 text-[#105C2E]" />
+            Import from Test Bank
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleSaveToTestBank}
+            disabled={savingToBank || questions.length === 0}
+            className="h-9 rounded-xl border-emerald-300 text-[#105C2E] hover:bg-emerald-50 gap-1.5 text-xs font-semibold shadow-xs"
+            title="Save all questions in this assessment to the Course Central Test Bank"
+          >
+            {savingToBank ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#105C2E]" />
+            ) : (
+              <UploadCloud className="h-3.5 w-3.5 text-[#105C2E]" />
+            )}
+            Save to Test Bank
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setExportModalOpen(true)}
+            disabled={questions.length === 0}
+            className="h-9 rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50 gap-1.5 text-xs font-semibold shadow-xs"
+            title="Export CSV or print paper examination"
+          >
+            <Printer className="h-3.5 w-3.5 text-gray-600" />
+            Export &amp; Print
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setCsvOpen(true)}
+            className="h-9 rounded-xl border-blue-200 text-blue-700 hover:bg-blue-50 gap-1.5 text-xs font-semibold shadow-xs"
+            title="Bulk import questions from CSV"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5 text-blue-600" />
+            Import CSV
+          </Button>
+        </div>
+      </div>
+
+      {/* Motion Detector Test Dialog */}
+      {assessment?.type === "FINAL_EXAM" && (
+        <Dialog open={motionTestOpen} onOpenChange={handleMotionTestOpenChange}>
               <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-2xl">
                 <DialogHeader>
                   <DialogTitle>Motion Detector Test</DialogTitle>
@@ -686,13 +858,8 @@ export default function ManageQuestionsPage() {
             </Dialog>
           )}
 
-          {/* Edit Assessment Details Dialog */}
-          <Dialog open={editOpen} onOpenChange={setEditOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50 h-9">
-                <Settings className="h-4 w-4 mr-2" /> Edit Details
-              </Button>
-            </DialogTrigger>
+      {/* Edit Assessment Details Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
             <DialogContent className="max-w-3xl rounded-2xl p-0 gap-0 flex flex-col max-h-[92vh] overflow-hidden">
               <DialogHeader className="px-6 py-4 border-b border-gray-100">
                 <DialogTitle className="text-xl font-bold text-gray-900">Edit Assessment Details</DialogTitle>
@@ -877,18 +1044,8 @@ export default function ManageQuestionsPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Import from Test Bank Button & Dialog */}
-          <Dialog open={bankModalOpen} onOpenChange={setBankModalOpen}>
-            <DialogTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={openBankImportModal}
-                className="rounded-xl border-emerald-300 text-[#105C2E] hover:bg-emerald-50 gap-2"
-              >
-                <Database className="h-4 w-4 text-[#105C2E]" /> Import from Test Bank
-              </Button>
-            </DialogTrigger>
+      {/* Import from Test Bank Dialog */}
+      <Dialog open={bankModalOpen} onOpenChange={setBankModalOpen}>
             <DialogContent className="rounded-2xl max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-gray-900">
@@ -1078,38 +1235,8 @@ export default function ManageQuestionsPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Save Questions to Test Bank */}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleSaveToTestBank}
-            disabled={savingToBank || questions.length === 0}
-            className="rounded-xl border-emerald-300 text-[#105C2E] hover:bg-emerald-50 gap-2"
-            title="Save all questions in this assessment to the Course Central Test Bank"
-          >
-            {savingToBank ? <Loader2 className="h-4 w-4 animate-spin text-[#105C2E]" /> : <UploadCloud className="h-4 w-4 text-[#105C2E]" />}
-            Save to Test Bank
-          </Button>
-
-          {/* Export & Print */}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setExportModalOpen(true)}
-            disabled={questions.length === 0}
-            className="rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50 gap-2"
-          >
-            <Printer className="h-4 w-4 text-gray-600" />
-            Export & Print
-          </Button>
-
-          {/* CSV Import Dialog */}
-          <Dialog open={csvOpen} onOpenChange={(v) => { setCsvOpen(v); if (!v) { setCsvFile(null); setCsvPreview([]); setCsvError(""); setCsvSuccess("") } }}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="rounded-xl border-blue-200 text-blue-700 hover:bg-blue-50">
-                <FileSpreadsheet className="h-4 w-4 mr-2" /> Import CSV
-              </Button>
-            </DialogTrigger>
+      {/* CSV Import Dialog */}
+      <Dialog open={csvOpen} onOpenChange={(v) => { setCsvOpen(v); if (!v) { setCsvFile(null); setCsvPreview([]); setCsvError(""); setCsvSuccess("") } }}>
             <DialogContent className="rounded-2xl max-w-[calc(100%-2rem)] sm:max-w-2xl md:max-w-3xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -1205,12 +1332,8 @@ export default function ManageQuestionsPage() {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm() }}>
-          <DialogTrigger asChild>
-            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
-              <Plus className="h-4 w-4 mr-2" /> Add Question
-            </Button>
-          </DialogTrigger>
+      {/* Add / Edit Question Dialog */}
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm() }}>
           <DialogContent className="rounded-2xl max-w-[calc(100%-2rem)] sm:max-w-xl md:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingQuestionId ? "Edit Question" : "Add Question"}</DialogTitle>
@@ -1300,17 +1423,7 @@ export default function ManageQuestionsPage() {
               </Button>
             </div>
           </DialogContent>
-        </Dialog>
-        </div>
-      </div>
-
-      <nav aria-label="Assessment management sections" className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-        <span aria-current="page" className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white"><ListChecks className="h-4 w-4" />Questions</span>
-        <button type="button" onClick={() => setEditOpen(true)} className="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"><Settings className="h-4 w-4" />Details</button>
-        <button type="button" onClick={() => setEditOpen(true)} className="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"><CalendarClock className="h-4 w-4" />Schedule &amp; scoring</button>
-        {assessment?.type === "FINAL_EXAM" && <button type="button" onClick={() => setMotionTestOpen(true)} className="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"><ShieldCheck className="h-4 w-4" />Proctoring</button>}
-        <Link href="/dashboard/reports" className="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"><BarChart3 className="h-4 w-4" />Results</Link>
-      </nav>
+      </Dialog>
 
       {/* Study Material Upload Section */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
