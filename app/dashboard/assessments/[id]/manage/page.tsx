@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   ChevronLeft, Plus, Trash2, CheckCircle, Circle, Loader2,
   ClipboardCheck, ListChecks, ToggleLeft, FileText, AlignLeft,
@@ -16,7 +16,6 @@ import {
   UploadCloud, Printer, Shuffle
 } from "lucide-react"
 import Link from "next/link"
-import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { localDateTime } from "@/lib/assessment-schedule"

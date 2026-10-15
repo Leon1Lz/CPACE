@@ -298,7 +298,7 @@ export default function BankDetailPage() {
         const lines = block.split("\n").map((l) => l.trim()).filter(Boolean)
         if (lines.length < 3) continue
 
-        let qText = lines[0]
+        const qText = lines[0]
         let answerLetter = ""
         let explanation = ""
         let formula = ""
@@ -308,7 +308,7 @@ export default function BankDetailPage() {
 
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i]
-          const optMatch = line.match(/^([A-Da-d])[\)\.]\s*(.*)$/)
+          const optMatch = line.match(/^([A-Da-d])[).]\s*(.*)$/)
           const ansMatch = line.match(/^ANSWER:\s*([A-Da-d])/i)
           const expMatch = line.match(/^EXPLANATION:\s*(.*)$/i)
           const formMatch = line.match(/^FORMULA:\s*(.*)$/i)
@@ -326,7 +326,6 @@ export default function BankDetailPage() {
           } else if (topicMatch) {
             topic = topicMatch[1]
           } else if (optMatch) {
-            const letter = optMatch[1].toUpperCase()
             const text = optMatch[2]
             options.push({
               text,
