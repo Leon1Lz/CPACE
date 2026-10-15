@@ -225,6 +225,8 @@ model Assessment {
   evidenceCaptureEnabled  Boolean @default(true)
   evidenceRetentionDays   Int     @default(30)
   requireProctoringConsent Boolean @default(true)
+  shuffleQuestions         Boolean @default(false)
+  shuffleOptions           Boolean @default(false)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 

@@ -38,7 +38,23 @@ const assessmentUpdateSchema = z.object({
   evidenceCaptureEnabled: z.boolean().optional(),
   evidenceRetentionDays: z.number().int().min(0).max(365).optional(),
   requireProctoringConsent: z.boolean().optional(),
+  shuffleQuestions: z.boolean().optional(),
+  shuffleOptions: z.boolean().optional(),
 }).strict()
+
+function seededShuffle<T>(array: T[], seedStr: string): T[] {
+  let seed = 0
+  for (let i = 0; i < seedStr.length; i++) {
+    seed = (seed * 31 + seedStr.charCodeAt(i)) >>> 0
+  }
+  const copy = [...array]
+  for (let i = copy.length - 1; i > 0; i--) {
+    seed = (seed * 1664525 + 1013904223) >>> 0
+    const j = seed % (i + 1)
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy
+}
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -85,13 +101,25 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { enrollments: _enrollments, instructorId: _instructorId, ...safeCourse } = assessment.course
     const isStudyReviewer = assessment.type === "REVIEWER"
     if (user.role === "LEARNER" && !isStudyReviewer) {
+      let transformedQuestions = assessment.questions.map((question) => {
+        let options = question.options.map(({ isCorrect: _isCorrect, ...option }) => option)
+        if (assessment.shuffleOptions && options.length > 1) {
+          options = seededShuffle(options, `${user.id}-${question.id}-opts`)
+        }
+        return {
+          ...question,
+          options,
+        }
+      })
+
+      if (assessment.shuffleQuestions && transformedQuestions.length > 1) {
+        transformedQuestions = seededShuffle(transformedQuestions, `${user.id}-${assessment.id}-qs`)
+      }
+
       return NextResponse.json({
         ...assessment,
         course: safeCourse,
-        questions: assessment.questions.map((question) => ({
-          ...question,
-          options: question.options.map(({ isCorrect: _isCorrect, ...option }) => option),
-        })),
+        questions: transformedQuestions,
       })
     }
     return NextResponse.json({ ...assessment, course: safeCourse })

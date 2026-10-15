@@ -23,9 +23,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ChevronLeft, Plus, Search, Trash2, Edit3, Loader2,
   FileSpreadsheet, Upload, Download, CheckCircle2, Circle, Sparkles,
-  HelpCircle, AlertCircle, FileText, Check, ArrowDownUp, Filter, Copy
+  HelpCircle, AlertCircle, FileText, Check, ArrowDownUp, Filter, Copy, Printer
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { AssessmentExportModal } from "@/components/assessments/assessment-export-modal"
 
 type BankOption = {
   id?: string
@@ -104,6 +105,7 @@ export default function BankDetailPage() {
   // Delete Question State
   const [questionToDelete, setQuestionToDelete] = useState<BankQuestion | null>(null)
   const [deletingQuestion, setDeletingQuestion] = useState(false)
+  const [exportModalOpen, setExportModalOpen] = useState(false)
 
   const role = session?.user?.role
   const canManage = role === "ADMIN" || role === "INSTRUCTOR"
@@ -481,13 +483,25 @@ export default function BankDetailPage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setExportModalOpen(true)}
+            disabled={bank.questions.length === 0}
+            className="rounded-xl border-emerald-300 text-[#105C2E] hover:bg-emerald-50 gap-1.5 text-xs shadow-xs"
+            title="Export CSV or print paper examination and answer key"
+          >
+            <Printer className="h-3.5 w-3.5 text-[#105C2E]" />
+            Export & Print
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleExportCSV}
             disabled={bank.questions.length === 0}
             className="rounded-xl border-gray-200 gap-1.5 text-xs text-gray-700 hover:bg-gray-50"
             title="Download CSV backup of all questions in this bank"
           >
-            <Download className="h-3.5 w-3.5 text-[#105C2E]" />
-            Export CSV
+            <Download className="h-3.5 w-3.5 text-gray-600" />
+            Quick CSV
           </Button>
 
           <Button
@@ -1001,6 +1015,18 @@ export default function BankDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Export & Print Modal */}
+      {bank && (
+        <AssessmentExportModal
+          open={exportModalOpen}
+          onOpenChange={setExportModalOpen}
+          title={bank.title}
+          courseTitle={bank.course?.title}
+          questions={bank.questions}
+          type="TEST_BANK"
+        />
+      )}
     </div>
   )
 }

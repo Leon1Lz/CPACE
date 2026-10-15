@@ -17,6 +17,8 @@ const assessmentCreateSchema = z.object({
   releaseScores: z.boolean().optional().default(true),
   scoresReleasedAt: z.string().datetime({ offset: true }).nullable().optional(),
   bankQuestionIds: z.array(z.string().min(1)).optional(),
+  shuffleQuestions: z.boolean().optional().default(false),
+  shuffleOptions: z.boolean().optional().default(false),
 })
 
 export async function GET(request: Request) {
@@ -119,6 +121,8 @@ export async function POST(request: NextRequest) {
             attempts: body.attempts ?? null,
             releaseScores: body.releaseScores,
             scoresReleasedAt: body.releaseScores ? null : (body.scoresReleasedAt ? new Date(body.scoresReleasedAt) : null),
+            shuffleQuestions: body.shuffleQuestions ?? false,
+            shuffleOptions: body.shuffleOptions ?? false,
           },
           include: { course: { select: { id: true, title: true, category: true } } },
         })
@@ -175,6 +179,8 @@ export async function POST(request: NextRequest) {
           attempts: body.attempts ?? null,
           releaseScores: body.releaseScores,
           scoresReleasedAt: body.releaseScores ? null : (body.scoresReleasedAt ? new Date(body.scoresReleasedAt) : null),
+          shuffleQuestions: body.shuffleQuestions ?? false,
+          shuffleOptions: body.shuffleOptions ?? false,
         },
         include: { course: { select: { id: true, title: true, category: true } } },
       })

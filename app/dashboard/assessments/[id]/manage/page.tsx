@@ -12,7 +12,8 @@ import {
   ChevronLeft, Plus, Trash2, CheckCircle, Circle, Loader2,
   ClipboardCheck, ListChecks, ToggleLeft, FileText, AlignLeft,
   GripVertical, AlertCircle, Upload, Download, FileSpreadsheet,
-  Settings, Eye, FlaskConical, X as XIcon, CalendarClock, BarChart3, ShieldCheck, Database, Search
+  Settings, Eye, FlaskConical, X as XIcon, CalendarClock, BarChart3, ShieldCheck, Database, Search,
+  UploadCloud, Printer, Shuffle
 } from "lucide-react"
 import Link from "next/link"
 import { Textarea } from "@/components/ui/textarea"
@@ -20,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { localDateTime } from "@/lib/assessment-schedule"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { MotionThresholdTest } from "@/components/proctoring/motion-threshold-test"
+import { AssessmentExportModal } from "@/components/assessments/assessment-export-modal"
 
 type Option = { id?: string; text: string; isCorrect: boolean }
 type Question = {
@@ -58,6 +60,8 @@ type Assessment = {
   evidenceCaptureEnabled?: boolean
   evidenceRetentionDays?: number
   requireProctoringConsent?: boolean
+  shuffleQuestions?: boolean
+  shuffleOptions?: boolean
 }
 
 const TYPE_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
@@ -117,10 +121,14 @@ export default function ManageQuestionsPage() {
     evidenceCaptureEnabled: true,
     evidenceRetentionDays: "30",
     requireProctoringConsent: true,
+    shuffleQuestions: false,
+    shuffleOptions: false,
   })
   const [editSaving, setEditSaving] = useState(false)
   const [uploadingMaterial, setUploadingMaterial] = useState(false)
   const [materialViewerOpen, setMaterialViewerOpen] = useState(false)
+  const [exportModalOpen, setExportModalOpen] = useState(false)
+  const [savingToBank, setSavingToBank] = useState(false)
 
   // Test Bank Import State
   const [bankModalOpen, setBankModalOpen] = useState(false)
@@ -233,6 +241,8 @@ export default function ManageQuestionsPage() {
         evidenceCaptureEnabled: assessment.evidenceCaptureEnabled !== false,
         evidenceRetentionDays: String(assessment.evidenceRetentionDays ?? 30),
         requireProctoringConsent: assessment.requireProctoringConsent !== false,
+        shuffleQuestions: Boolean(assessment.shuffleQuestions),
+        shuffleOptions: Boolean(assessment.shuffleOptions),
       })
     }
   }, [assessment])
@@ -356,6 +366,35 @@ export default function ManageQuestionsPage() {
   const handleBankSelectChange = (newBankId: string) => {
     setSelectedBankId(newBankId)
     void loadBankQuestions(newBankId)
+  }
+
+  const handleSaveToTestBank = async () => {
+    if (!questions || questions.length === 0) {
+      alert("No questions in this assessment to save to test bank.")
+      return
+    }
+    const confirmed = window.confirm(
+      `Save ${questions.length} questions from this assessment to the Course Central Test Bank? (Duplicates will be skipped automatically)`
+    )
+    if (!confirmed) return
+
+    setSavingToBank(true)
+    try {
+      const res = await fetch(`/api/assessments/${assessmentId}/export-to-bank`, {
+        method: "POST",
+      })
+      const data = await res.json()
+      if (res.ok) {
+        alert(`Success! ${data.message}`)
+      } else {
+        alert(data.error || "Failed to save questions to test bank.")
+      }
+    } catch (e) {
+      console.error("Failed to export to bank:", e)
+      alert("An error occurred while saving to test bank.")
+    } finally {
+      setSavingToBank(false)
+    }
   }
 
   const filteredBankQuestions = bankQuestions.filter((q) => {
@@ -785,6 +824,39 @@ export default function ManageQuestionsPage() {
                   </div>
                 )}
 
+                {/* Exam Randomization & Anti-Cheating */}
+                <div className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/40 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Shuffle className="h-4 w-4 text-indigo-700" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-900">Exam Randomization & Anti-Cheating</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label htmlFor="shuffle-questions-toggle" className="flex items-start gap-3 p-3 rounded-xl bg-white border border-indigo-200/60 cursor-pointer hover:border-indigo-300 transition-colors">
+                      <Checkbox
+                        id="shuffle-questions-toggle"
+                        checked={editForm.shuffleQuestions}
+                        onCheckedChange={(val) => setEditForm((p) => ({ ...p, shuffleQuestions: Boolean(val) }))}
+                      />
+                      <div className="text-xs">
+                        <span className="font-bold text-gray-900 block">Shuffle Questions</span>
+                        <span className="text-gray-500 text-[11px] leading-tight">Presents questions in randomized order for each learner attempt.</span>
+                      </div>
+                    </label>
+
+                    <label htmlFor="shuffle-options-toggle" className="flex items-start gap-3 p-3 rounded-xl bg-white border border-indigo-200/60 cursor-pointer hover:border-indigo-300 transition-colors">
+                      <Checkbox
+                        id="shuffle-options-toggle"
+                        checked={editForm.shuffleOptions}
+                        onCheckedChange={(val) => setEditForm((p) => ({ ...p, shuffleOptions: Boolean(val) }))}
+                      />
+                      <div className="text-xs">
+                        <span className="font-bold text-gray-900 block">Shuffle Answer Choices</span>
+                        <span className="text-gray-500 text-[11px] leading-tight">Randomizes options (A, B, C, D) per multiple-choice question.</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <Label>Description</Label>
                   <RichTextEditor
@@ -1005,6 +1077,31 @@ export default function ManageQuestionsPage() {
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Save Questions to Test Bank */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleSaveToTestBank}
+            disabled={savingToBank || questions.length === 0}
+            className="rounded-xl border-emerald-300 text-[#105C2E] hover:bg-emerald-50 gap-2"
+            title="Save all questions in this assessment to the Course Central Test Bank"
+          >
+            {savingToBank ? <Loader2 className="h-4 w-4 animate-spin text-[#105C2E]" /> : <UploadCloud className="h-4 w-4 text-[#105C2E]" />}
+            Save to Test Bank
+          </Button>
+
+          {/* Export & Print */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setExportModalOpen(true)}
+            disabled={questions.length === 0}
+            className="rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50 gap-2"
+          >
+            <Printer className="h-4 w-4 text-gray-600" />
+            Export & Print
+          </Button>
 
           {/* CSV Import Dialog */}
           <Dialog open={csvOpen} onOpenChange={(v) => { setCsvOpen(v); if (!v) { setCsvFile(null); setCsvPreview([]); setCsvError(""); setCsvSuccess("") } }}>
@@ -1405,6 +1502,18 @@ export default function ManageQuestionsPage() {
             <span className="text-gray-500">Passing: <span className="font-bold text-gray-900">{((assessment?.passingScore ?? 70) / 100 * totalPoints).toFixed(0)}</span> pts needed</span>
           </div>
         </div>
+      )}
+
+      {/* Export & Print Modal */}
+      {assessment && (
+        <AssessmentExportModal
+          open={exportModalOpen}
+          onOpenChange={setExportModalOpen}
+          title={assessment.title}
+          courseTitle={assessment.course?.title}
+          questions={questions}
+          type={assessment.type}
+        />
       )}
     </div>
   )

@@ -371,6 +371,8 @@ export default function CoursesAndAssessmentsPage() {
     attempts: "1",
     releaseScores: true,
     scoresReleasedAt: "",
+    shuffleQuestions: false,
+    shuffleOptions: false,
   })
   const [assessmentSaving, setAssessmentSaving] = useState(false)
   const [assessmentError, setAssessmentError] = useState("")
@@ -572,6 +574,8 @@ export default function CoursesAndAssessmentsPage() {
         attempts: "1",
         releaseScores: true,
         scoresReleasedAt: "",
+        shuffleQuestions: false,
+        shuffleOptions: false,
       })
     } catch {
       setAssessmentError("Failed to save assessment. Please check your connection and try again.")
@@ -1653,6 +1657,27 @@ function AdminAssessmentsContent({
                   )}
                 </div>
               )}
+
+              {/* Anti-Cheating & Randomization */}
+              <div className="p-3.5 rounded-xl border border-indigo-100 bg-indigo-50/40 space-y-2.5">
+                <p className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider">Anti-Cheating & Randomization</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <label className="flex items-center gap-2 p-2 rounded-lg bg-white border border-indigo-200/60 cursor-pointer hover:bg-indigo-50 transition-colors">
+                    <Checkbox
+                      checked={assessmentForm.shuffleQuestions}
+                      onCheckedChange={(v) => setAssessmentForm((p: any) => ({ ...p, shuffleQuestions: !!v }))}
+                    />
+                    <span className="font-semibold text-gray-800">Shuffle Questions</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2 rounded-lg bg-white border border-indigo-200/60 cursor-pointer hover:bg-indigo-50 transition-colors">
+                    <Checkbox
+                      checked={assessmentForm.shuffleOptions}
+                      onCheckedChange={(v) => setAssessmentForm((p: any) => ({ ...p, shuffleOptions: !!v }))}
+                    />
+                    <span className="font-semibold text-gray-800">Shuffle Options</span>
+                  </label>
+                </div>
+              </div>
 
               <div className="space-y-1.5">
                 <Label>Description</Label>
