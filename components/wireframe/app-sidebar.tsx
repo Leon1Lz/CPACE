@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -83,6 +84,31 @@ const roleColors: Record<UserRole, string> = {
 }
 
 export function AppSidebar({ role = "learner", userName = "User", userEmail = "", isExamTaking = false }: AppSidebarProps) {
+  const [pendingGradingCount, setPendingGradingCount] = useState<number>(0)
+
+  useEffect(() => {
+    if (role !== "admin" && role !== "instructor") return
+    let isMounted = true
+    async function loadPending() {
+      try {
+        const res = await fetch("/api/grading?status=pending&page=1")
+        if (!res.ok) return
+        const data = await res.json()
+        if (isMounted && typeof data.total === "number") {
+          setPendingGradingCount(data.total)
+        }
+      } catch {
+        // silent fallback
+      }
+    }
+    loadPending()
+    const timer = setInterval(loadPending, 45000)
+    return () => {
+      isMounted = false
+      clearInterval(timer)
+    }
+  }, [role])
+
   const items = menuItems[role]
   const groups = [
     { label: "Overview", ids: ["dashboard", "calendar"] },
@@ -127,7 +153,15 @@ export function AppSidebar({ role = "learner", userName = "User", userEmail = ""
                       >
                         <item.icon className={`h-4 w-4 ${isActive ? "text-emerald-600" : "text-slate-400"}`} />
                         <span className="text-sm">{item.label}</span>
-                        {isActive && (
+                        {item.id === "grading" && pendingGradingCount > 0 && (
+                          <span
+                            aria-hidden="true"
+                            className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800"
+                          >
+                            {pendingGradingCount}
+                          </span>
+                        )}
+                        {isActive && item.id !== "grading" && (
                           <span className="ml-auto w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
                         )}
                       </div>
@@ -144,7 +178,17 @@ export function AppSidebar({ role = "learner", userName = "User", userEmail = ""
                         <Link href={item.href} aria-current={isActive ? "page" : undefined}>
                           <item.icon className={`h-4 w-4 transition-colors ${isActive ? "text-emerald-100" : "text-slate-400 group-hover:text-emerald-700"}`} />
                           <span className="text-sm">{item.label}</span>
-                          {isActive && (
+                          {item.id === "grading" && pendingGradingCount > 0 && (
+                            <span
+                              aria-hidden="true"
+                              className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                                isActive ? "bg-white/25 text-white" : "bg-amber-100 text-amber-800"
+                              }`}
+                            >
+                              {pendingGradingCount}
+                            </span>
+                          )}
+                          {isActive && item.id !== "grading" && (
                             <span className="ml-auto w-1.5 h-1.5 bg-emerald-300 rounded-full"></span>
                           )}
                         </Link>

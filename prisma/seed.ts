@@ -70,7 +70,9 @@ async function main() {
   // Seed sample courses
   console.log("\n📚 Seeding sample courses...")
   const adminUser = await prisma.user.findUnique({ where: { email: "admin@cpace.ph" } })
+  const instructorUser = await prisma.user.findUnique({ where: { email: "instructor@cpace.ph" } })
   if (adminUser) {
+    const defaultInstructorId = instructorUser?.id || adminUser.id
     const sampleCourses = [
       {
         title: "Certificate in Financial Management Services (CFMS)",
@@ -83,7 +85,7 @@ async function main() {
         status: "PUBLISHED" as const,
         learningObjectives: ["Understand financial statements", "Apply budgeting techniques", "Analyze investment options"],
         creatorId: adminUser.id,
-        instructorId: adminUser.id,
+        instructorId: defaultInstructorId,
       },
       {
         title: "Certificate in Marketing Management Services (CMMS)",
@@ -96,7 +98,7 @@ async function main() {
         status: "PUBLISHED" as const,
         learningObjectives: ["Develop marketing strategies", "Understand digital marketing", "Conduct market research"],
         creatorId: adminUser.id,
-        instructorId: adminUser.id,
+        instructorId: defaultInstructorId,
       },
       {
         title: "Certificate in Operations Management Services (COMS)",
@@ -109,7 +111,7 @@ async function main() {
         status: "PUBLISHED" as const,
         learningObjectives: ["Optimize operational processes", "Manage supply chains", "Apply lean methodology"],
         creatorId: adminUser.id,
-        instructorId: adminUser.id,
+        instructorId: defaultInstructorId,
       },
     ]
 

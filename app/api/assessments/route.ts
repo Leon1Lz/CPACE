@@ -16,6 +16,7 @@ const assessmentCreateSchema = z.object({
   attempts: z.number().int().min(1).max(100).nullable().optional(),
   releaseScores: z.boolean().optional().default(true),
   scoresReleasedAt: z.string().datetime({ offset: true }).nullable().optional(),
+  bankQuestionIds: z.array(z.string().min(1)).optional(),
 })
 
 export async function GET(request: Request) {
@@ -104,20 +105,81 @@ export async function POST(request: NextRequest) {
       cleanDescription = stripTags(sanitized).trim() ? sanitized : null
     }
 
-    const assessment = await prisma.assessment.create({
-      data: {
-        title: body.title,
-        description: cleanDescription,
-        type: body.type,
-        courseId: body.courseId,
-        timeLimit: body.timeLimit ?? null,
-        passingScore: body.passingScore,
-        attempts: body.attempts ?? null,
-        releaseScores: body.releaseScores,
-        scoresReleasedAt: body.releaseScores ? null : (body.scoresReleasedAt ? new Date(body.scoresReleasedAt) : null),
-      },
-      include: { course: { select: { id: true, title: true, category: true } } },
-    })
+    let assessment: any
+    if (body.bankQuestionIds && body.bankQuestionIds.length > 0) {
+      assessment = await prisma.$transaction(async (tx) => {
+        const created = await tx.assessment.create({
+          data: {
+            title: body.title,
+            description: cleanDescription,
+            type: body.type,
+            courseId: body.courseId,
+            timeLimit: body.timeLimit ?? null,
+            passingScore: body.passingScore,
+            attempts: body.attempts ?? null,
+            releaseScores: body.releaseScores,
+            scoresReleasedAt: body.releaseScores ? null : (body.scoresReleasedAt ? new Date(body.scoresReleasedAt) : null),
+          },
+          include: { course: { select: { id: true, title: true, category: true } } },
+        })
+
+        const bankQuestions = await tx.bankQuestion.findMany({
+          where: { id: { in: body.bankQuestionIds } },
+          include: { options: { orderBy: { order: "asc" } } },
+        })
+
+        for (let i = 0; i < bankQuestions.length; i++) {
+          const bq = bankQuestions[i]
+          await tx.question.create({
+            data: {
+              assessmentId: created.id,
+              question: bq.question,
+              type: bq.type,
+              points: bq.points,
+              order: i + 1,
+              ...(bq.options.length > 0 && {
+                options: {
+                  create: bq.options.map((opt, optIdx) => ({
+                    text: opt.text,
+                    isCorrect: opt.isCorrect,
+                    order: optIdx + 1,
+                  })),
+                },
+              }),
+            },
+          })
+        }
+
+        await tx.bankQuestion.updateMany({
+          where: { id: { in: body.bankQuestionIds } },
+          data: { timesUsed: { increment: 1 } },
+        })
+
+        return tx.assessment.findUnique({
+          where: { id: created.id },
+          include: {
+            course: { select: { id: true, title: true, category: true } },
+            _count: { select: { questions: true, results: true } },
+          },
+        })
+      })
+    } else {
+      assessment = await prisma.assessment.create({
+        data: {
+          title: body.title,
+          description: cleanDescription,
+          type: body.type,
+          courseId: body.courseId,
+          timeLimit: body.timeLimit ?? null,
+          passingScore: body.passingScore,
+          attempts: body.attempts ?? null,
+          releaseScores: body.releaseScores,
+          scoresReleasedAt: body.releaseScores ? null : (body.scoresReleasedAt ? new Date(body.scoresReleasedAt) : null),
+        },
+        include: { course: { select: { id: true, title: true, category: true } } },
+      })
+    }
+
     return NextResponse.json(assessment, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {

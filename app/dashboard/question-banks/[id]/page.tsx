@@ -512,38 +512,45 @@ export default function BankDetailPage() {
       </div>
 
       {/* Overview Stats Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="rounded-xl border-0 shadow-sm bg-slate-50 border border-slate-200/60 p-3 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Items</p>
-            <p className="text-xl font-black text-gray-900">{bank.questions.length}</p>
-          </div>
-          <FileText className="h-7 w-7 text-gray-300" />
-        </Card>
-
-        <Card className="rounded-xl border-0 shadow-sm bg-emerald-50/60 border border-emerald-100 p-3 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Easy Items</p>
-            <p className="text-xl font-black text-emerald-700">{easyCount}</p>
-          </div>
-          <span className="w-3 h-3 rounded-full bg-emerald-500" />
-        </Card>
-
-        <Card className="rounded-xl border-0 shadow-sm bg-amber-50/60 border border-amber-100 p-3 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Medium Items</p>
-            <p className="text-xl font-black text-amber-700">{medCount}</p>
-          </div>
-          <span className="w-3 h-3 rounded-full bg-amber-500" />
-        </Card>
-
-        <Card className="rounded-xl border-0 shadow-sm bg-rose-50/60 border border-rose-100 p-3 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold text-rose-800 uppercase tracking-wider">Hard Items</p>
-            <p className="text-xl font-black text-rose-700">{hardCount}</p>
-          </div>
-          <span className="w-3 h-3 rounded-full bg-rose-500" />
-        </Card>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: "Total Items", value: bank.questions.length, tone: "slate", Icon: FileText },
+          { label: "Easy", value: easyCount, tone: "emerald" },
+          { label: "Medium", value: medCount, tone: "amber" },
+          { label: "Hard", value: hardCount, tone: "rose" },
+        ].map(({ label, value, tone, Icon }) => {
+          const total = bank.questions.length
+          const pct = total > 0 ? Math.round((value / total) * 100) : 0
+          const toneStyles: Record<string, Record<"card" | "chip" | "label" | "value" | "bar", string>> = {
+            slate:   { card: "bg-white border-slate-200",          chip: "bg-slate-100 text-slate-600",     label: "text-slate-500",   value: "text-slate-900",   bar: "bg-slate-400" },
+            emerald: { card: "bg-emerald-50/50 border-emerald-100", chip: "bg-emerald-100 text-emerald-700", label: "text-emerald-700", value: "text-emerald-800", bar: "bg-emerald-500" },
+            amber:   { card: "bg-amber-50/50 border-amber-100",     chip: "bg-amber-100 text-amber-700",     label: "text-amber-700",   value: "text-amber-800",   bar: "bg-amber-500" },
+            rose:    { card: "bg-rose-50/50 border-rose-100",       chip: "bg-rose-100 text-rose-700",       label: "text-rose-700",    value: "text-rose-800",    bar: "bg-rose-500" },
+          }
+          const styles = toneStyles[tone]
+          return (
+            <div
+              key={label}
+              className={`rounded-2xl border ${styles.card} p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className={`text-xs font-semibold uppercase tracking-wider ${styles.label}`}>{label}</p>
+                  <p className={`mt-1.5 text-3xl font-black leading-none ${styles.value}`}>{value}</p>
+                </div>
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${styles.chip}`}>
+                  {Icon ? <Icon className="h-5 w-5" /> : <span className={`h-3 w-3 rounded-full ${styles.bar}`} />}
+                </span>
+              </div>
+              <div className="mt-4 flex items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/5">
+                  <div className={`h-full rounded-full ${styles.bar} transition-all duration-500`} style={{ width: `${Icon ? 100 : pct}%` }} />
+                </div>
+                <span className="w-10 text-right text-xs font-semibold text-gray-500">{Icon ? "items" : `${pct}%`}</span>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       {/* Filter and Search Bar */}

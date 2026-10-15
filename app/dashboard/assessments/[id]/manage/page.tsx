@@ -12,7 +12,7 @@ import {
   ChevronLeft, Plus, Trash2, CheckCircle, Circle, Loader2,
   ClipboardCheck, ListChecks, ToggleLeft, FileText, AlignLeft,
   GripVertical, AlertCircle, Upload, Download, FileSpreadsheet,
-  Settings, Eye, FlaskConical, X as XIcon, CalendarClock, BarChart3, ShieldCheck, Database
+  Settings, Eye, FlaskConical, X as XIcon, CalendarClock, BarChart3, ShieldCheck, Database, Search
 } from "lucide-react"
 import Link from "next/link"
 import { Textarea } from "@/components/ui/textarea"
@@ -35,6 +35,7 @@ type Assessment = {
   title: string
   type: string
   courseId: string
+  course?: { id: string; title: string; category?: string } | null
   description?: string | null
   timeLimit?: number | null
   attempts?: number | null
@@ -129,6 +130,8 @@ export default function ManageQuestionsPage() {
   const [loadingBankQuestions, setLoadingBankQuestions] = useState(false)
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(new Set())
   const [importingFromBank, setImportingFromBank] = useState(false)
+  const [bankSearch, setBankSearch] = useState("")
+  const [bankDifficultyFilter, setBankDifficultyFilter] = useState("ALL")
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("motionTest") === "1") {
@@ -315,15 +318,17 @@ export default function ManageQuestionsPage() {
   const openBankImportModal = async () => {
     setBankModalOpen(true)
     setSelectedQuestionIds(new Set())
+    setBankSearch("")
+    setBankDifficultyFilter("ALL")
     try {
       const res = await fetch("/api/banks")
       if (res.ok) {
         const data = await res.json()
         setAvailableBanks(Array.isArray(data) ? data : [])
         if (data.length > 0) {
-          const defaultBankId = data[0].id
-          setSelectedBankId(defaultBankId)
-          void loadBankQuestions(defaultBankId)
+          const matchedBank = data.find((b: any) => b.courseId === assessment?.courseId || b.course?.category === assessment?.course?.category) || data[0]
+          setSelectedBankId(matchedBank.id)
+          void loadBankQuestions(matchedBank.id)
         }
       }
     } catch (e) {
@@ -353,6 +358,18 @@ export default function ManageQuestionsPage() {
     void loadBankQuestions(newBankId)
   }
 
+  const filteredBankQuestions = bankQuestions.filter((q) => {
+    if (bankDifficultyFilter !== "ALL" && q.difficulty !== bankDifficultyFilter) return false
+    if (bankSearch.trim()) {
+      const s = bankSearch.toLowerCase()
+      const matchQ = q.question?.toLowerCase().includes(s)
+      const matchTopic = q.topic?.toLowerCase().includes(s)
+      const matchExpl = q.explanation?.toLowerCase().includes(s)
+      if (!matchQ && !matchTopic && !matchExpl) return false
+    }
+    return true
+  })
+
   const toggleQuestionSelection = (qId: string) => {
     setSelectedQuestionIds((prev) => {
       const next = new Set(prev)
@@ -363,10 +380,19 @@ export default function ManageQuestionsPage() {
   }
 
   const toggleSelectAllBankQuestions = () => {
-    if (selectedQuestionIds.size === bankQuestions.length) {
-      setSelectedQuestionIds(new Set())
+    const allFilteredSelected = filteredBankQuestions.length > 0 && filteredBankQuestions.every(q => selectedQuestionIds.has(q.id))
+    if (allFilteredSelected) {
+      setSelectedQuestionIds(prev => {
+        const next = new Set(prev)
+        filteredBankQuestions.forEach(q => next.delete(q.id))
+        return next
+      })
     } else {
-      setSelectedQuestionIds(new Set(bankQuestions.map((q) => q.id)))
+      setSelectedQuestionIds(prev => {
+        const next = new Set(prev)
+        filteredBankQuestions.forEach(q => next.add(q.id))
+        return next
+      })
     }
   }
 
@@ -628,36 +654,42 @@ export default function ManageQuestionsPage() {
                 <Settings className="h-4 w-4 mr-2" /> Edit Details
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto rounded-2xl">
-              <DialogHeader>
-                <DialogTitle>Edit Assessment Details</DialogTitle>
+            <DialogContent className="max-w-3xl rounded-2xl p-0 gap-0 flex flex-col max-h-[92vh] overflow-hidden">
+              <DialogHeader className="px-6 py-4 border-b border-gray-100">
+                <DialogTitle className="text-xl font-bold text-gray-900">Edit Assessment Details</DialogTitle>
+                <DialogDescription className="text-sm text-gray-500">Configure scoring, availability, and release rules for this assessment.</DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 mt-2">
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
                 <div className="space-y-1.5">
                   <Label>Title</Label>
-                  <Input placeholder="Assessment Title" value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} className="rounded-xl" />
+                  <Input placeholder="Assessment Title" value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} className="rounded-xl h-10" />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Type</Label>
-                  <Select value={editForm.type} disabled={Boolean(assessment?.bankLockedAt)} onValueChange={v => setEditForm(p => ({ ...p, type: v }))}>
-                    <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="REVIEWER">Reviewer</SelectItem>
-                      <SelectItem value="PRACTICE_EXAM">Practice Exam</SelectItem>
-                      <SelectItem value="RULES_GUIDELINES">Rules & Guidelines</SelectItem>
-                      <SelectItem value="FINAL_EXAM">Final Examination</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Type</Label>
+                    <Select value={editForm.type} disabled={Boolean(assessment?.bankLockedAt)} onValueChange={v => setEditForm(p => ({ ...p, type: v }))}>
+                      <SelectTrigger className="rounded-xl data-[size=default]:h-10"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="REVIEWER">Reviewer</SelectItem>
+                        <SelectItem value="PRACTICE_EXAM">Practice Exam</SelectItem>
+                        <SelectItem value="RULES_GUIDELINES">Rules & Guidelines</SelectItem>
+                        <SelectItem value="FINAL_EXAM">Final Examination</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Course</Label>
+                    <Select value={editForm.courseId} disabled>
+                      <SelectTrigger className="rounded-xl data-[size=default]:h-10"><SelectValue placeholder="Select course" /></SelectTrigger>
+                      <SelectContent>
+                        {courses.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Course</Label>
-                  <Select value={editForm.courseId} disabled>
-                    <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select course" /></SelectTrigger>
-                    <SelectContent>
-                      {courses.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {assessment?.bankLockedAt && (
+                  <p className="-mt-2 text-xs text-amber-700">Type, time limit, and passing score are locked because this assessment already has attempts.</p>
+                )}
                 {editForm.type !== "REVIEWER" && editForm.type !== "RULES_GUIDELINES" && (
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
@@ -678,42 +710,46 @@ export default function ManageQuestionsPage() {
                 )}
                 <div className="space-y-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
                   <p className="text-sm font-semibold text-emerald-800">Assessment availability</p>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="assessment-start">Start date and time</Label>
-                    <Input id="assessment-start" type="datetime-local" value={editForm.startsAt} onChange={event => setEditForm(previous => ({ ...previous, startsAt: event.target.value }))} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="assessment-end">End date and time</Label>
-                    <Input id="assessment-end" type="datetime-local" value={editForm.endsAt} onChange={event => setEditForm(previous => ({ ...previous, endsAt: event.target.value }))} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="assessment-start">Start date and time</Label>
+                      <Input id="assessment-start" type="datetime-local" value={editForm.startsAt} onChange={event => setEditForm(previous => ({ ...previous, startsAt: event.target.value }))} className="rounded-xl h-10 bg-white" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="assessment-end">End date and time</Label>
+                      <Input id="assessment-end" type="datetime-local" value={editForm.endsAt} onChange={event => setEditForm(previous => ({ ...previous, endsAt: event.target.value }))} className="rounded-xl h-10 bg-white" />
+                    </div>
                   </div>
                   <p className="text-xs text-emerald-800">Times use your device timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone}). Leave blank for no boundary. End time closes new attempts; existing attempts may resume and finish under their timer.</p>
                 </div>
                 {/* Score Release Policy settings */}
                 {editForm.type !== "REVIEWER" && (
-                  <div className="space-y-3 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Score Release Policy</p>
+                  <div className="space-y-3 p-4 bg-slate-50 border border-slate-200/70 rounded-2xl">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Score Release Policy</p>
                     
-                    <div className="flex items-center justify-between gap-4">
-                      <Label className="flex flex-col gap-0.5 cursor-pointer">
-                        <span className="font-semibold text-xs text-gray-800">Release Scores Immediately</span>
-                        <span className="text-[10px] text-gray-400 font-normal leading-tight">Show results to learners immediately upon completing the exam</span>
-                      </Label>
+                    <label htmlFor="release-scores" className="flex items-start gap-3 rounded-xl bg-white border border-slate-200 p-3 cursor-pointer hover:border-emerald-300 transition-colors">
                       <Checkbox
+                        id="release-scores"
+                        className="mt-0.5"
                         checked={editForm.releaseScores}
                         onCheckedChange={(v) => setEditForm(p => ({ ...p, releaseScores: !!v }))}
                       />
-                    </div>
+                      <span className="flex flex-col gap-0.5">
+                        <span className="font-semibold text-sm text-gray-800">Release scores immediately</span>
+                        <span className="text-xs text-gray-500 leading-snug">Show results to learners as soon as they complete the exam.</span>
+                      </span>
+                    </label>
 
                     {!editForm.releaseScores && (
-                      <div className="space-y-1.5 pt-2.5 border-t border-slate-200/50">
-                        <Label className="text-xs text-gray-600">Scheduled Release Date & Time</Label>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm text-gray-700">Scheduled release date & time</Label>
                         <Input
                           type="datetime-local"
                           value={editForm.scoresReleasedAt}
                           onChange={(e) => setEditForm(p => ({ ...p, scoresReleasedAt: e.target.value }))}
-                          className="rounded-xl h-9 text-xs"
+                          className="rounded-xl h-10 bg-white sm:max-w-xs"
                         />
-                        <p className="text-[9px] text-gray-400 leading-snug">
+                        <p className="text-xs text-gray-500 leading-snug">
                           Leave blank to only release results manually. Learners will see a "Pending Release" screen.
                         </p>
                       </div>
@@ -723,7 +759,8 @@ export default function ManageQuestionsPage() {
 
                 {editForm.type === "FINAL_EXAM" && (
                   <div className="space-y-3 p-4 bg-emerald-50/60 border border-emerald-100 rounded-2xl">
-                    <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">AI Proctoring Controls</p>
+                    <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider">AI Proctoring Controls</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {[
                       ["motionDetectionEnabled", "Enable motion detection"],
                       ["detectFaceAbsence", "Detect missing face"],
@@ -733,17 +770,18 @@ export default function ManageQuestionsPage() {
                       ["evidenceCaptureEnabled", "Capture incident evidence"],
                       ["requireProctoringConsent", "Require learner consent"],
                     ].map(([key, label]) => (
-                      <div key={key} className="flex items-center justify-between gap-4">
-                        <Label htmlFor={`proctoring-${key}`} className="text-xs text-gray-700">{label}</Label>
+                      <label key={key} htmlFor={`proctoring-${key}`} className="flex items-center gap-3 rounded-xl bg-white/80 border border-emerald-100 px-3 py-2.5 cursor-pointer hover:border-emerald-300 transition-colors">
                         <Checkbox id={`proctoring-${key}`} checked={Boolean(editForm[key as keyof typeof editForm])} onCheckedChange={(value) => setEditForm((previous) => ({ ...previous, [key]: Boolean(value) }))} />
-                      </div>
+                        <span className="text-sm text-gray-700">{label}</span>
+                      </label>
                     ))}
-                    <div className="grid grid-cols-3 gap-2 border-t border-emerald-100 pt-3">
-                      <div className="space-y-1"><Label className="text-[10px]">Hold (ms)</Label><Input type="number" min="1000" value={editForm.detectionHoldMs} onChange={(event) => setEditForm((previous) => ({ ...previous, detectionHoldMs: event.target.value }))} className="h-8 rounded-lg text-xs" /></div>
-                      <div className="space-y-1"><Label className="text-[10px]">Cooldown (ms)</Label><Input type="number" min="3000" value={editForm.detectionCooldownMs} onChange={(event) => setEditForm((previous) => ({ ...previous, detectionCooldownMs: event.target.value }))} className="h-8 rounded-lg text-xs" /></div>
-                      <div className="space-y-1"><Label className="text-[10px]">Retention (days)</Label><Input type="number" min="1" value={editForm.evidenceRetentionDays} onChange={(event) => setEditForm((previous) => ({ ...previous, evidenceRetentionDays: event.target.value }))} className="h-8 rounded-lg text-xs" /></div>
                     </div>
-                    <p className="text-[9px] leading-relaxed text-emerald-700/70">Detector alerts require human review. Evidence is retained only for the configured period.</p>
+                    <div className="grid grid-cols-3 gap-3 border-t border-emerald-100 pt-3">
+                      <div className="space-y-1"><Label className="text-xs">Hold (ms)</Label><Input type="number" min="1000" value={editForm.detectionHoldMs} onChange={(event) => setEditForm((previous) => ({ ...previous, detectionHoldMs: event.target.value }))} className="h-9 rounded-lg text-sm bg-white" /></div>
+                      <div className="space-y-1"><Label className="text-xs">Cooldown (ms)</Label><Input type="number" min="3000" value={editForm.detectionCooldownMs} onChange={(event) => setEditForm((previous) => ({ ...previous, detectionCooldownMs: event.target.value }))} className="h-9 rounded-lg text-sm bg-white" /></div>
+                      <div className="space-y-1"><Label className="text-xs">Retention (days)</Label><Input type="number" min="1" value={editForm.evidenceRetentionDays} onChange={(event) => setEditForm((previous) => ({ ...previous, evidenceRetentionDays: event.target.value }))} className="h-9 rounded-lg text-sm bg-white" /></div>
+                    </div>
+                    <p className="text-xs leading-relaxed text-emerald-700/80">Detector alerts require human review. Evidence is retained only for the configured period.</p>
                   </div>
                 )}
 
@@ -754,10 +792,13 @@ export default function ManageQuestionsPage() {
                     onChange={description => setEditForm(previous => ({ ...previous, description }))}
                     placeholder="Add instructions, preparation notes, or exam details..."
                     maxLength={5000}
-                    minHeight="140px"
+                    minHeight="160px"
                   />
                 </div>
-                <Button onClick={handleUpdateAssessment} disabled={editSaving || !editForm.title || !editForm.courseId} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl">
+              </div>
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/60">
+                <Button variant="outline" onClick={() => setEditOpen(false)} className="rounded-xl">Cancel</Button>
+                <Button onClick={handleUpdateAssessment} disabled={editSaving || !editForm.title || !editForm.courseId} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl min-w-32">
                   {editSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Save Details
                 </Button>
               </div>
@@ -766,14 +807,16 @@ export default function ManageQuestionsPage() {
 
           {/* Import from Test Bank Button & Dialog */}
           <Dialog open={bankModalOpen} onOpenChange={setBankModalOpen}>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={openBankImportModal}
-              className="rounded-xl border-emerald-300 text-[#105C2E] hover:bg-emerald-50 gap-2"
-            >
-              <Database className="h-4 w-4 text-[#105C2E]" /> Import from Test Bank
-            </Button>
+            <DialogTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={openBankImportModal}
+                className="rounded-xl border-emerald-300 text-[#105C2E] hover:bg-emerald-50 gap-2"
+              >
+                <Database className="h-4 w-4 text-[#105C2E]" /> Import from Test Bank
+              </Button>
+            </DialogTrigger>
             <DialogContent className="rounded-2xl max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-gray-900">
@@ -814,7 +857,7 @@ export default function ManageQuestionsPage() {
                         onClick={toggleSelectAllBankQuestions}
                         className="rounded-xl text-xs"
                       >
-                        {selectedQuestionIds.size === bankQuestions.length ? "Deselect All" : "Select All"}
+                        {filteredBankQuestions.length > 0 && filteredBankQuestions.every(q => selectedQuestionIds.has(q.id)) ? "Deselect Shown" : "Select Shown"}
                       </Button>
                       <span className="text-xs font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-lg">
                         {selectedQuestionIds.size} Selected
@@ -822,6 +865,37 @@ export default function ManageQuestionsPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Search & Filter Bar */}
+                {bankQuestions.length > 0 && (
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                      <Input
+                        placeholder="Search questions, topics, formulas..."
+                        value={bankSearch}
+                        onChange={(e) => setBankSearch(e.target.value)}
+                        className="pl-8 h-8 rounded-xl text-xs bg-white"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+                      {(["ALL", "EASY", "MEDIUM", "HARD"] as const).map((diff) => (
+                        <button
+                          key={diff}
+                          type="button"
+                          onClick={() => setBankDifficultyFilter(diff)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                            bankDifficultyFilter === diff
+                              ? "bg-slate-900 text-white shadow-xs"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          {diff === "ALL" ? "All Levels" : diff}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Questions Preview List */}
                 {loadingBankQuestions ? (
@@ -839,9 +913,21 @@ export default function ManageQuestionsPage() {
                       Open Test Bank to add questions →
                     </Link>
                   </div>
+                ) : filteredBankQuestions.length === 0 ? (
+                  <div className="text-center py-10 border border-dashed rounded-xl p-6">
+                    <p className="text-sm text-gray-500">No questions match your filter criteria.</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setBankSearch(""); setBankDifficultyFilter("ALL") }}
+                      className="text-xs text-[#105C2E] font-semibold mt-1"
+                    >
+                      Reset filters
+                    </Button>
+                  </div>
                 ) : (
                   <div className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1">
-                    {bankQuestions.map((bq, idx) => {
+                    {filteredBankQuestions.map((bq, idx) => {
                       const isSelected = selectedQuestionIds.has(bq.id)
                       const diffColors: Record<string, string> = {
                         EASY: "bg-emerald-100 text-emerald-800",
@@ -900,6 +986,7 @@ export default function ManageQuestionsPage() {
               <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                 <span className="text-xs text-gray-500">
                   {selectedQuestionIds.size} of {bankQuestions.length} questions selected
+                  {filteredBankQuestions.length !== bankQuestions.length && ` (${filteredBankQuestions.length} shown)`}
                 </span>
                 <div className="flex items-center gap-2">
                   <Button type="button" variant="outline" onClick={() => setBankModalOpen(false)} className="rounded-xl">

@@ -358,22 +358,22 @@ export default function ManageInsightsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[800px]">
                 <TableHeader className="bg-gray-50">
                   <TableRow>
                     <TableHead className="w-20 pl-6 py-4 font-semibold text-gray-600">Image</TableHead>
-                    <TableHead className="font-semibold text-gray-600 py-4">Title</TableHead>
-                    <TableHead className="font-semibold text-gray-600 py-4">Category</TableHead>
-                    <TableHead className="font-semibold text-gray-600 py-4">Date</TableHead>
-                    <TableHead className="font-semibold text-gray-600 py-4 text-center">Featured</TableHead>
-                    <TableHead className="pr-6 py-4 text-right font-semibold text-gray-600">Actions</TableHead>
+                    <TableHead className="font-semibold text-gray-600 py-4 min-w-[260px]">Title</TableHead>
+                    <TableHead className="font-semibold text-gray-600 py-4 w-36 whitespace-nowrap">Category</TableHead>
+                    <TableHead className="font-semibold text-gray-600 py-4 w-32 whitespace-nowrap">Date</TableHead>
+                    <TableHead className="font-semibold text-gray-600 py-4 w-24 text-center whitespace-nowrap">Featured</TableHead>
+                    <TableHead className="pr-6 py-4 text-right font-semibold text-gray-600 w-24 whitespace-nowrap">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredArticles.map((article) => (
                     <TableRow key={article.id} className="hover:bg-gray-50/50 transition-colors">
                       {/* Image Thumbnail */}
-                      <TableCell className="pl-6 py-4">
+                      <TableCell className="pl-6 py-4 w-20">
                         <div className="relative w-12 h-12 rounded-lg border border-gray-100 overflow-hidden shrink-0 shadow-sm">
                           <img
                             src={article.image}
@@ -384,32 +384,32 @@ export default function ManageInsightsPage() {
                       </TableCell>
                       
                       {/* Title */}
-                      <TableCell className="py-4 max-w-sm">
-                        <div className="font-semibold text-gray-900 leading-tight">
+                      <TableCell className="py-4 whitespace-normal min-w-[260px]">
+                        <div className="font-semibold text-gray-900 leading-snug break-words" title={article.title}>
                           {article.title}
                         </div>
-                        <div className="text-xs text-gray-400 mt-1 truncate max-w-xs">
+                        <div className="text-xs text-gray-400 mt-1 truncate max-w-sm">
                           {article.slug}
                         </div>
                       </TableCell>
 
                       {/* Category */}
-                      <TableCell className="py-4">
+                      <TableCell className="py-4 w-36 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${article.categoryColor || "bg-gray-100 text-gray-800"}`}>
                           {article.category}
                         </span>
                       </TableCell>
 
                       {/* Date */}
-                      <TableCell className="py-4">
-                        <div className="flex items-center gap-1 text-sm text-gray-500">
-                          <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                          {article.date || new Date(article.createdAt).toLocaleDateString()}
+                      <TableCell className="py-4 w-32 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                          <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span>{article.date || new Date(article.createdAt).toLocaleDateString()}</span>
                         </div>
                       </TableCell>
 
                       {/* Featured */}
-                      <TableCell className="py-4 text-center">
+                      <TableCell className="py-4 w-24 text-center whitespace-nowrap">
                         {article.featured ? (
                           <Star className="w-4 h-4 fill-amber-400 text-amber-400 mx-auto" />
                         ) : (
@@ -418,7 +418,7 @@ export default function ManageInsightsPage() {
                       </TableCell>
 
                       {/* Actions */}
-                      <TableCell className="pr-6 py-4 text-right">
+                      <TableCell className="pr-6 py-4 text-right w-24 whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"

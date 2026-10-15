@@ -28,6 +28,7 @@ import {
 import Link from "next/link"
 import { toast } from "sonner"
 import { SafeHtml } from "@/components/ui/safe-html"
+import { TestBankQuestionSelector } from "@/components/courses/test-bank-question-selector"
 
 type Module = {
   id: string
@@ -79,6 +80,7 @@ export default function CourseEditPage({ params }: { params: Promise<{ id: strin
   const [assessmentDialogOpen, setAssessmentDialogOpen] = useState(false)
   const [editingAssessment, setEditingAssessment] = useState<any | null>(null)
   const [savingAssessment, setSavingAssessment] = useState(false)
+  const [selectedBankQuestionIds, setSelectedBankQuestionIds] = useState<string[]>([])
 
   // ── Assessment form ──
   const [assessmentForm, setAssessmentForm] = useState({
@@ -144,6 +146,7 @@ export default function CourseEditPage({ params }: { params: Promise<{ id: strin
       })
     } else {
       setEditingAssessment(null)
+      setSelectedBankQuestionIds([])
       setAssessmentForm({
         title: "",
         description: "",
@@ -173,6 +176,7 @@ export default function CourseEditPage({ params }: { params: Promise<{ id: strin
         releaseScores: assessmentForm.releaseScores,
         scoresReleasedAt: assessmentForm.releaseScores ? null : (assessmentForm.scoresReleasedAt ? new Date(assessmentForm.scoresReleasedAt) : null),
         courseId: id,
+        ...(!editingAssessment && selectedBankQuestionIds.length > 0 ? { bankQuestionIds: selectedBankQuestionIds } : {}),
       }
 
       if (editingAssessment) {
@@ -195,9 +199,10 @@ export default function CourseEditPage({ params }: { params: Promise<{ id: strin
         })
         if (res.ok) {
           const created = await res.json()
-          setAssessments(prev => [{ ...created, _count: { questions: 0, results: 0 } }, ...prev])
-          toast.success("Assessment added!")
+          setAssessments(prev => [{ ...created, _count: created._count || { questions: selectedBankQuestionIds.length, results: 0 } }, ...prev])
+          toast.success(selectedBankQuestionIds.length > 0 ? `Assessment added with ${selectedBankQuestionIds.length} test bank questions!` : "Assessment added!")
           setAssessmentDialogOpen(false)
+          setSelectedBankQuestionIds([])
         } else { toast.error("Failed to create assessment") }
       }
     } finally {
@@ -732,15 +737,16 @@ export default function CourseEditPage({ params }: { params: Promise<{ id: strin
 
       {/* ── Module Edit Dialog ── */}
       <Dialog open={moduleDialogOpen} onOpenChange={setModuleDialogOpen}>
-        <DialogContent className="max-w-3xl rounded-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold">
+        <DialogContent className="max-w-5xl rounded-2xl p-0 gap-0 flex flex-col max-h-[92vh] overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b border-gray-100 bg-white">
+            <DialogTitle className="text-xl font-bold text-gray-900">
               {editingModule ? "Edit Module" : "Add New Module"}
             </DialogTitle>
+            <p className="text-sm text-gray-500">Lesson details appear in the module list; content is what learners read.</p>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4">
               <div className="space-y-1.5 md:col-span-2">
                 <Label>Module Title *</Label>
                 <Input
@@ -769,7 +775,7 @@ export default function CourseEditPage({ params }: { params: Promise<{ id: strin
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Estimated Duration <span className="text-gray-400 font-normal">(minutes)</span></Label>
+                <Label>Duration <span className="text-gray-400 font-normal">(minutes)</span></Label>
                 <Input
                   type="number"
                   value={moduleForm.duration}
@@ -787,12 +793,12 @@ export default function CourseEditPage({ params }: { params: Promise<{ id: strin
                 value={moduleForm.content}
                 onChange={val => setModuleForm(p => ({ ...p, content: val }))}
                 placeholder="Write your lesson content here..."
-                minHeight="300px"
+                minHeight="420px"
               />
             </div>
           </div>
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50/60">
             <Button variant="outline" onClick={() => setModuleDialogOpen(false)} className="rounded-xl">Cancel</Button>
             <Button onClick={handleSaveModule} disabled={savingModule} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl gap-2">
               {savingModule ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -851,6 +857,16 @@ export default function CourseEditPage({ params }: { params: Promise<{ id: strin
                   </SelectContent>
                 </Select>
               </div>
+
+              {!editingAssessment && (
+                <div className="space-y-1.5 md:col-span-2">
+                  <TestBankQuestionSelector
+                    courseId={id}
+                    selectedQuestionIds={selectedBankQuestionIds}
+                    onSelectionChange={setSelectedBankQuestionIds}
+                  />
+                </div>
+              )}
 
               {assessmentForm.type !== "REVIEWER" && assessmentForm.type !== "RULES_GUIDELINES" && (
                 <>

@@ -29,6 +29,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import { TestBankQuestionSelector } from "@/components/courses/test-bank-question-selector"
 import { 
   Plus, 
   Search, 
@@ -373,6 +374,7 @@ export default function CoursesAndAssessmentsPage() {
   })
   const [assessmentSaving, setAssessmentSaving] = useState(false)
   const [assessmentError, setAssessmentError] = useState("")
+  const [selectedBankQuestionIds, setSelectedBankQuestionIds] = useState<string[]>([])
 
   // ── Course fetching ───────────────────────────────────────
   useEffect(() => {
@@ -549,6 +551,7 @@ export default function CoursesAndAssessmentsPage() {
           attempts: isUnlimited ? null : (assessmentForm.attempts ? parseInt(assessmentForm.attempts) : 1),
           releaseScores: assessmentForm.releaseScores,
           scoresReleasedAt: assessmentForm.releaseScores ? null : (assessmentForm.scoresReleasedAt ? new Date(assessmentForm.scoresReleasedAt).toISOString() : null),
+          bankQuestionIds: selectedBankQuestionIds.length > 0 ? selectedBankQuestionIds : undefined,
         }),
       })
       const data = await res.json()
@@ -558,6 +561,7 @@ export default function CoursesAndAssessmentsPage() {
       }
       setAssessments(prev => [data, ...prev])
       setAssessmentDialogOpen(false)
+      setSelectedBankQuestionIds([])
       setAssessmentForm({
         title: "",
         description: "",
@@ -807,9 +811,9 @@ export default function CoursesAndAssessmentsPage() {
                     <TableBody>
                       {courses.map((course) => (
                         <TableRow key={course.id} className="hover:bg-gray-50/80 transition-colors">
-                          <TableCell className="max-w-md py-4">
+                          <TableCell className="max-w-md py-4 whitespace-normal">
                             <div>
-                              <div className="font-semibold text-gray-900">{course.title}</div>
+                              <div className="font-semibold text-gray-900 leading-snug break-words">{course.title}</div>
                               <div className="text-xs text-gray-500 line-clamp-1 mt-0.5">
                                 {course.description}
                               </div>
@@ -928,6 +932,8 @@ export default function CoursesAndAssessmentsPage() {
           handleCreateAssessment={handleCreateAssessment}
           handleAssessmentTogglePublish={handleAssessmentTogglePublish}
           handleDeleteAssessment={handleDeleteAssessment}
+          selectedBankQuestionIds={selectedBankQuestionIds}
+          setSelectedBankQuestionIds={setSelectedBankQuestionIds}
         />
       )}
     </div>
@@ -1413,6 +1419,7 @@ function AdminAssessmentsContent({
   assessmentError, setAssessmentError,
   isUnlimitedType, handleCreateAssessment,
   handleAssessmentTogglePublish, handleDeleteAssessment,
+  selectedBankQuestionIds, setSelectedBankQuestionIds,
 }: {
   assessments: Assessment[]
   assessmentCourses: any[]
@@ -1433,6 +1440,8 @@ function AdminAssessmentsContent({
   handleCreateAssessment: () => Promise<void>
   handleAssessmentTogglePublish: (id: string, current: boolean) => Promise<void>
   handleDeleteAssessment: (id: string) => Promise<void>
+  selectedBankQuestionIds: string[]
+  setSelectedBankQuestionIds: (ids: string[]) => void
 }) {
   // Level 1: Program selection
   if (!selectedProgram) {
@@ -1583,6 +1592,13 @@ function AdminAssessmentsContent({
                   </Select>
                 )}
               </div>
+
+              {/* Course Test Bank Question Selector */}
+              <TestBankQuestionSelector
+                courseId={assessmentForm.courseId || activeCourse?.id}
+                selectedQuestionIds={selectedBankQuestionIds}
+                onSelectionChange={setSelectedBankQuestionIds}
+              />
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">

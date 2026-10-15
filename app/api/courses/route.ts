@@ -39,12 +39,13 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const search = searchParams.get("search")
 
+    // Instructors see every published course (the available catalog) plus any
+    // course they own or created (including drafts/archived). Edit rights are
+    // still enforced per-course in /api/courses/[id].
     const where: any = viewer.role === "LEARNER"
       ? { status: "PUBLISHED", enrollments: { some: { userId: viewer.id } } }
       : viewer.role === "INSTRUCTOR"
-        ? (searchParams.get("assignable") === "true" || searchParams.get("status") === "PUBLISHED"
-            ? { OR: [{ instructorId: viewer.id }, { creatorId: viewer.id }, { status: "PUBLISHED" }] }
-            : { OR: [{ instructorId: viewer.id }, { creatorId: viewer.id }] })
+        ? { OR: [{ instructorId: viewer.id }, { creatorId: viewer.id }, { status: "PUBLISHED" }] }
         : {}
     
     if (category) where.category = category
@@ -52,14 +53,20 @@ export async function GET(request: NextRequest) {
     if (status && viewer.role !== "LEARNER") where.status = status
 
     if (search) {
-      where.OR = [
-        { title: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
+      // AND-combine so search never widens the role-based visibility filter above.
+      where.AND = [
+        ...(where.AND ?? []),
+        {
+          OR: [
+            { title: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+          ],
+        },
       ]
     }
 
-    const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"))
-    const limit = Math.min(100, parseInt(searchParams.get("limit") ?? "20"))
+    const page = Math.max(1, parseInt(searchParams.get("page") ?? "1") || 1)
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20") || 20))
     const skip = (page - 1) * limit
 
     const include = {
@@ -68,13 +75,13 @@ export async function GET(request: NextRequest) {
       _count: { select: { enrollments: true, modules: true, assessments: true } },
     }
 
-    const [courses, total, dbTotal, publishedTotal, enrollmentTotal] = await Promise.all([
+    const [courses, total, publishedTotal, enrollmentTotal] = await Promise.all([
       prisma.course.findMany({ where, include, orderBy: { createdAt: 'desc' }, skip, take: limit }),
       prisma.course.count({ where }),
-      prisma.course.count({ where }),
       prisma.course.count({ where: { ...where, status: "PUBLISHED" } }),
-      prisma.enrollment.count(viewer.role === "LEARNER" ? { where: { userId: viewer.id } } : undefined),
+      prisma.enrollment.count({ where: viewer.role === "LEARNER" ? { userId: viewer.id } : { course: where } }),
     ])
+    const dbTotal = total
 
     return NextResponse.json({
       data: courses,

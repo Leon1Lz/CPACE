@@ -591,39 +591,39 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
 
   const renderReviewerDialog = () => (
     <Dialog open={reviewerModalOpen} onOpenChange={setReviewerModalOpen}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 rounded-2xl overflow-hidden [&>button]:hidden">
-        <div className="p-5 border-b border-gray-100 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-              <BookOpen className="h-4 w-4" />
+      <DialogContent className="max-w-5xl max-h-[92vh] flex flex-col gap-0 p-0 rounded-2xl overflow-hidden [&>button]:hidden">
+        <div className="px-6 py-4 border-b border-gray-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+              <BookOpen className="h-5 w-5" />
             </div>
-            <div>
-              <DialogTitle className="text-base font-bold text-gray-900">
+            <div className="min-w-0">
+              <DialogTitle className="text-lg font-bold text-gray-900 leading-tight truncate" title={assessment?.course.title}>
                 {assessment?.course.title} — Question Reviewer
               </DialogTitle>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-sm text-gray-500 mt-0.5">
                 Open-book reference guide with verified answer keys, formulas, and rationales.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="relative w-full sm:w-64">
-              <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="relative w-full md:w-72">
+              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search questions or formulas…"
                 value={reviewerSearch}
                 onChange={(e) => setReviewerSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50/50"
+                className="w-full h-10 pl-9 pr-3 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50/50"
               />
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setReviewerModalOpen(false)} className="rounded-xl h-8 w-8 p-0 shrink-0">
-              <XIcon className="h-4 w-4" />
+            <Button variant="ghost" size="sm" onClick={() => setReviewerModalOpen(false)} className="rounded-xl h-10 w-10 p-0 shrink-0" aria-label="Close reviewer">
+              <XIcon className="h-5 w-5" />
             </Button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-4 max-h-[calc(90vh-130px)] bg-gray-50/30">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-gray-50/50">
           {(() => {
             const rev = getReviewerByCourseCode(assessment?.course.title || "")
             const modalItems = rev.items.filter(it =>
@@ -643,34 +643,34 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
             }
 
             return modalItems.map((item) => (
-              <div key={item.id} className="p-4 rounded-xl border border-gray-100 bg-white space-y-3 shadow-2xs">
+              <div key={item.id} className="p-5 rounded-2xl border border-gray-100 bg-white space-y-3.5 shadow-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-black flex items-center justify-center shrink-0">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-full bg-emerald-600 text-white text-xs font-black flex items-center justify-center shrink-0">
                       {item.order}
                     </span>
-                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                    <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
                       {item.keyConcept}
                     </span>
                   </div>
                 </div>
-                <p className="text-xs font-bold text-gray-900 leading-snug">{item.question}</p>
+                <p className="text-base font-bold text-gray-900 leading-snug">{item.question}</p>
                 
-                <div className="grid sm:grid-cols-2 gap-1.5">
+                <div className="grid sm:grid-cols-2 gap-2">
                   {item.options.map((opt, oIdx) => {
                     const isCorrect = opt === item.correctAnswer
                     return (
                       <div
                         key={oIdx}
-                        className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center justify-between ${
+                        className={`px-3.5 py-2.5 rounded-xl border text-sm flex items-center justify-between gap-3 ${
                           isCorrect
-                            ? "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold"
-                            : "bg-white border-gray-100 text-gray-600"
+                            ? "bg-emerald-50 border-emerald-300 text-emerald-950 font-semibold"
+                            : "bg-white border-gray-200 text-gray-700"
                         }`}
                       >
                         <span>{opt}</span>
                         {isCorrect && (
-                          <span className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-bold">
+                          <span className="text-xs bg-emerald-600 text-white px-2 py-0.5 rounded-md font-bold shrink-0">
                             ✓ Correct
                           </span>
                         )}
@@ -679,13 +679,13 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
                   })}
                 </div>
 
-                <div className="p-2.5 rounded-lg bg-emerald-50/80 border border-emerald-100 text-[11px] text-emerald-950 leading-relaxed space-y-1">
+                <div className="p-3.5 rounded-xl bg-emerald-50/80 border border-emerald-100 text-sm text-emerald-950 leading-relaxed space-y-2">
                   <div>
                     <strong className="text-emerald-800">Rationale: </strong>
                     {item.explanation}
                   </div>
                   {item.formula && (
-                    <div className="p-1 rounded bg-white/90 border border-emerald-200/80 font-mono text-[10px] text-emerald-900 font-bold">
+                    <div className="px-3 py-2 rounded-lg bg-white/90 border border-emerald-200/80 font-mono text-xs text-emerald-900 font-bold overflow-x-auto">
                       📐 {item.formula}
                     </div>
                   )}
@@ -695,11 +695,18 @@ export default function TakeAssessmentPage({ params }: { params: Promise<{ id: s
           })()}
         </div>
 
-        <div className="p-3 border-t border-gray-100 bg-white flex items-center justify-between">
-          <span className="text-xs text-gray-400 font-medium">
-            Showing 30 comprehensive items with rationales
+        <div className="px-6 py-3.5 border-t border-gray-100 bg-white flex items-center justify-between">
+          <span className="text-sm text-gray-500 font-medium">
+            {(() => {
+              const all = getReviewerByCourseCode(assessment?.course.title || "").items
+              const q = reviewerSearch.trim().toLowerCase()
+              const shown = q
+                ? all.filter(it => it.question.toLowerCase().includes(q) || it.keyConcept.toLowerCase().includes(q) || (it.formula?.toLowerCase().includes(q) ?? false)).length
+                : all.length
+              return q ? `Showing ${shown} of ${all.length} items` : `Showing ${all.length} items with rationales`
+            })()}
           </span>
-          <Button size="sm" onClick={() => setReviewerModalOpen(false)} className="rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Button onClick={() => setReviewerModalOpen(false)} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">
             Close Reviewer
           </Button>
         </div>

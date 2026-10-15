@@ -27,3 +27,4 @@ web_detector/
 # Next.js generated declarations and TypeScript build cache
 /next-env.d.ts
 *.tsbuildinfo
+~$*
