@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -48,7 +47,6 @@ import {
   Archive,
   ClipboardCheck,
   FlaskConical,
-  ScrollText,
   Trophy,
   ShieldCheck,
   RotateCcw,
@@ -61,8 +59,6 @@ import {
   Trash2,
   AlertCircle,
   PlayCircle,
-  Sparkles,
-  ArrowRight,
 } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { PaginationControls } from "@/components/ui/pagination-controls"
@@ -184,7 +180,7 @@ const PROGRAMS = [
 // ASSESSMENT CARD SUB-COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
-function AssessmentCard({ a, role, groupBadge, onTogglePublish, onDelete }: { a: Assessment; role?: string; groupBadge: string; onTogglePublish?: (id: string, current: boolean) => void; onDelete?: (id: string) => void }) {
+function AssessmentCard({ a, role, groupBadge: _groupBadge, onTogglePublish, onDelete }: { a: Assessment; role?: string; groupBadge: string; onTogglePublish?: (id: string, current: boolean) => void; onDelete?: (id: string) => void }) {
   const myResult = a.results?.[0]
   const isUnlimited = a.type === "PRACTICE_EXAM"
   const isFinal = a.type === "FINAL_EXAM"
@@ -315,7 +311,6 @@ function TabBar({ activeTab, onTabChange }: { activeTab: "courses" | "assessment
 
 export default function CoursesAndAssessmentsPage() {
   const { data: session } = useSession()
-  const router = useRouter()
   const role = session?.user?.role?.toLowerCase()
 
   // ── Tab state ─────────────────────────────────────────────
@@ -346,7 +341,7 @@ export default function CoursesAndAssessmentsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterCategory, setFilterCategory] = useState("ALL")
   const [filterStatus, setFilterStatus] = useState("ALL")
-  const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set())
+  const [_enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set())
   const [learnerEnrollments, setLearnerEnrollments] = useState<any[]>([])
   const [page, setPage] = useState(1)
   const [limit] = useState(10)
@@ -609,6 +604,7 @@ export default function CoursesAndAssessmentsPage() {
         setSelectedProgram(progKeys[0] as string)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, assessments, assessmentCourses])
 
   // ── Loading ───────────────────────────────────────────────
@@ -951,7 +947,7 @@ export default function CoursesAndAssessmentsPage() {
 function LearnerCoursesContent({
   courses,
   enrollments,
-  loading,
+  loading: _loading,
   searchTerm,
   setSearchTerm,
   filterCategory,

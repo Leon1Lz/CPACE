@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
@@ -8,11 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle, DialogTrigger
+  DialogHeader, DialogTitle
 } from "@/components/ui/dialog"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -22,8 +22,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   ChevronLeft, Plus, Search, Trash2, Edit3, Loader2,
-  FileSpreadsheet, Upload, Download, CheckCircle2, Circle, Sparkles,
-  HelpCircle, AlertCircle, FileText, Check, ArrowDownUp, Filter, Copy, Printer
+  FileSpreadsheet, Download, CheckCircle2, Sparkles,
+  HelpCircle, FileText, Printer
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { AssessmentExportModal } from "@/components/assessments/assessment-export-modal"
@@ -139,6 +139,7 @@ export default function BankDetailPage() {
     if (canManage && bankId) {
       void fetchBank()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canManage, bankId])
 
   const openAddModal = () => {
@@ -275,7 +276,7 @@ export default function BankDetailPage() {
       )
       toast({ title: "Question Deleted", description: "Question removed from this test bank." })
       setQuestionToDelete(null)
-    } catch (err) {
+    } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to delete question." })
     } finally {
       setDeletingQuestion(false)

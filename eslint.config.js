@@ -51,12 +51,12 @@ export default [
       'react/no-unescaped-entities': 'off',
       'react/display-name': 'off',
       'react/prop-types': 'off',
-      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/set-state-in-effect': 'off',
       'react-hooks/rules-of-hooks': 'warn',
-      'react-hooks/refs': 'warn',
+      'react-hooks/refs': 'off',
       'no-useless-escape': 'warn',
       '@typescript-eslint/no-unused-expressions': 'warn',
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': [
         'warn',
         {

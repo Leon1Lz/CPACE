@@ -15,8 +15,8 @@ import { Badge } from "@/components/ui/badge"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import {
   ClipboardCheck, Plus, BookOpen, CheckCircle, AlertCircle,
-  Loader2, FlaskConical, ScrollText, Trophy, ShieldCheck,
-  Clock, RotateCcw, Lock, ChevronRight, ChevronLeft, GraduationCap,
+  Loader2, FlaskConical, Trophy, ShieldCheck,
+  Clock, RotateCcw, Lock, ChevronRight, ChevronLeft,
   Building2, Wrench, BarChart3, Trash2,
 } from "lucide-react"
 
@@ -95,7 +95,7 @@ const PROGRAMS = [
   },
 ]
 
-function AssessmentCard({ a, role, groupBadge, onTogglePublish, onDelete }: { a: Assessment; role?: string; groupBadge: string; onTogglePublish?: (id: string, current: boolean) => void; onDelete?: (id: string) => void }) {
+function AssessmentCard({ a, role, groupBadge: _groupBadge, onTogglePublish, onDelete }: { a: Assessment; role?: string; groupBadge: string; onTogglePublish?: (id: string, current: boolean) => void; onDelete?: (id: string) => void }) {
   const myResult = a.results?.[0]
   const isUnlimited = a.type === "PRACTICE_EXAM"
   const isFinal = a.type === "FINAL_EXAM"
