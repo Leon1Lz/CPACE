@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Award, Search, Download, Loader2, CheckCircle } from "lucide-react"
+import { Award, Search, Download, Loader2, CheckCircle, Plus } from "lucide-react"
 import { PaginationControls } from "@/components/ui/pagination-controls"
 
 export default function CertificatesPage() {
@@ -60,17 +60,50 @@ export default function CertificatesPage() {
     }
   }, [session, fetchCertificates])
 
+  const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState<string | null>(null)
+
+  const generateTestCertificate = async () => {
+    setGenerating(true)
+    setGenerateError(null)
+    try {
+      const res = await fetch("/api/certificates", { method: "POST" })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setGenerateError(body.error ?? "Failed to generate certificate")
+        return
+      }
+      setPage(1)
+      fetchCertificates()
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   const filtered = certificates
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          {role === "admin" ? "All Certificates" : "My Certificates"}
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {role === "admin" ? "Certificates issued across all learners" : "Your earned certificates and credentials"}
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {role === "admin" ? "All Certificates" : "My Certificates"}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {role === "admin" ? "Certificates issued across all learners" : "Your earned certificates and credentials"}
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <Button
+            onClick={generateTestCertificate}
+            disabled={generating}
+            className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm"
+          >
+            {generating ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Plus className="h-4 w-4 mr-1.5" />}
+            Generate Test Certificate
+          </Button>
+          {generateError && <p className="text-xs text-red-600">{generateError}</p>}
+        </div>
       </div>
 
       {/* Stats */}

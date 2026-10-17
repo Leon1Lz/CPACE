@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Camera, Maximize2, Minimize2 } from "lucide-react"
 import Pusher from "pusher-js"
+import { Room, RoomEvent } from "livekit-client"
 
 type Signal = {
   id?: string
@@ -63,6 +64,43 @@ export function ProctorVideoFeed({
     const key = process.env.NEXT_PUBLIC_PUSHER_KEY
     const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER
     if (sessionId.startsWith("simulation-")) return
+
+    if (process.env.NEXT_PUBLIC_LIVEKIT_URL) {
+      const room = new Room()
+      let closed = false
+      const stream = new MediaStream()
+      room.on(RoomEvent.TrackSubscribed, (track) => {
+        stream.addTrack(track.mediaStreamTrack)
+        setLiveStream(stream)
+        setStatus("live")
+      })
+      room.on(RoomEvent.TrackUnsubscribed, (track) => {
+        stream.removeTrack(track.mediaStreamTrack)
+        if (stream.getTracks().length === 0) setStatus("fallback")
+      })
+      room.on(RoomEvent.Disconnected, () => setStatus("fallback"))
+      void (async () => {
+        try {
+          const response = await fetch("/api/proctor/livekit-token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          })
+          if (!response.ok || closed) return setStatus("fallback")
+          const { token, url } = await response.json() as { token: string; url: string }
+          await room.connect(url, token)
+        } catch (error) {
+          console.warn("LiveKit subscribe failed:", error)
+          setStatus("fallback")
+        }
+      })()
+      const fallbackTimer = window.setTimeout(() => setStatus((value) => value === "connecting" ? "fallback" : value), 10000)
+      return () => {
+        closed = true
+        window.clearTimeout(fallbackTimer)
+        void room.disconnect()
+      }
+    }
 
     const viewerId = crypto.randomUUID()
     let learnerId = ""

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import Pusher from "pusher-js"
+import { Room } from "livekit-client"
 
 type Signal = {
   id?: string
@@ -18,6 +19,33 @@ export function LearnerVideoBroadcaster({ sessionId, stream }: { sessionId: stri
     const key = process.env.NEXT_PUBLIC_PUSHER_KEY
     const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER
     if (!sessionId || !stream) return
+
+    if (process.env.NEXT_PUBLIC_LIVEKIT_URL) {
+      const room = new Room()
+      let closed = false
+      void (async () => {
+        try {
+          const response = await fetch("/api/proctor/livekit-token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          })
+          if (!response.ok || closed) return
+          const { token, url } = await response.json() as { token: string; url: string }
+          await room.connect(url, token)
+          for (const track of stream.getTracks()) {
+            if (closed) return
+            await room.localParticipant.publishTrack(track)
+          }
+        } catch (error) {
+          console.warn("LiveKit publish failed:", error)
+        }
+      })()
+      return () => {
+        closed = true
+        void room.disconnect()
+      }
+    }
 
     const clientId = crypto.randomUUID()
     const peers = new Map<string, RTCPeerConnection>()

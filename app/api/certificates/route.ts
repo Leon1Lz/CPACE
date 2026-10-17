@@ -3,6 +3,39 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
+// Issues a clearly-labelled test certificate to the signed-in user so the
+// certificate PDF/verification flow can be exercised without finishing a course.
+export async function POST() {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true } })
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
+
+    const enrollment = await prisma.enrollment.findFirst({
+      where: { userId: user.id },
+      select: { course: { select: { id: true, title: true } } },
+    })
+    const course = enrollment?.course ?? await prisma.course.findFirst({ select: { id: true, title: true } })
+    if (!course) return NextResponse.json({ error: "No course available to attach a certificate to" }, { status: 400 })
+
+    const certificate = await prisma.certificate.create({
+      data: {
+        title: `[TEST] Certificate of Completion — ${course.title}`,
+        description: `Test certificate generated for ${course.title}`,
+        certificateNumber: `CPACE-TEST-${Date.now()}-${user.id.slice(-4).toUpperCase()}`,
+        userId: user.id,
+        courseId: course.id,
+      },
+    })
+    return NextResponse.json({ data: certificate }, { status: 201 })
+  } catch (error) {
+    console.error("Test certificate generation failed:", error)
+    return NextResponse.json({ error: "Failed to generate certificate" }, { status: 500 })
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)

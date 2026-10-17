@@ -4,6 +4,7 @@ import { Footer } from "@/components/layout/footer"
 import { ShieldCheck, Calendar, Award, CheckCircle, XCircle, FileText, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { getCourseBadgeUrl } from "@/lib/course-badges"
 
 interface VerifyPageProps {
   params: Promise<{ certificateNumber: string }>
@@ -30,6 +31,7 @@ export default async function VerifyCertificatePage({ params }: VerifyPageProps)
       },
     },
   })
+  const badgeUrl = cert ? getCourseBadgeUrl(cert.course.title, cert.course.category) : null
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between">
@@ -51,9 +53,16 @@ export default async function VerifyCertificatePage({ params }: VerifyPageProps)
                   <ShieldCheck className="h-4 w-4" />
                   Official Ledger
                 </div>
-                <div className="w-20 h-20 bg-white/10 backdrop-blur-lg rounded-full flex items-center justify-center mx-auto mb-4 border border-white/25 shadow-inner">
-                  <Award className="h-10 w-10 text-white animate-pulse" />
-                </div>
+                {badgeUrl ? (
+                  <div className="w-28 h-28 bg-white rounded-full flex items-center justify-center mx-auto mb-4 ring-4 ring-white/30 shadow-xl overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={badgeUrl} alt={`${cert.course.title} badge`} className="h-full w-full object-contain scale-125" />
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 bg-white/10 backdrop-blur-lg rounded-full flex items-center justify-center mx-auto mb-4 border border-white/25 shadow-inner">
+                    <Award className="h-10 w-10 text-white animate-pulse" />
+                  </div>
+                )}
                 <h1 className="text-2xl font-black tracking-tight">VERIFIED CREDENTIAL</h1>
                 <p className="text-emerald-100 text-sm mt-1">CPACE Philippines Certification Registry</p>
               </div>
