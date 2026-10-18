@@ -131,7 +131,13 @@ export async function GET(request: Request) {
     const [certificates, total, validTotal, uniqueCourses] = await Promise.all([
       prisma.certificate.findMany({ where, include, orderBy: { issuedAt: "desc" }, skip, take: limit }),
       prisma.certificate.count({ where }),
-      prisma.certificate.count({ where: { ...where, isValid: true } }),
+      prisma.certificate.count({
+        where: {
+          ...where,
+          isValid: true,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+      }),
       prisma.certificate.findMany({ where, select: { courseId: true }, distinct: ['courseId'] }),
     ])
 

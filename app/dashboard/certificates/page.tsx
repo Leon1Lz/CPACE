@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Award, Search, Download, Loader2, CheckCircle, Plus } from "lucide-react"
 import { PaginationControls } from "@/components/ui/pagination-controls"
+import { getCertificateDescription, getCertificateStatus } from "@/lib/certificates"
 
 export default function CertificatesPage() {
   const { data: session } = useSession()
@@ -17,7 +18,7 @@ export default function CertificatesPage() {
 
   // Pagination states
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(10)
+  const [limit] = useState(10)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const [dbStats, setDbStats] = useState({ total: 0, valid: 0, coursesCount: 0 })
@@ -154,9 +155,13 @@ export default function CertificatesPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <h3 className="font-bold text-gray-900">{c.title}</h3>
-                          {c.isValid && <span className="flex items-center gap-1 text-xs text-emerald-600 font-semibold"><CheckCircle className="h-3 w-3" />Valid</span>}
+                          <span className={`flex items-center gap-1 text-xs font-semibold capitalize ${getCertificateStatus(c) === "valid" ? "text-emerald-600" : "text-amber-700"}`}>
+                            {getCertificateStatus(c) === "valid" && <CheckCircle className="h-3 w-3" />}
+                            {getCertificateStatus(c)}
+                          </span>
                         </div>
                         <p className="text-sm text-gray-500">{c.course?.title}</p>
+                        <p className="text-sm text-gray-600 mt-1 break-words">{getCertificateDescription(c.description)}</p>
                         <p className="text-xs text-gray-400 mt-1">
                           Issued: {new Date(c.issuedAt).toLocaleDateString()} · #{c.certificateNumber}
                         </p>
@@ -195,13 +200,16 @@ export default function CertificatesPage() {
                             </div>
                           </TableCell>
                         )}
-                        <TableCell className="font-medium text-sm text-gray-900">{c.title}</TableCell>
+                        <TableCell className="text-sm text-gray-900">
+                          <p className="font-medium">{c.title}</p>
+                          <p className="text-xs text-gray-500 mt-1 max-w-sm break-words">{getCertificateDescription(c.description)}</p>
+                        </TableCell>
                         <TableCell className="text-sm text-gray-600">{c.course?.title}</TableCell>
                         <TableCell className="text-xs text-gray-400 font-mono">#{c.certificateNumber}</TableCell>
                         <TableCell className="text-xs text-gray-400">{new Date(c.issuedAt).toLocaleDateString()}</TableCell>
                         <TableCell>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${c.isValid ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
-                            {c.isValid ? "Valid" : "Expired"}
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${getCertificateStatus(c) === "valid" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
+                            {getCertificateStatus(c)}
                           </span>
                         </TableCell>
                         <TableCell>

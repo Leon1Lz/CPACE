@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { renderToStream } from "@react-pdf/renderer"
 import { CertificateDocument } from "@/components/pdf/certificate-document"
+import { createCertificateVerification } from "@/lib/certificate-qr"
 import React from "react"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -35,8 +36,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       ...cert,
       course: { ...cert.course, category: cert.course.category ?? "" },
     }
+    const verification = await createCertificateVerification(cert.certificateNumber)
     const stream = await renderToStream(
-      React.createElement(CertificateDocument, { cert: certData }) as any
+      React.createElement(CertificateDocument, { cert: certData, ...verification }) as any
     )
 
     const chunks: Uint8Array[] = []

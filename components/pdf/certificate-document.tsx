@@ -1,8 +1,9 @@
 import React from "react"
 import path from "path"
 import fs from "fs"
-import { Document, Page, Text, View, Image, StyleSheet, Font } from "@react-pdf/renderer"
+import { Document, Page, Text, View, Image, Link, StyleSheet, Font } from "@react-pdf/renderer"
 import { getCourseBadgeFile } from "@/lib/course-badges"
+import { getCertificateDescription, getCertificateStatus } from "@/lib/certificates"
 
 Font.register({
   family: "Helvetica",
@@ -100,15 +101,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 70,
     paddingTop: 44,
-    paddingBottom: 66,
+    paddingBottom: 76,
   },
   logo: {
-    height: 42,
+    height: 34,
     objectFit: "contain",
     marginBottom: 10,
   },
   certHeading: {
-    fontSize: 38,
+    fontSize: 34,
     fontFamily: "Times-Bold",
     color: GREEN,
     letterSpacing: 9,
@@ -125,8 +126,8 @@ const styles = StyleSheet.create({
   ornamentRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 12,
-    marginBottom: 12,
+    marginTop: 10,
+    marginBottom: 10,
   },
   ornamentLine: {
     width: 90,
@@ -148,7 +149,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   recipientName: {
-    fontSize: 40,
+    fontSize: 34,
     fontFamily: "Times-BoldItalic",
     color: GREEN_DARK,
     textAlign: "center",
@@ -158,7 +159,7 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: GOLD,
     marginTop: 6,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   bodyText: {
     fontSize: 11,
@@ -167,7 +168,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   courseTitle: {
-    fontSize: 19,
+    fontSize: 18,
     fontFamily: "Times-Bold",
     color: INK,
     textAlign: "center",
@@ -181,15 +182,25 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     textTransform: "uppercase",
   },
+  description: {
+    fontSize: 9,
+    lineHeight: 1.4,
+    color: MUTED,
+    textAlign: "center",
+    maxWidth: 530,
+    marginTop: 10,
+    maxLines: 3,
+    textOverflow: "ellipsis",
+  },
   bottomRow: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
     width: 600,
-    marginTop: 22,
+    marginTop: 16,
   },
   sigBlock: {
-    width: 170,
+    width: 140,
     alignItems: "center",
   },
   sigValue: {
@@ -199,7 +210,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   sigLine: {
-    width: 170,
+    width: 140,
     height: 1,
     backgroundColor: INK,
     marginBottom: 4,
@@ -211,8 +222,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   badge: {
-    width: 104,
-    height: 104,
+    width: 84,
+    height: 84,
     objectFit: "contain",
   },
   sealOuter: {
@@ -247,6 +258,19 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginTop: 2,
   },
+  qrBlock: {
+    width: 84,
+    alignItems: "center",
+  },
+  qrCode: {
+    width: 72,
+    height: 72,
+  },
+  qrCaption: {
+    fontSize: 6.5,
+    color: GREEN,
+    marginTop: 3,
+  },
   footer: {
     position: "absolute",
     bottom: 46,
@@ -265,6 +289,8 @@ const styles = StyleSheet.create({
     color: MUTED,
     letterSpacing: 0.8,
     marginTop: 2,
+    maxWidth: 650,
+    textAlign: "center",
   },
   validBadge: {
     position: "absolute",
@@ -288,19 +314,25 @@ const styles = StyleSheet.create({
 type Cert = {
   id: string
   title: string
+  description?: string | null
   certificateNumber: string
   issuedAt: Date | string
   isValid: boolean
+  expiresAt?: Date | string | null
   user: { firstName: string; lastName: string; email: string }
   course: { title: string; category: string }
 }
 
-export function CertificateDocument({ cert }: { cert: Cert }) {
+export function CertificateDocument({ cert, verificationUrl, qrCodeDataUrl }: {
+  cert: Cert
+  verificationUrl: string
+  qrCodeDataUrl: string
+}) {
   const fullName = `${cert.user.firstName} ${cert.user.lastName}`.trim()
   const issueDate = new Date(cert.issuedAt).toLocaleDateString("en-PH", {
     year: "numeric", month: "long", day: "numeric",
   })
-  const verifyHost = (process.env.NEXTAUTH_URL ?? "cpace-three.vercel.app").replace(/^https?:\/\//, "").replace(/\/$/, "")
+  const description = getCertificateDescription(cert.description)
   const badgeData = loadCourseBadge(cert.course.title, cert.course.category ?? "")
 
   return (
@@ -319,7 +351,7 @@ export function CertificateDocument({ cert }: { cert: Cert }) {
         <View style={[styles.corner, { bottom: 18, right: 18 }]}><View style={styles.cornerDot} /></View>
 
         {/* Valid badge */}
-        {cert.isValid && (
+        {getCertificateStatus(cert) === "valid" && (
           <View style={styles.validBadge}>
             <Text style={styles.validText}>VERIFIED</Text>
           </View>
@@ -345,6 +377,7 @@ export function CertificateDocument({ cert }: { cert: Cert }) {
           <Text style={styles.bodyText}>for successfully completing the course</Text>
           <Text style={styles.courseTitle}>{cert.course.title}</Text>
           {cert.course.category ? <Text style={styles.category}>{cert.course.category}</Text> : null}
+          <Text style={styles.description}>{description}</Text>
 
           <View style={styles.bottomRow}>
             <View style={styles.sigBlock}>
@@ -369,6 +402,13 @@ export function CertificateDocument({ cert }: { cert: Cert }) {
               <View style={styles.sigLine} />
               <Text style={styles.sigLabel}>Authorized Signatory</Text>
             </View>
+
+            <View style={styles.qrBlock}>
+              <Link src={verificationUrl}>
+                <Image src={qrCodeDataUrl} style={styles.qrCode} />
+              </Link>
+              <Text style={styles.qrCaption}>Scan to verify certificate</Text>
+            </View>
           </View>
         </View>
 
@@ -376,7 +416,7 @@ export function CertificateDocument({ cert }: { cert: Cert }) {
         <View style={styles.footer}>
           <Text style={styles.footerNumber}>CERTIFICATE NO. {cert.certificateNumber}</Text>
           <Text style={styles.footerText}>
-            Verify authenticity at {verifyHost}/verify/{cert.certificateNumber}
+            Verify authenticity at <Link src={verificationUrl}>{verificationUrl}</Link>
           </Text>
         </View>
       </Page>

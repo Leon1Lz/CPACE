@@ -5,6 +5,7 @@ import { ShieldCheck, Calendar, Award, CheckCircle, XCircle, FileText, ArrowLeft
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { getCourseBadgeUrl } from "@/lib/course-badges"
+import { getCertificateDescription, getCertificateStatus } from "@/lib/certificates"
 
 interface VerifyPageProps {
   params: Promise<{ certificateNumber: string }>
@@ -32,6 +33,9 @@ export default async function VerifyCertificatePage({ params }: VerifyPageProps)
     },
   })
   const badgeUrl = cert ? getCourseBadgeUrl(cert.course.title, cert.course.category) : null
+  const status = cert ? getCertificateStatus(cert) : null
+  const isActive = status === "valid"
+  const StatusIcon = isActive ? CheckCircle : XCircle
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between">
@@ -45,10 +49,10 @@ export default async function VerifyCertificatePage({ params }: VerifyPageProps)
 
         <div className="max-w-2xl w-full relative z-10">
           {cert ? (
-            /* VERIFIED STATE */
+            /* Registered certificate: show its current validity. */
             <div className="bg-white rounded-3xl shadow-2xl border border-emerald-100/50 overflow-hidden transform transition-all duration-500 hover:shadow-emerald-100/30">
               {/* Premium Top Bar */}
-              <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-8 py-8 text-center text-white relative">
+              <div className={`bg-gradient-to-r ${isActive ? "from-emerald-600 to-teal-600" : "from-amber-600 to-orange-600"} px-8 py-8 text-center text-white relative`}>
                 <div className="absolute top-4 right-4 flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider">
                   <ShieldCheck className="h-4 w-4" />
                   Official Ledger
@@ -63,17 +67,23 @@ export default async function VerifyCertificatePage({ params }: VerifyPageProps)
                     <Award className="h-10 w-10 text-white animate-pulse" />
                   </div>
                 )}
-                <h1 className="text-2xl font-black tracking-tight">VERIFIED CREDENTIAL</h1>
-                <p className="text-emerald-100 text-sm mt-1">CPACE Philippines Certification Registry</p>
+                <h1 className="text-2xl font-black tracking-tight">{isActive ? "VERIFIED CREDENTIAL" : `${status?.toUpperCase()} CREDENTIAL`}</h1>
+                <p className="text-white/80 text-sm mt-1">CPACE Philippines Certification Registry</p>
               </div>
 
               {/* Certificate Details */}
               <div className="p-8 space-y-6">
-                <div className="flex items-center gap-4 p-4 bg-emerald-50/50 border border-emerald-100/40 rounded-2xl">
-                  <CheckCircle className="h-8 w-8 text-emerald-600 shrink-0" />
+                <div className={`flex items-center gap-4 p-4 border rounded-2xl ${isActive ? "bg-emerald-50/50 border-emerald-100/40" : "bg-amber-50 border-amber-200"}`}>
+                  <StatusIcon className={`h-8 w-8 shrink-0 ${isActive ? "text-emerald-600" : "text-amber-600"}`} />
                   <div>
-                    <h2 className="font-bold text-gray-900 text-lg">Valid Certification</h2>
-                    <p className="text-gray-500 text-xs mt-0.5">This credential has been verified as authentic and active.</p>
+                    <h2 className="font-bold text-gray-900 text-lg">{isActive ? "Valid Certification" : status === "expired" ? "Certificate Expired" : "Certificate Revoked"}</h2>
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      {isActive
+                        ? "This credential has been verified as authentic and active."
+                        : status === "expired"
+                          ? "This certificate is registered, but its validity period has ended."
+                          : "This certificate is registered, but has been revoked and is no longer valid."}
+                    </p>
                   </div>
                 </div>
 
@@ -97,6 +107,11 @@ export default async function VerifyCertificatePage({ params }: VerifyPageProps)
                       </span>
                     )}
                   </div>
+                </div>
+
+                <div className="pt-6 border-t border-gray-100 space-y-2">
+                  <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Certificate Description</h2>
+                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line break-words">{getCertificateDescription(cert.description)}</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-100">
