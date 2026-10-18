@@ -1,21 +1,10 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { normalizeAuthUrls } from './lib/auth-url.mjs'
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url))
 
-// Sanitize NEXTAUTH_URL so next-auth doesn't crash on new URL("") if empty in Vercel env
-const rawNextAuthUrl = process.env.NEXTAUTH_URL?.trim()
-const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined
-const fallbackUrl = vercelUrl
-  || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined)
-  || (process.env.NODE_ENV === 'production' ? 'https://cpace-three.vercel.app' : 'http://localhost:3000')
-
-if (!rawNextAuthUrl || !rawNextAuthUrl.startsWith('http')) {
-  process.env.NEXTAUTH_URL = fallbackUrl
-}
-if (process.env.NEXTAUTH_URL_INTERNAL && !process.env.NEXTAUTH_URL_INTERNAL.startsWith('http')) {
-  delete process.env.NEXTAUTH_URL_INTERNAL
-}
+normalizeAuthUrls(process.env)
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
