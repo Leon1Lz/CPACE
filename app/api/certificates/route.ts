@@ -3,15 +3,21 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
-// Issues a clearly-labelled test certificate to the signed-in user so the
-// certificate PDF/verification flow can be exercised without finishing a course.
+// Admin-only preview of the certificate PDF/verification flow.
+// Learners earn certificates through passing final exams.
 export async function POST() {
   try {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true } })
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, role: true, isActive: true },
+    })
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
+    if (!user.isActive || user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Only administrators can generate test certificates" }, { status: 403 })
+    }
 
     const enrollment = await prisma.enrollment.findFirst({
       where: { userId: user.id },

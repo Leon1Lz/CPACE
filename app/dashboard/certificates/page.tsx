@@ -65,6 +65,7 @@ export default function CertificatesPage() {
   const [generateError, setGenerateError] = useState<string | null>(null)
 
   const generateTestCertificate = async () => {
+    if (role !== "admin") return
     setGenerating(true)
     setGenerateError(null)
     try {
@@ -94,17 +95,19 @@ export default function CertificatesPage() {
             {role === "admin" ? "Certificates issued across all learners" : "Your earned certificates and credentials"}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <Button
-            onClick={generateTestCertificate}
-            disabled={generating}
-            className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm"
-          >
-            {generating ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Plus className="h-4 w-4 mr-1.5" />}
-            Generate Test Certificate
-          </Button>
-          {generateError && <p className="text-xs text-red-600">{generateError}</p>}
-        </div>
+        {role === "admin" && (
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              onClick={generateTestCertificate}
+              disabled={generating}
+              className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm"
+            >
+              {generating ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Plus className="h-4 w-4 mr-1.5" />}
+              Generate Test Certificate
+            </Button>
+            {generateError && <p className="text-xs text-red-600">{generateError}</p>}
+          </div>
+        )}
       </div>
 
       {/* Stats */}
