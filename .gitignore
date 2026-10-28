@@ -23,6 +23,7 @@ cpace-landing-app/
 web_detector/
 .codex-scan-staging/
 .codex-dev.log
+.local/stress-test/
 
 # Next.js generated declarations and TypeScript build cache
 /next-env.d.ts

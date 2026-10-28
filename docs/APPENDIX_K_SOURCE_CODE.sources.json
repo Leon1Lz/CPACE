@@ -1,0 +1,217 @@
+{
+  "snapshotDate": "October 19, 2026",
+  "revision": "f988f1c0d279aee02033b3b95ff8be0ff146647e",
+  "listingCount": 15,
+  "codeLineCount": 469,
+  "listings": [
+    {
+      "number": "K.1",
+      "title": "User authentication",
+      "excerpts": [
+        {
+          "file": "lib/auth.ts",
+          "startLine": 15,
+          "endLine": 62,
+          "sourceSha256": "6bef57aa4a4cf0237c9debe10aa2516465eae54d099fe369c7e524c9e6bd4ff5",
+          "excerptSha256": "e593079b7e3688cf0c56b86b05de8c827f359d9ac0acf1a96f7cee37a123e339"
+        }
+      ]
+    },
+    {
+      "number": "K.2",
+      "title": "Role and resource authorization",
+      "excerpts": [
+        {
+          "file": "lib/authorization.ts",
+          "startLine": 1,
+          "endLine": 33,
+          "sourceSha256": "30929dedba5dda9bfb80a482179a9ee2b59b542efdfcadd133231f60d89c2e53",
+          "excerptSha256": "cf7225aaea7f3533bfa47c291fa3fff899ba611f4fdbbdb74cce3e6d8d00d789"
+        }
+      ]
+    },
+    {
+      "number": "K.3",
+      "title": "Learning-path prerequisites",
+      "excerpts": [
+        {
+          "file": "lib/learning-path-access.ts",
+          "startLine": 1,
+          "endLine": 29,
+          "sourceSha256": "fdb84d7b94670801c001409e9bae1586ddebae447cffbe95d411df5d126dc5f6",
+          "excerptSha256": "5783a12282623db589b2833ac6b72102cc4163482959dcd691485a64488adaa2"
+        }
+      ]
+    },
+    {
+      "number": "K.4",
+      "title": "Server-enforced exam timing",
+      "excerpts": [
+        {
+          "file": "lib/assessment-timing.ts",
+          "startLine": 1,
+          "endLine": 22,
+          "sourceSha256": "92e6b4a815379b9e857c53bffb39cd0fa34f0ac0f06a905d24a8282c6d8497d7",
+          "excerptSha256": "452eec0c7f9e28e2205b13f00ca9d2e96fb5efc5e4423cc57e8dd1f43aa9c660"
+        }
+      ]
+    },
+    {
+      "number": "K.5",
+      "title": "Assessment answer autosave",
+      "excerpts": [
+        {
+          "file": "app/api/assessments/[id]/draft/route.ts",
+          "startLine": 1,
+          "endLine": 67,
+          "sourceSha256": "30a8efc4fb32aa61566eafb7e84f82bfb68fab7e1bf9dcf86170c3a6007b75bf",
+          "excerptSha256": "159b09478e54bf1960b3677665b0ad5409811b4f11eb59d73ab86921473aa308"
+        }
+      ]
+    },
+    {
+      "number": "K.6",
+      "title": "Automatic assessment scoring",
+      "excerpts": [
+        {
+          "file": "app/api/assessments/[id]/submit/route.ts",
+          "startLine": 139,
+          "endLine": 183,
+          "sourceSha256": "26986dab1ff5e0d3d2a0771c1c967d711c142fd819dfa170542e2974f63989ac",
+          "excerptSha256": "4a383901b9d646e818a389a163ce4b4d6ccd4bbcea345d3bf6eacab355537d1f"
+        }
+      ]
+    },
+    {
+      "number": "K.7",
+      "title": "Manual grading",
+      "excerpts": [
+        {
+          "file": "lib/manual-grading.ts",
+          "startLine": 1,
+          "endLine": 23,
+          "sourceSha256": "93874c8d80f72991b65629197629fb0ecd67f79f196e538c5fe6159116367bf7",
+          "excerptSha256": "c5e0af9c4ce8916ed67854404ec99dc93b85143927faae67ef154f99612600d1"
+        }
+      ]
+    },
+    {
+      "number": "K.8",
+      "title": "Assigned proctor access",
+      "excerpts": [
+        {
+          "file": "lib/proctor-access.ts",
+          "startLine": 1,
+          "endLine": 26,
+          "sourceSha256": "e1191ed579ec79b5dea7723ddc390247b5d2cfe7aedb5133a9cfceaafebfbc24",
+          "excerptSha256": "e4ae469ef9eafce8f368fbf8b16412efa3adfbc767231208392a96a517e4a6b0"
+        }
+      ]
+    },
+    {
+      "number": "K.9",
+      "title": "Live proctoring snapshots and device health",
+      "excerpts": [
+        {
+          "file": "app/api/assessments/[id]/session/feed/route.ts",
+          "startLine": 1,
+          "endLine": 62,
+          "sourceSha256": "9c40725d934613086c39f83ade5d2ac9a9666810b5a1b9c42a0f343fa991a873",
+          "excerptSha256": "e01526249e63d3eb2b08fda0c19f3fc407cb108a3c3a73e269bdf0b8f98fcaaa"
+        }
+      ]
+    },
+    {
+      "number": "K.10",
+      "title": "Certificate issuance after a final examination",
+      "excerpts": [
+        {
+          "file": "app/api/assessments/[id]/submit/route.ts",
+          "startLine": 263,
+          "endLine": 279,
+          "sourceSha256": "26986dab1ff5e0d3d2a0771c1c967d711c142fd819dfa170542e2974f63989ac",
+          "excerptSha256": "690809ff958154f40bfda81075e2464a86c67abbff9e18b2b43531a6570e6f1d"
+        }
+      ]
+    },
+    {
+      "number": "K.11",
+      "title": "Certificate verification URL and QR code",
+      "excerpts": [
+        {
+          "file": "lib/certificate-qr.ts",
+          "startLine": 1,
+          "endLine": 21,
+          "sourceSha256": "8ea82d2c5a17e70cba328c3a55572d0f5f09a82ae91c93915d61af533a33e287",
+          "excerptSha256": "346b997dc7c5f6571fcfb74e8c255b9ef248ad3658a3b280ed789b91c71f1c2b"
+        }
+      ]
+    },
+    {
+      "number": "K.12",
+      "title": "Certificate description and validity",
+      "excerpts": [
+        {
+          "file": "lib/certificates.ts",
+          "startLine": 1,
+          "endLine": 12,
+          "sourceSha256": "c39f9faba6ae2d171b428b302d4a51f8eb8ffbf7d30563e813784120d4e12c6d",
+          "excerptSha256": "9af172777349c62f0ada799732dd4d6ade5fed60fcbde730dba791baa1f0c760"
+        }
+      ]
+    },
+    {
+      "number": "K.13",
+      "title": "Public certificate lookup",
+      "excerpts": [
+        {
+          "file": "app/(landing)/verify/[certificateNumber]/page.tsx",
+          "startLine": 15,
+          "endLine": 38,
+          "sourceSha256": "ca9eb7a5faff4d7c2e7749d2b9a82b0758b156e11a63815e19c7a51407d8dc66",
+          "excerptSha256": "4371be6c45027e47c1f9b127584165d40b916f1379bcc62ec0a5cd0adf75c525"
+        }
+      ]
+    },
+    {
+      "number": "K.14",
+      "title": "Description and QR code on the PDF certificate",
+      "excerpts": [
+        {
+          "file": "components/pdf/certificate-document.tsx",
+          "startLine": 326,
+          "endLine": 335,
+          "sourceSha256": "650a455029d6ba369eb2d935087559938ca28d952f7bcb24d47fad7cdc341d71",
+          "excerptSha256": "8617cd5740ce4ecebf8edc3a56e59aa07097efe1231c1795afb9dc6a6a23d8d8"
+        },
+        {
+          "file": "components/pdf/certificate-document.tsx",
+          "startLine": 377,
+          "endLine": 380,
+          "sourceSha256": "650a455029d6ba369eb2d935087559938ca28d952f7bcb24d47fad7cdc341d71",
+          "excerptSha256": "8d5bc452b8dba38feb3dd590a8c65d268e590d61863782d19d636dca68f1906a"
+        },
+        {
+          "file": "components/pdf/certificate-document.tsx",
+          "startLine": 406,
+          "endLine": 411,
+          "sourceSha256": "650a455029d6ba369eb2d935087559938ca28d952f7bcb24d47fad7cdc341d71",
+          "excerptSha256": "dceb0c34085262b4f223ec79306003d556d86c9d91fb080b2e719cfde4053fad"
+        }
+      ]
+    },
+    {
+      "number": "K.15",
+      "title": "Certificate database model",
+      "excerpts": [
+        {
+          "file": "prisma/schema.prisma",
+          "startLine": 476,
+          "endLine": 495,
+          "sourceSha256": "ad611947cc25efca03cd1af1f392439c515baad905927666369143a0d44bc12b",
+          "excerptSha256": "6737dc66820bcb656e474a23f02b9229ce3a25bfa15ac74d953e43971672994f"
+        }
+      ]
+    }
+  ]
+}

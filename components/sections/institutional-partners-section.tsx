@@ -44,7 +44,7 @@ function LogoCard({ filename }: { filename: string }) {
 
   return (
     <div
-      className="flex-shrink-0 w-36 h-36 md:w-40 md:h-40 bg-white rounded-2xl flex items-center justify-center p-4 shadow-md border border-gray-100 hover:shadow-xl hover:scale-105 transition-all duration-300 mx-3 overflow-hidden"
+      className="flex-shrink-0 w-36 h-36 md:w-40 md:h-40 bg-white rounded-2xl flex items-center justify-center p-4 shadow-md border border-gray-100 hover:shadow-xl transition-shadow duration-300 mx-3 overflow-hidden"
       title={name}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -58,26 +58,30 @@ function LogoCard({ filename }: { filename: string }) {
   )
 }
 
-function MarqueeRow({ logos, direction = "left", duration = 60 }: { logos: string[]; direction?: "left" | "right"; duration?: number }) {
+function MarqueeRow({ logos, direction = "left", duration = 45 }: { logos: string[]; direction?: "left" | "right"; duration?: number }) {
   const animationClass = direction === "left" ? "animate-marquee-left" : "animate-marquee-right"
 
   return (
-    <div className="relative overflow-hidden py-3">
+    <div className="relative overflow-hidden py-3 w-full">
       {/* Gradient fade edges */}
       <div className="absolute left-0 top-0 bottom-0 w-16 md:w-24 bg-gradient-to-r from-gray-50 via-gray-50/80 to-transparent z-10 pointer-events-none"></div>
       <div className="absolute right-0 top-0 bottom-0 w-16 md:w-24 bg-gradient-to-l from-gray-50 via-gray-50/80 to-transparent z-10 pointer-events-none"></div>
 
       <div
-        className={`flex ${animationClass}`}
+        className={`flex w-max flex-nowrap ${animationClass}`}
         style={{ animationDuration: `${duration}s` }}
       >
-        {/* Duplicate the logos for seamless loop */}
-        {logos.map((logo, i) => (
-          <LogoCard key={`a-${i}`} filename={logo} />
-        ))}
-        {logos.map((logo, i) => (
-          <LogoCard key={`b-${i}`} filename={logo} />
-        ))}
+        {/* Two identical groups so 50% shift creates a seamless, continuous infinite loop */}
+        <div className="flex shrink-0 items-center">
+          {logos.concat(logos).map((logo, i) => (
+            <LogoCard key={`group1-${i}`} filename={logo} />
+          ))}
+        </div>
+        <div className="flex shrink-0 items-center">
+          {logos.concat(logos).map((logo, i) => (
+            <LogoCard key={`group2-${i}`} filename={logo} />
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -127,7 +131,7 @@ export function InstitutionalPartnersSection() {
               Trusted Network
             </div>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
-              Institutional Partners & Clients
+              Institutional and Industry Partners
             </h2>
             <p className="text-base md:text-lg text-gray-600 leading-relaxed">
               Trusted by leading organizations and academic institutions across various industries for professional development and certification programs.

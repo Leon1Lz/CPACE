@@ -42,8 +42,8 @@ export function HeroSection() {
           {/* Left Column - Content */}
           <div className="space-y-6 lg:space-y-8">
             {/* CPACE Philippines Heading with Green Gradient */}
-            <div className="space-y-3 sm:space-y-4">
-              <h1 className="text-4xl sm:text-5xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-tight tracking-tight">
+            <div className="space-y-4">
+              <h1 className="text-4xl sm:text-5xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-[1.12] tracking-tight">
                 <span className="block text-white drop-shadow-lg">
                   Advance Your
                 </span>
@@ -54,7 +54,7 @@ export function HeroSection() {
                   with CPACE Philippines
                 </span>
               </h1>
-              <p className="text-base sm:text-lg text-white/90 leading-relaxed max-w-xl font-light drop-shadow">
+              <p className="text-base sm:text-lg text-white/90 leading-relaxed max-w-xl font-light drop-shadow pt-1">
                 The Center for Professional Advancement and Continuing
                 Education, Inc. (CPACE Philippines), is a professional
                 organization that provides professional development and
@@ -91,7 +91,7 @@ export function HeroSection() {
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-emerald-400" />
                 <span className="text-xs font-medium text-white/90">
-                  Expert Instructors
+                  Industry Experts
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -139,7 +139,7 @@ export function HeroSection() {
                           Industry Recognized
                         </h4>
                         <p className="text-white/70 text-xs leading-relaxed">
-                          Globally aligned credentials and certifications valued
+                          Industry-recognized credentials and certifications valued
                           by top employers, universities, and industry leaders
                         </p>
                       </div>

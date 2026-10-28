@@ -44,7 +44,7 @@ export function UpcomingEventsSection() {
             <CalendarDays className="h-3.5 w-3.5" /> Upcoming Schedule
           </div>
           <h2 className="text-3xl font-bold leading-tight text-gray-900 md:text-4xl lg:text-5xl">
-            Upcoming Training &amp; <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Certification Events</span>
+            Upcoming Trainings &amp; <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Assessment Exams</span>
           </h2>
           <p className="text-lg text-gray-600">Secure your slot for our next certification review classes, examinations, and professional training programs.</p>
         </div>
@@ -66,6 +66,9 @@ export function UpcomingEventsSection() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`rounded-full bg-gradient-to-r px-2.5 py-0.5 text-xs font-bold text-white ${event.color}`}>{event.certification}</span>
                           <EventTypeBadge type={event.deliveryMode} />
+                          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                            Online, In-person, Hybrid
+                          </span>
                         </div>
                         <h3 className="text-xl font-bold text-gray-900 transition-colors group-hover:text-emerald-700">{event.title}</h3>
                       </div>
@@ -95,7 +98,7 @@ export function UpcomingEventsSection() {
               <Link href="/#contact">Inquire About Schedules<ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
             <Button asChild variant="outline" className="border-emerald-600 px-8 py-3 font-semibold text-emerald-600 hover:bg-emerald-50">
-              <Link href="https://linktr.ee/cpaceph" target="_blank" rel="noopener noreferrer">View All Programs</Link>
+              <Link href="https://bit.ly/cpaceprograms" target="_blank" rel="noopener noreferrer">View All Programs</Link>
             </Button>
           </div>
         </div>

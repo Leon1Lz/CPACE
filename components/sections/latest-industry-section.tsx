@@ -277,7 +277,7 @@ export function LatestIndustrySection() {
                 </span>
               </h3>
               <p className="text-white/70 leading-relaxed text-lg">
-                Elevate your professional development by subscribing to our official newsletter. Gain access to curated updates on our upcoming professional certifications, short courses, training programs, seminars, and webinars.
+                Gain access to curated updates on our upcoming professional certifications, short courses, training programs, seminars, and webinars by subscribing to our official newsletter.
               </p>
               <p className="text-white/60 leading-relaxed">
                 Additionally, receive expert insights, industry trends, and exclusive invitations to events designed to advance your career.

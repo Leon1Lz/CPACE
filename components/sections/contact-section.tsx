@@ -61,14 +61,14 @@ export function ContactSection() {
 
   const contactInfo = [
     {
-      title: "Manila, Philippines",
+      title: "Manila, Philippines 🇵🇭",
       address: "Unit 1510 High Street South Corporate Plaza Tower 1, 26th St. Corner 9th Ave., BGC Taguig City, Philippines (1634)",
       phone: "+63 956 221-2400",
       email: "info@cpaceph.com",
       hours: "Monday - Friday: 9:00 AM - 6:00 PM (PHT)"
     },
     {
-      title: "Dubai, United Arab Emirates",
+      title: "Dubai, United Arab Emirates 🇦🇪",
       address: "StratEd Global – Level 41, Emirates Towers Sheikh Zayed Road Dubai, UAE PO Box 31303",
       phone: "+971 50 348 9439",
       email: "info@cpaceph.com",
@@ -79,19 +79,19 @@ export function ContactSection() {
   const departments = [
     {
       name: "Admissions & Enrollment",
-      email: "admissions@cpaceph.com",
+      email: "programs@cpaceph.com",
       phone: "+63 956 221-2400",
       description: "For program inquiries, enrollments, and certification registration"
     },
     {
       name: "Corporate & Institutional Services",
-      email: "corporate@cpaceph.com",
-      phone: "+971 50 348 9439 / +63 956 221-2400",
-      description: "For corporate training, global partnerships, and business consultancy"
+      email: "partnerships@cpaceph.com",
+      phone: "+63 956 221-2400",
+      description: "For corporate training, partnerships, and business consultancy"
     },
     {
       name: "Student Support & Verification",
-      email: "support@cpaceph.com",
+      email: "verify@cpaceph.com",
       phone: "+63 956 221-2400",
       description: "For student assistance, exam scheduling, and credential verification"
     }
@@ -121,7 +121,7 @@ export function ContactSection() {
   }
 
   const presets = [
-    { label: "Certification (CFMS® / CMMS® / COMS®)", program: "Professional Certification", placeholder: "I would like to inquire about upcoming examination dates, review materials, and fees for CFMS®, CMMS®, and COMS® certifications." },
+    { label: "Certification (CFMS® / CMMS® / CHMS® / COMS®)", program: "Professional Certification", placeholder: "I would like to inquire about upcoming examination dates, review materials, and fees for CFMS®, CMMS®, CHMS®, and COMS® certifications." },
     { label: "Business & ISO Consultancy", program: "Business Consultancy", placeholder: "We are interested in consulting services for ISO certification (ISO 9001/14001/45001) / IP registration for our organization." },
     { label: "Short Courses & Training", program: "Certificate & Short Courses", placeholder: "I would like to know more about available executive short courses and training schedules." },
     { label: "Institutional Partnership", program: "Institutional Partnership", placeholder: "We represent an academic/corporate institution and would like to explore a partnership with CPACE Philippines." },
@@ -290,7 +290,7 @@ export function ContactSection() {
                       }}
                       className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white disabled:bg-gray-50 transition-all"
                     >
-                      <option value="Professional Certification">Professional Certification (CFMS®, CMMS®, COMS®)</option>
+                      <option value="Professional Certification">Professional Certification (CFMS®, CMMS®, CHMS®, COMS®)</option>
                       <option value="Business Consultancy">Business Consultancy & ISO Certification</option>
                       <option value="Certificate & Short Courses">Certificate & Short Courses</option>
                       <option value="Management Training">Management Training</option>

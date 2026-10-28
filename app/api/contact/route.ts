@@ -152,7 +152,7 @@ export async function POST(request: Request) {
               <p>Dear <strong>${safeName}</strong>,</p>
               <p>Thank you for reaching out to the <strong>Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines)</strong>.</p>
               <p>We have received your inquiry regarding <strong>${safeProgram}</strong>. One of our admissions advisors or program specialists will review your message and get in touch with you within 24 to 48 hours.</p>
-              <p>In the meantime, you can explore our latest certifications, announcements, and registration links at <a href="https://linktr.ee/cpaceph" style="color:#059669; font-weight:600;">linktr.ee/cpaceph</a> or access the <a href="https://certifications.cpaceph.com/login" style="color:#059669; font-weight:600;">Learning Portal</a>.</p>
+              <p>In the meantime, you can explore our latest certifications, announcements, and registration links at <a href="https://bit.ly/cpaceprograms" style="color:#059669; font-weight:600;">bit.ly/cpaceprograms</a> or access the <a href="https://certifications.cpaceph.com/login" style="color:#059669; font-weight:600;">Learning Portal</a>.</p>
               <br>
               <p>Best regards,<br><strong>CPACE Philippines Team</strong><br>Admissions & Support</p>
             </div>

@@ -94,7 +94,7 @@ export function PartnersSection() {
                 </div>
                 <div className="flex items-center gap-2.5 text-sm font-medium text-slate-700">
                   <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Joint Research and Media</span>
+                  <span>Collaborative Research</span>
                 </div>
               </div>
 
@@ -113,8 +113,8 @@ export function PartnersSection() {
               <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 shadow-lg group-hover:shadow-xl transition-shadow bg-slate-100">
                 <div className="relative aspect-video w-full">
                   <Image
-                    src="/assets/asian-institutional-partners.jpg"
-                    alt="Asian Filipino executives and university leaders signing institutional partnership"
+                    src="/assets/stock-partnership.jpg"
+                    alt="Corporate and institutional partners signing partnership agreement"
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
                     sizes="(max-width: 1024px) 100vw, 50vw"
@@ -163,7 +163,7 @@ export function PartnersSection() {
                     {cpaceStats.successRate.value}
                   </div>
                   <div className="text-[11px] font-medium text-slate-500 mt-0.5">
-                    Success Rate
+                    Overall Passing Rate
                   </div>
                 </div>
               </div>

@@ -7,6 +7,7 @@ import {
   Award,
   DollarSign,
   BarChart3,
+  UtensilsCrossed,
   Settings,
   Users,
   ArrowRight,
@@ -30,6 +31,7 @@ const certifications = [
     lightBg: "bg-emerald-50",
     lightText: "text-emerald-700",
     lightBorder: "border-emerald-200",
+    formats: "Online, In-person, Hybrid",
     highlights: [
       "Financial Analysis and Reporting",
       "Budgeting and Forecasting",
@@ -48,11 +50,30 @@ const certifications = [
     lightBg: "bg-blue-50",
     lightText: "text-blue-700",
     lightBorder: "border-blue-200",
+    formats: "Online, In-person, Hybrid",
     highlights: [
       "Digital Marketing Strategy",
       "Brand Management and Development",
       "Consumer Behavior and Insights",
       "Marketing Analytics and ROI",
+    ],
+  },
+  {
+    acronym: "CHMS®",
+    fullName: "Certified Hospitality Management Specialist",
+    description:
+      "Master modern hospitality operations, guest service excellence, tourism leadership, and strategic hotel and food service management. The CHMS® credential validates advanced capability in hospitality industry standards and operational leadership.",
+    icon: <UtensilsCrossed className="w-8 h-8 text-white" />,
+    gradient: "from-amber-500 to-orange-600",
+    lightBg: "bg-amber-50",
+    lightText: "text-amber-700",
+    lightBorder: "border-amber-200",
+    formats: "Online, In-person, Hybrid",
+    highlights: [
+      "Hospitality Operations and Guest Experience",
+      "Hotel and Tourism Leadership",
+      "Food and Beverage Service Management",
+      "Quality Standards and Industry Compliance",
     ],
   },
   {
@@ -66,6 +87,7 @@ const certifications = [
     lightBg: "bg-violet-50",
     lightText: "text-violet-700",
     lightBorder: "border-violet-200",
+    formats: "Online, In-person, Hybrid",
     highlights: [
       "Supply Chain Management",
       "Process Optimization and Lean",
@@ -84,6 +106,7 @@ const certifications = [
     lightBg: "bg-emerald-50",
     lightText: "text-emerald-800",
     lightBorder: "border-emerald-200",
+    formats: "Online",
     highlights: [
       "Philippine Labor Law and Compliance",
       "Employee Relations and Due Process",
@@ -106,12 +129,12 @@ const stats = [
   },
   {
     value: cpaceStats.programsOffered.value,
-    label: cpaceStats.programsOffered.label,
+    label: "Customized Training Programs",
     icon: <BookOpen className="w-5 h-5" />,
   },
   {
     value: cpaceStats.successRate.value,
-    label: cpaceStats.successRate.label,
+    label: "Overall Passing Rate",
     icon: <Zap className="w-5 h-5" />,
   },
 ];
@@ -169,7 +192,7 @@ export function ProfessionalCertifications() {
                   </Button>
                 </Link>
                 <Link
-                  href="https://linktr.ee/cpaceph"
+                  href="https://bit.ly/cpaceprograms"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -205,7 +228,7 @@ export function ProfessionalCertifications() {
       </div>
 
       {/* ── Certification Cards ── */}
-      <div className="relative py-20 lg:py-24 bg-gradient-to-br from-slate-50 via-white to-emerald-50/40">
+      <div className="relative pt-16 pb-10 lg:pt-20 lg:pb-12 bg-gradient-to-br from-slate-50 via-white to-emerald-50/40">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-emerald-100/60 to-transparent rounded-full blur-3xl"></div>
           <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-teal-100/60 to-transparent rounded-full blur-3xl"></div>
@@ -218,9 +241,9 @@ export function ProfessionalCertifications() {
               <Star className="w-4 h-4 text-emerald-500" />
               Flagship Credential Programs
             </div>
-            <h3 className="text-3xl md:text-4xl font-bold text-gray-900">
-              Choose your path to{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600">
+            <h3 className="text-3xl md:text-4xl font-extrabold text-slate-900">
+              <span className="text-emerald-900">Choose your path to </span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600">
                 professional excellence
               </span>
             </h3>
@@ -273,9 +296,14 @@ export function ProfessionalCertifications() {
                   {/* Right: Details */}
                   <div className="lg:col-span-9 p-8 lg:p-10 space-y-6">
                     <div className="space-y-3">
-                      <h4 className="text-2xl font-bold text-gray-900 group-hover:text-emerald-700 transition-colors duration-200">
-                        {cert.fullName}
-                      </h4>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <h4 className="text-2xl font-bold text-gray-900 group-hover:text-emerald-700 transition-colors duration-200">
+                          {cert.fullName}
+                        </h4>
+                        <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                          {cert.formats}
+                        </span>
+                      </div>
                       <p className="text-gray-600 leading-relaxed">
                         {cert.description}
                       </p>
@@ -311,7 +339,7 @@ export function ProfessionalCertifications() {
                       </Link>
 
                       <Link
-                        href="https://linktr.ee/cpaceph"
+                        href="https://bit.ly/cpaceprograms"
                         target="_blank"
                         rel="noopener noreferrer"
                       >
@@ -343,18 +371,17 @@ export function ProfessionalCertifications() {
               Not sure which certification is right for you?
             </h4>
             <p className="text-gray-600 mb-8 max-w-2xl mx-auto text-lg">
-              Our admissions team can help you choose the best certification
-              program based on your career goals, experience, and aspirations.
+              Our team can help you choose the best certification program based on your career goals, experience, qualifications.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/#contact">
                 <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold px-8 py-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 text-base">
-                  Talk to Admissions
+                  Talk to Our Team
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
               </Link>
               <Link
-                href="https://linktr.ee/cpaceph"
+                href="https://bit.ly/cpaceprograms"
                 target="_blank"
                 rel="noopener noreferrer"
               >

@@ -17,37 +17,37 @@ const faqs: FAQItem[] = [
     id: "faq-1",
     category: "certifications",
     question: "What certifications does CPACE Philippines offer?",
-    answer: "CPACE Philippines provides industry-recognized certifications including the Certified Financial Management Specialist (CFMS®), Certified Marketing Management Specialist (CMMS®), Certified Operations Management Specialist (COMS®), and the Certified Human Resource Associate (CHRA™) review lecture and credential programs."
+    answer: "CPACE Philippines provides industry-recognized certifications including the Certified Financial Management Specialist (CFMS®), Certified Marketing Management Specialist (CMMS®), Certified Hospitality Management Specialist (CHMS®), Certified Operations Management Specialist (COMS®), and the Certified Human Resource Associate (CHRA™) review lecture and credential programs."
   },
   {
     id: "faq-2",
     category: "certifications",
     question: "Are CPACE certifications recognized by employers and institutions?",
-    answer: "Yes. CPACE certifications are recognized by leading employers, corporate institutions, and over 20+ top academic universities across the Philippines (including Batangas State University, FEU, University of St. La Salle, STI, and Holy Angel University) as validated benchmarks of professional competence."
+    answer: "Yes, CPACE certifications provide a recognized benchmark of professional competence, supported by partnered industries and academic institutions in the Philippines."
   },
   {
     id: "faq-3",
     category: "certifications",
     question: "How are the training programs and examinations conducted?",
-    answer: "Programs are delivered through flexible hybrid learning pathways. You can access training modules and webinars via our official Learning Portal (certifications.cpaceph.com), while certification examinations are administered either online with secure proctoring or in-person at partner university testing centers."
+    answer: "Programs feature flexible hybrid learning through our online portal, with self-paced training modules available anytime. Examinations are administered via secure online proctoring or in person at partner testing centers."
   },
   {
     id: "faq-4",
     category: "partnerships",
     question: "How can our school or company partner with CPACE?",
-    answer: "We welcome academic institutions, media organizations, and corporate partners. We collaborate on curriculum integration, co-branded training initiatives, and corporate upskilling. You can reach our Corporate & Institutional Services team directly via the contact form below or email corporate@cpaceph.com."
+    answer: "We welcome academic institutions, media organizations, and corporate partners. We collaborate on curriculum integration, co-branded training initiatives, and corporate upskilling. You can reach our Corporate & Institutional Services team directly via the contact form below or email partnerships@cpaceph.com."
   },
   {
     id: "faq-5",
     category: "verification",
     question: "How can employers and graduates verify certification credentials?",
-    answer: "Official credential authenticity can be verified directly through our Student Support & Verification department by emailing support@cpaceph.com or calling +63 956 221-2400 with the certified individual's full name and certificate reference."
+    answer: "Official credential authenticity can be verified directly through our Student Support & Verification department by emailing verify@cpaceph.com or calling +63 956 221-2400 with the certified individual's full name and certificate reference."
   },
   {
     id: "faq-6",
     category: "certifications",
     question: "How do I register for an upcoming certification or short course?",
-    answer: "Registration is fast and convenient. You can enroll online directly via our official portal at linktr.ee/cpaceph, or submit an inquiry through our contact form below to receive full syllabus guides, schedules, and fee details."
+    answer: "Registration is fast and convenient. You can enroll online directly via our official portal at bit.ly/cpaceprograms, or submit an inquiry through our contact form below to receive full syllabus guides, schedules, and fee details."
   }
 ]
 

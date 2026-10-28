@@ -7,17 +7,36 @@ import { cpaceStats } from "@/data/stats"
 
 export function AboutSection() {
   const benefits = [
-    "Expand Knowledge and Skills",
-    "Gain Competitive Advantage", 
-    "Boost Productivity",
-    "Increase Earning Potential",
-    "Establish Professional Credibility"
+    {
+      title: "Expand Knowledge and Skills",
+      description: "Unlock new opportunities and accelerate your professional growth with our expert-led programs.",
+    },
+    {
+      title: "Gain Competitive Advantage",
+      description: "Stand out in a crowded market with industry-recognized credentials validated by top organizations.",
+    },
+    {
+      title: "Boost Productivity",
+      description: "Master modern methodologies, tools, and best practices that streamline operations and drive efficiency.",
+    },
+    {
+      title: "Increase Earning Potential",
+      description: "Certified professionals command higher compensation packages and strategic leadership promotions.",
+    },
+    {
+      title: "Establish Professional Credibility",
+      description: "Earn nationally recognized credentials that establish immediate trust with employers and clients.",
+    },
+    {
+      title: "Flexible Learning Pathways",
+      description: "Balance professional development with your schedule using adaptable, self-paced learning modules and securely proctored assessment options.",
+    },
   ]
 
   const stats = [
     { value: cpaceStats.certifiedProfessionals.value, label: "Certified Professionals", icon: <Users className="w-5 h-5" /> },
-    { value: cpaceStats.successRate.value, label: cpaceStats.successRate.label, icon: <TrendingUp className="w-5 h-5" /> },
-    { value: cpaceStats.programsOffered.value, label: "Programs", icon: <BookOpen className="w-5 h-5" /> },
+    { value: cpaceStats.successRate.value, label: "Overall Passing Rate", icon: <TrendingUp className="w-5 h-5" /> },
+    { value: cpaceStats.programsOffered.value, label: "Custom Training Programs", icon: <BookOpen className="w-5 h-5" /> },
     { value: cpaceStats.institutionalPartners.value, label: "Partners", icon: <Globe className="w-5 h-5" /> }
   ]
 
@@ -147,8 +166,8 @@ export function AboutSection() {
               
               <div className="relative">
                 <img 
-                  src="/assets/asian-professionals.jpg"
-                  alt="Asian Professional Education"
+                  src="/assets/stock-learning.jpg"
+                  alt="Professional Education and Career Advancement"
                   className="rounded-2xl shadow-2xl w-full h-80 object-cover"
                 />
                 <div className="absolute bottom-6 left-6 right-6">
@@ -189,14 +208,24 @@ export function AboutSection() {
                       <CheckCircle className="w-6 h-6 text-white" />
                     </div>
                     <div className="text-left">
-                      <h4 className="text-lg font-bold text-gray-900 mb-2">{benefit}</h4>
-                      <p className="text-gray-600 text-sm">
-                        Unlock new opportunities and accelerate your professional growth with our expert-led programs.
+                      <h4 className="text-lg font-bold text-gray-900 mb-2">{benefit.title}</h4>
+                      <p className="text-gray-600 text-sm leading-relaxed">
+                        {benefit.description}
                       </p>
                     </div>
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* CTA Button beneath Explore Programs suggestion */}
+            <div className="pt-4 text-center">
+              <Link href="/services">
+                <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold px-8 py-3.5 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 rounded-xl text-base">
+                  Explore Programs
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

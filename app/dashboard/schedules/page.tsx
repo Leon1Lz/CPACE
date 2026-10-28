@@ -25,7 +25,7 @@ const emptyForm: EventForm = {
   deliveryMode: "online",
   color: eventColors[0].value,
   spots: "Open for registration",
-  registrationUrl: "https://linktr.ee/cpaceph",
+  registrationUrl: "https://bit.ly/cpaceprograms",
   isPublished: true,
   sortOrder: 0,
 }

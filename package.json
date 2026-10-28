@@ -27,6 +27,8 @@
     "test:coverage": "vitest run --coverage",
     "check:portal": "npm run type-check && npm test && npm run build",
     "check:portal:runtime": "tsx scripts/check-portal-runtime.ts",
+    "test:stress:local": "node scripts/stress-local.mjs",
+    "test:stress:web": "node scripts/stress-web.mjs",
     "check:portal:data": "tsx scripts/check-proctor-scopes.ts && tsx scripts/check-reporting-data.ts && tsx scripts/check-assessment-integrity.ts",
     "clean": "rm -rf .next && rm -rf node_modules && npm install",
     "analyze": "ANALYZE=true npm run build"

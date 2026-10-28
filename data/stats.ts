@@ -17,15 +17,15 @@ export const cpaceStats = {
     sublabel: "Review Lecture & Credential Programs",
   },
   institutionalPartners: {
-    value: "20+",
-    numericValue: 20,
+    value: "25+",
+    numericValue: 25,
     label: "Institutional & Industry Partners",
     sublabel: "Academic & Industry Collaborations",
   },
   programsOffered: {
-    value: "50+",
-    numericValue: 50,
-    label: "Programs Available",
+    value: "10+",
+    numericValue: 10,
+    label: "Custom Training Programs",
     sublabel: "Certifications, Courses & Training",
   },
   serviceCategories: {
@@ -35,9 +35,9 @@ export const cpaceStats = {
     sublabel: "Professional Development Tracks",
   },
   successRate: {
-    value: "95%",
-    numericValue: 95,
-    label: "Success Rate",
+    value: "76%",
+    numericValue: 76,
+    label: "Overall Passing Rate",
     sublabel: "Program Completion & Passing Rate",
   },
   yearsOfExcellence: {

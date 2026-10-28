@@ -29,6 +29,7 @@ export function Footer() {
   const programs = [
     { name: "Financial Management (CFMS®)", href: "/services#certifications" },
     { name: "Marketing Management (CMMS®)", href: "/services#certifications" },
+    { name: "Hospitality Management (CHMS®)", href: "/services#certifications" },
     { name: "Operations Management (COMS®)", href: "/services#certifications" },
     { name: "Labor Law Lecture (LLL)", href: "/services#certifications" },
     { name: "Business Consultancy", href: "/services#consultancy" },
@@ -72,7 +73,7 @@ export function Footer() {
               <div className="flex items-start gap-2 text-gray-300">
                 <MapPin className="h-4 w-4 text-emerald-400 mt-1 shrink-0" />
                 <span className="leading-snug">
-                  <strong className="text-white font-medium">Manila:</strong>{" "}
+                  <strong className="text-white font-medium">Manila, Philippines 🇵🇭:</strong>{" "}
                   Unit 1510 High Street South Corporate Plaza Tower 1, 26th St.
                   Corner 9th Ave., BGC Taguig City, Philippines (1634)
                 </span>
@@ -80,7 +81,7 @@ export function Footer() {
               <div className="flex items-start gap-2 text-gray-300">
                 <MapPin className="h-4 w-4 text-emerald-400 mt-1 shrink-0" />
                 <span className="leading-snug">
-                  <strong className="text-white font-medium">Dubai:</strong>{" "}
+                  <strong className="text-white font-medium">Dubai, United Arab Emirates 🇦🇪:</strong>{" "}
                   StratEd Global – Level 41, Emirates Towers, Sheikh Zayed Rd,
                   Dubai, UAE PO Box 31303
                 </span>

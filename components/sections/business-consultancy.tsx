@@ -53,7 +53,7 @@ export function BusinessConsultancy() {
   ]
 
   return (
-    <section id="consultancy" className="py-20 bg-white">
+    <section id="consultancy" className="pt-10 pb-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-16">
@@ -112,7 +112,7 @@ export function BusinessConsultancy() {
             Partner with Us for Institutional Programs
           </h3>
           <p className="text-xl mb-8 text-emerald-100 max-w-2xl mx-auto">
-            Develop branded training programs together and bring world-class education to your organization.
+            Develop branded training programs together and bring global standard and industry-recognized continuing education opportunities to your institution.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/#contact">

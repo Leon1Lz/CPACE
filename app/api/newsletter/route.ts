@@ -70,8 +70,8 @@ export async function POST(request: Request) {
               <div style="max-width: 600px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 28px; border: 1px solid #e2e8f0;">
                 <h2 style="color: #059669; margin-top: 0;">Welcome to CPACE Philippines</h2>
                 <p>Hello <strong>${safeName || "there"}</strong>,</p>
-                <p>Thank you for subscribing to our official newsletter. You will now receive curated updates on upcoming certifications (CFMS®, CMMS®, COMS®), short courses, webinars, and industry insights.</p>
-                <p>Explore our programs anytime at <a href="https://cpaceph.com" style="color: #059669; font-weight: bold;">www.cpaceph.com</a> or view upcoming registration schedules on <a href="https://linktr.ee/cpaceph" style="color: #059669; font-weight: bold;">linktr.ee/cpaceph</a>.</p>
+                <p>Thank you for subscribing to our official newsletter. You will now receive curated updates on upcoming certifications (CFMS®, CMMS®, CHMS®, COMS®), short courses, webinars, and industry insights.</p>
+                <p>Explore our programs anytime at <a href="https://cpaceph.com" style="color: #059669; font-weight: bold;">www.cpaceph.com</a> or view upcoming registration schedules on <a href="https://bit.ly/cpaceprograms" style="color: #059669; font-weight: bold;">bit.ly/cpaceprograms</a>.</p>
                 <br>
                 <p>Best regards,<br><strong>CPACE Philippines Team</strong></p>
               </div>

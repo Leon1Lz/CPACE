@@ -43,7 +43,7 @@ export function ContinuingEducationSection() {
             </div>
 
             {/* Enhanced Main Heading */}
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-[1.14]">
               <span className="block text-gray-900">Continuing Education and</span>
               <span className="block bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                 Professional Certifications
@@ -99,8 +99,8 @@ export function ContinuingEducationSection() {
               <div className="relative bg-white rounded-2xl shadow-xl overflow-hidden border border-emerald-100">
                 <div className="aspect-[4/3] relative">
                   <img 
-                    src="/assets/asian-professionals.jpg"
-                    alt="Asian Professional Education"
+                    src="/assets/stock-professionals.jpg"
+                    alt="Professional Education and Certification"
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
@@ -115,7 +115,7 @@ export function ContinuingEducationSection() {
                       </div>
                       <div>
                         <h4 className="font-bold text-gray-900 text-sm">Industry Recognized</h4>
-                        <p className="text-xs text-gray-600">Trusted by 10,000+ professionals</p>
+                        <p className="text-xs text-gray-600">12,000+ Certified Professionals</p>
                       </div>
                     </div>
                   </div>
@@ -158,7 +158,7 @@ export function ContinuingEducationSection() {
                       <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                         <Users className="w-8 h-8 text-white" />
                       </div>
-                      <h4 className="font-bold text-gray-900 text-xl mb-3">Expert Faculty</h4>
+                      <h4 className="font-bold text-gray-900 text-xl mb-3">Industry Expert</h4>
                       <p className="text-gray-600 leading-relaxed">
                         Learn from seasoned professionals with decades of combined industry experience and proven track records.
                       </p>
@@ -170,9 +170,9 @@ export function ContinuingEducationSection() {
                       <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                         <Target className="w-8 h-8 text-white" />
                       </div>
-                      <h4 className="font-bold text-gray-900 text-xl mb-3">Globally Recognized</h4>
+                      <h4 className="font-bold text-gray-900 text-xl mb-3">Industry Recognized</h4>
                       <p className="text-gray-600 leading-relaxed">
-                        Certifications acknowledged and respected by employers worldwide, opening doors to global opportunities.
+                        Our professional certifications are industry-recognized and partnered with higher education institutions (HEI), establishing a trusted foundation for expanding global opportunities.
                       </p>
                     </div>
                   </div>

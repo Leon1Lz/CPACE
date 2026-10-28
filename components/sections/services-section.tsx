@@ -82,9 +82,9 @@ const services = [
 
 const stats = [
   { value: cpaceStats.serviceCategories.value, label: cpaceStats.serviceCategories.label, icon: <Zap className="w-5 h-5" /> },
-  { value: cpaceStats.programsOffered.value, label: cpaceStats.programsOffered.label, icon: <BookOpen className="w-5 h-5" /> },
-  { value: cpaceStats.certifiedProfessionals.value, label: "Professionals Served", icon: <Users className="w-5 h-5" /> },
-  { value: "100%", label: "Industry Recognized", icon: <Award className="w-5 h-5" /> },
+  { value: cpaceStats.programsOffered.value, label: "Custom Training Programs", icon: <BookOpen className="w-5 h-5" /> },
+  { value: cpaceStats.certifiedProfessionals.value, label: "Certified Professionals", icon: <Users className="w-5 h-5" /> },
+  { value: cpaceStats.institutionalPartners.value, label: "Industry & Academic Partners", icon: <Award className="w-5 h-5" /> },
 ]
 
 export function ServicesSection() {
@@ -120,7 +120,7 @@ export function ServicesSection() {
               </div>
               <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
                 Elevate Your Expertise.{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">
                   Embrace Industry Excellence.
                 </span>
               </h2>
