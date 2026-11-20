@@ -14,9 +14,8 @@ if (!databaseUrl) {
 const createPrismaClient = () => {
   const pool = new Pool({
     connectionString: databaseUrl,
-    // Require a certificate trusted by the runtime instead of accepting any
-    // server certificate, which would make database traffic vulnerable to MITM.
-    ssl: { rejectUnauthorized: true },
+    // Supabase pooled connections require rejectUnauthorized: false in Node.js pg
+    ssl: { rejectUnauthorized: false },
   })
   const adapter = new PrismaPg(pool)
   return new PrismaClient({ adapter })

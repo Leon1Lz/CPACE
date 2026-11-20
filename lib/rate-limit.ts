@@ -120,8 +120,8 @@ export async function rateLimitDistributed(
       reset,
     }
   } catch (error) {
-    console.error("Distributed rate-limit check failed:", error)
-    return { success: false, remaining: 0, limit, reset: now + windowMs }
+    console.error("Distributed rate-limit check failed, falling back to in-memory rate limiting:", error)
+    return rateLimit(key, limit, windowMs)
   }
 }
 
