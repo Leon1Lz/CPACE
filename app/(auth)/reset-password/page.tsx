@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft, Loader2, Eye, EyeOff, ShieldCheck, BookOpen, Users, Award, Star } from "lucide-react"
+import { validatePassword, PASSWORD_COMPLEXITY_MESSAGE } from "@/lib/password-validator"
 import Image from "next/image"
 
 const stats = [
@@ -44,8 +45,9 @@ function ResetPasswordForm() {
     e.preventDefault()
     if (!token) return
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.")
+    const pwCheck = validatePassword(password)
+    if (!pwCheck.isValid) {
+      setError(pwCheck.errors[0] || PASSWORD_COMPLEXITY_MESSAGE)
       return
     }
 

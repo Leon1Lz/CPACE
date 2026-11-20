@@ -707,6 +707,16 @@ model BankQuestionOption {
   @@map("bank_question_options")
 }
 
+// Shared fixed-window rate-limit state used across app instances.
+model RateLimitBucket {
+  keyHash   String   @id
+  count     Int
+  resetAt   DateTime
+
+  @@index([resetAt])
+  @@map("rate_limit_buckets")
+}
+
 enum QuestionDifficulty {
   EASY
   MEDIUM

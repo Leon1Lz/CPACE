@@ -4,7 +4,7 @@ import Image from "next/image"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 
-const FALLBACK_IMAGE = "/assets/hero-bg.jpg"
+const FALLBACK_IMAGE = "/assets/stock-professionals.jpg"
 
 type ArticleImageProps = {
   src?: string | null
@@ -30,6 +30,7 @@ export function ArticleImage({
       src={imageSource}
       alt={alt}
       fill
+      unoptimized={/^https:\/\//i.test(imageSource)}
       priority={priority}
       sizes={sizes}
       className={cn("object-cover", className)}

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getPublicFormSmtp, createPublicFormTransport } from "@/lib/public-form-smtp"
 import { z } from "zod"
 import { escapeHtmlText } from "@/lib/sanitize"
-import { getClientIp, rateLimit } from "@/lib/rate-limit"
+import { getClientIp, rateLimitDistributed } from "@/lib/rate-limit"
 
 const newsletterSchema = z.object({
   name: z.string().trim().max(120).optional().default(""),
@@ -11,7 +11,7 @@ const newsletterSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const limit = rateLimit(`newsletter:${getClientIp(request)}`, 5, 15 * 60 * 1000)
+    const limit = await rateLimitDistributed(`newsletter:${getClientIp(request)}`, 5, 15 * 60 * 1000)
     if (!limit.success) return NextResponse.json({ error: "Too many requests" }, { status: 429 })
     const { name, email } = newsletterSchema.parse(await request.json())
     const safeName = escapeHtmlText(name || "Not provided")

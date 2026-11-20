@@ -2,15 +2,19 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { getToken } from "next-auth/jwt"
 
+const authSecret = process.env.NEXTAUTH_SECRET
+if (!authSecret || authSecret.length < 32) {
+  throw new Error("NEXTAUTH_SECRET must be set to a unique secret of at least 32 characters")
+}
+
 export async function middleware(req: NextRequest) {
   try {
-    const secret = process.env.NEXTAUTH_SECRET || "miY07Ku2Y7H5lfMoWe4OMTlp+y51+r488AI95NrdoNU="
     const isHttps = req.url.startsWith("https://") || req.headers.get("x-forwarded-proto") === "https" || req.cookies.has("__Secure-next-auth.session-token")
 
     // Try resolving secure cookie first if on HTTPS/production, fallback to standard cookie (and vice versa)
     let token = await getToken({
       req,
-      secret,
+      secret: authSecret,
       secureCookie: isHttps,
       cookieName: isHttps ? "__Secure-next-auth.session-token" : "next-auth.session-token",
     })
@@ -18,7 +22,7 @@ export async function middleware(req: NextRequest) {
     if (!token) {
       token = await getToken({
         req,
-        secret,
+        secret: authSecret,
         secureCookie: !isHttps,
         cookieName: !isHttps ? "__Secure-next-auth.session-token" : "next-auth.session-token",
       })

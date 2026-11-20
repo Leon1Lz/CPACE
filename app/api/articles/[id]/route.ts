@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { sanitizeHtml, stripTags } from "@/lib/sanitize"
+import { stripTags } from "@/lib/sanitize"
+import { sanitizeArticleHtml } from "@/lib/article-html"
 
 import { articlesData } from "@/data/articles"
+import { resolveImportedArticle } from "@/lib/article-catalog"
 
 // Helper to generate slug from title
 function generateSlug(title: string): string {
@@ -50,7 +52,7 @@ export async function GET(
       return NextResponse.json({ error: "Article not found" }, { status: 404 })
     }
 
-    return NextResponse.json(article)
+    return NextResponse.json(resolveImportedArticle(article))
   } catch (error: any) {
     console.error("GET /api/articles/[id] error:", error)
     return NextResponse.json({ error: "Failed to fetch article" }, { status: 500 })
@@ -113,7 +115,7 @@ export async function PATCH(
     const updateData: any = {}
     if (title !== undefined) updateData.title = stripTags(String(title)).slice(0, 200)
     if (excerpt !== undefined) updateData.excerpt = stripTags(String(excerpt)).slice(0, 1000)
-    if (content !== undefined) updateData.content = sanitizeHtml(String(content))
+    if (content !== undefined) updateData.content = sanitizeArticleHtml(String(content))
     if (category !== undefined) updateData.category = category
     if (categoryColor !== undefined) updateData.categoryColor = categoryColor
     if (iconName !== undefined) updateData.iconName = iconName

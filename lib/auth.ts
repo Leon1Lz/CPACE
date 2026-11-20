@@ -63,12 +63,16 @@ const providers: NextAuthOptions["providers"] = [
   })
 ]
 
+const authSecret = process.env.NEXTAUTH_SECRET
+if (!authSecret || authSecret.length < 32) {
+  throw new Error("NEXTAUTH_SECRET must be set to a unique secret of at least 32 characters")
+}
+
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   providers.unshift(
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      allowDangerousEmailAccountLinking: true,
     })
   )
 }
@@ -85,9 +89,10 @@ if (!process.env.NEXTAUTH_URL) {
 
 export const authOptions: NextAuthOptions = {
   providers,
-  secret: process.env.NEXTAUTH_SECRET || "miY07Ku2Y7H5lfMoWe4OMTlp+y51+r488AI95NrdoNU=",
+  secret: authSecret,
   session: {
-    strategy: "jwt"
+    strategy: "jwt",
+    maxAge: 8 * 60 * 60,
   },
   callbacks: {
     async signIn({ user, account, profile }) {

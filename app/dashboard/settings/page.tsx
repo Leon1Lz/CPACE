@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { User, Lock, Shield, CheckCircle, Loader2, AlertCircle, Mail } from "lucide-react"
+import { validatePassword, PASSWORD_COMPLEXITY_MESSAGE } from "@/lib/password-validator"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -111,6 +112,8 @@ export default function SettingsPage() {
   const handlePasswordChange = async () => {
     setPwError("")
     if (pwForm.newPassword !== pwForm.confirmPassword) { setPwError("New passwords do not match"); return }
+    const check = validatePassword(pwForm.newPassword)
+    if (!check.isValid) { setPwError(check.errors[0] || PASSWORD_COMPLEXITY_MESSAGE); return }
     setPwSaving(true)
     const res = await fetch("/api/users/me", {
       method: "PATCH",

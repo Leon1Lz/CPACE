@@ -3,6 +3,7 @@
 import { Users, Award, Handshake, Building } from "lucide-react"
 import Link from "next/link"
 import { cpaceStats } from "@/data/stats"
+import { CountUp } from "@/components/ui/count-up"
 
 const partnerLogos = [
   "Arpa Law.jpeg",
@@ -90,19 +91,19 @@ function MarqueeRow({ logos, direction = "left", duration = 45 }: { logos: strin
 const stats = [
   {
     icon: <Award className="w-6 h-6" />,
-    value: cpaceStats.certifiedProfessionals.value,
+    value: cpaceStats.certifiedProfessionals.numericValue,
     label: cpaceStats.certifiedProfessionals.label,
     sublabel: cpaceStats.certifiedProfessionals.sublabel,
   },
   {
     icon: <Users className="w-6 h-6" />,
-    value: cpaceStats.chraPassers.value,
+    value: cpaceStats.chraPassers.numericValue,
     label: cpaceStats.chraPassers.label,
     sublabel: cpaceStats.chraPassers.sublabel,
   },
   {
     icon: <Handshake className="w-6 h-6" />,
-    value: cpaceStats.institutionalPartners.value,
+    value: cpaceStats.institutionalPartners.numericValue,
     label: cpaceStats.institutionalPartners.label,
     sublabel: cpaceStats.institutionalPartners.sublabel,
   }
@@ -163,7 +164,7 @@ export function InstitutionalPartnersSection() {
                     
                     {/* Value */}
                     <div className="text-4xl lg:text-5xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-3">
-                      {stat.value}
+                      <CountUp end={stat.value} suffix="+" className="tabular-nums" />
                     </div>
                     
                     {/* Label */}

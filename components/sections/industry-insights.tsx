@@ -5,17 +5,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { Calendar, Clock, ArrowRight } from "lucide-react"
-import { articlesData } from "@/data/articles"
-import { useState } from "react"
+import { articlesData, type Article } from "@/data/articles"
+import { useEffect, useState } from "react"
 import { ArticleImage } from "@/components/ui/article-image"
+import { articleCategories } from "@/data/article-categories"
 
 export function IndustryInsights() {
+  const [articles, setArticles] = useState<Article[]>(articlesData)
   const [selectedCategory, setSelectedCategory] = useState("All")
-  const categories = ["All", "Partnership", "Industry Insights", "Events", "Technology"]
+  const categories = ["All", ...articleCategories.map(category => category.value)]
+
+  useEffect(() => {
+    fetch("/api/articles")
+      .then(response => response.ok ? response.json() : null)
+      .then(data => { if (Array.isArray(data)) setArticles(data) })
+      .catch(() => {})
+  }, [])
 
   const filteredArticles = selectedCategory === "All" 
-    ? articlesData 
-    : articlesData.filter(a => a.category === selectedCategory)
+    ? articles
+    : articles.filter(a => a.category === selectedCategory)
 
   return (
     <section className="py-20 bg-slate-50">
@@ -40,6 +49,7 @@ export function IndustryInsights() {
               key={category}
               variant={selectedCategory === category ? "default" : "outline"}
               onClick={() => setSelectedCategory(category)}
+              aria-pressed={selectedCategory === category}
               className={selectedCategory === category ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "border-gray-200 text-gray-700 hover:bg-emerald-50"}
             >
               {category}
@@ -68,7 +78,7 @@ export function IndustryInsights() {
                 <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
                   <div className="flex items-center gap-1">
                     <Calendar className="h-3.5 w-3.5" />
-                    <span>{insight.date}</span>
+                    <span>{insight.date || new Date(insight.createdAt).toLocaleDateString()}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock className="h-3.5 w-3.5" />

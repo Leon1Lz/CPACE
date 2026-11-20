@@ -13,8 +13,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Newspaper, Plus, Search, Calendar, MessageCircle, Star, Pencil, Trash2, ArrowLeft, Loader2, Sparkles, RefreshCw, CheckCircle2 } from "lucide-react"
-import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import { ArticleEditor } from "@/components/insights/article-editor"
+import { prepareArticleImage } from "@/lib/article-image-upload"
 import { articlesData } from "@/data/articles"
+import { articleCategories as CATEGORIES } from "@/data/article-categories"
 
 function generateSlug(text: string) {
   return text
@@ -24,13 +26,6 @@ function generateSlug(text: string) {
     .replace(/[\s_-]+/g, "-")
     .replace(/^-+|-+$/g, "")
 }
-
-const CATEGORIES = [
-  { value: "Partnership", label: "Partnership", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  { value: "Industry Insights", label: "Industry Insights", color: "bg-blue-100 text-blue-700 border-blue-200" },
-  { value: "Events", label: "Events", color: "bg-violet-100 text-violet-700 border-violet-200" },
-  { value: "Technology", label: "Technology", color: "bg-orange-100 text-orange-700 border-orange-200" }
-]
 
 const ICONS = ["users", "trending-up", "zap", "globe"]
 
@@ -52,13 +47,14 @@ export default function ManageInsightsPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editingArticle, setEditingArticle] = useState<any>(null) // null = creating new
   const [formLoading, setFormLoading] = useState(false)
+  const [bannerUploading, setBannerUploading] = useState(false)
   
   // Form fields
   const [title, setTitle] = useState("")
   const [slug, setSlug] = useState("")
   const [excerpt, setExcerpt] = useState("")
   const [content, setContent] = useState("")
-  const [category, setCategory] = useState("Partnership")
+  const [category, setCategory] = useState("News")
   const [iconName, setIconName] = useState("users")
   const [image, setImage] = useState("")
   const [featured, setFeatured] = useState(false)
@@ -140,7 +136,7 @@ export default function ManageInsightsPage() {
     setSlug("")
     setExcerpt("")
     setContent("")
-    setCategory("Partnership")
+    setCategory("News")
     setIconName("users")
     setImage(DEFAULT_BANNER)
     setFeatured(false)
@@ -185,6 +181,11 @@ export default function ManageInsightsPage() {
       iconName,
       image: image.trim() || DEFAULT_BANNER,
       featured
+    }
+
+    if (new TextEncoder().encode(JSON.stringify(payload)).length > 3_500_000) {
+      setErrorMsg("This article is too large to save. Use smaller images or image URLs for some pictures.")
+      return
     }
 
     try {
@@ -262,7 +263,7 @@ export default function ManageInsightsPage() {
             onClick={handleSync}
             disabled={syncing || loading}
             className="rounded-xl border-gray-200 text-sm font-semibold flex items-center gap-2 h-11 px-4 text-gray-700 hover:text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50/50 transition-colors"
-            title="Synchronize all 22 official landing page articles with the database"
+            title={`Synchronize all ${articlesData.length} official landing page articles with the database`}
           >
             <RefreshCw className={`w-4 h-4 text-emerald-600 ${syncing ? "animate-spin" : ""}`} />
             {syncing ? "Syncing..." : "Sync Landing Articles"}
@@ -451,18 +452,18 @@ export default function ManageInsightsPage() {
 
       {/* Create / Edit Modal Form */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl max-h-[90vh] overflow-y-auto bg-white p-6 border-0 shadow-2xl rounded-2xl">
+        <DialogContent className="grid-cols-1 max-w-[calc(100%-2rem)] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl max-h-[90vh] overflow-y-auto bg-white p-4 sm:p-6 border-0 shadow-2xl rounded-2xl">
           <DialogHeader className="border-b border-gray-100 pb-4">
             <DialogTitle className="text-xl font-extrabold text-gray-900 flex items-center gap-1.5">
               <Sparkles className="w-5 h-5 text-emerald-500" />
               {editingArticle ? "Edit Article" : "Create New Article"}
             </DialogTitle>
             <DialogDescription className="text-xs text-gray-400">
-              Provide the details, category settings, and write the body content for the insight publication.
+              Format your article, add images and LinkedIn posts, then preview it before saving.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSave} className="space-y-5 py-4">
+          <form onSubmit={handleSave} className="min-w-0 space-y-5 py-4">
             {errorMsg && (
               <div className="bg-rose-50 text-rose-700 text-sm font-semibold p-3 border border-rose-200 rounded-xl">
                 {errorMsg}
@@ -473,7 +474,8 @@ export default function ManageInsightsPage() {
               {/* Title */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Article Title</label>
-                <Input
+              <Input
+                aria-label="Article title"
                   placeholder="e.g. Batch graduation of CFMS credentials"
                   value={title}
                   onChange={(e) => handleTitleChange(e.target.value)}
@@ -545,11 +547,23 @@ export default function ManageInsightsPage() {
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Banner Image URL</label>
               <Input
-                placeholder="https://images.unsplash.com/..."
-                value={image}
+                aria-label="Banner image URL"
+                placeholder={image.startsWith("data:") ? "Uploaded banner image ready" : "https://images.unsplash.com/..."}
+                value={image.startsWith("data:") ? "" : image}
                 onChange={(e) => setImage(e.target.value)}
                 className="border-gray-200 rounded-xl py-5 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
               />
+              <label className="inline-flex cursor-pointer items-center rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700">
+                {bannerUploading ? "Preparing image…" : "Upload banner image"}
+                <input type="file" aria-label="Upload banner image" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={bannerUploading} onChange={async event => {
+                  const file = event.target.files?.[0]
+                  if (!file) return
+                  setBannerUploading(true)
+                  try { setImage(await prepareArticleImage(file)) }
+                  catch (cause) { setErrorMsg(cause instanceof Error ? cause.message : "Unable to prepare banner image.") }
+                  finally { setBannerUploading(false); event.target.value = "" }
+                }} />
+              </label>
             </div>
 
             {/* Excerpt */}
@@ -565,11 +579,11 @@ export default function ManageInsightsPage() {
 
             {/* WYSIWYG Content Editor */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Article Body Content (Rich WYSIWYG Editor)</label>
-              <RichTextEditor value={content} onChange={setContent} placeholder="Write your full article layout, content lists, paragraphs, or blocks here..." />
+              <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Article body</label>
+              <ArticleEditor key={editingArticle?.id || "new"} value={content} onChange={setContent} title={title} banner={image} category={category} />
             </div>
 
-            <DialogFooter className="border-t border-gray-100 pt-4 gap-2">
+            <DialogFooter className="sticky bottom-0 z-20 border-t border-gray-100 bg-white py-4 gap-2">
               <Button
                 type="button"
                 variant="ghost"
@@ -580,7 +594,7 @@ export default function ManageInsightsPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={formLoading}
+                disabled={formLoading || bannerUploading}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-lg shadow-emerald-600/10 px-6"
               >
                 {formLoading ? (

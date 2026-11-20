@@ -12,18 +12,29 @@ interface CountUpProps {
 
 export function CountUp({ end, duration = 2000, prefix = "", suffix = "", className }: CountUpProps) {
   const [count, setCount] = useState(0)
-  const [hasAnimated, setHasAnimated] = useState(false)
   const ref = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
+    const element = ref.current
+    if (!element) return
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
+    if (reducedMotion.matches || duration <= 0 || !("IntersectionObserver" in window)) {
+      setCount(end)
+      return
+    }
+
+    let frameId = 0
+    let started = false
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !hasAnimated) {
-          setHasAnimated(true)
-
-          const startTime = performance.now()
+        if (entry.isIntersecting && !started) {
+          started = true
+          observer.disconnect()
+          let startTime: number | undefined
 
           const animate = (currentTime: number) => {
+            startTime ??= currentTime
             const elapsed = currentTime - startTime
             const progress = Math.min(elapsed / duration, 1)
 
@@ -32,30 +43,40 @@ export function CountUp({ end, duration = 2000, prefix = "", suffix = "", classN
             setCount(Math.floor(eased * end))
 
             if (progress < 1) {
-              requestAnimationFrame(animate)
-            } else {
-              setCount(end)
+              frameId = requestAnimationFrame(animate)
             }
           }
 
-          requestAnimationFrame(animate)
+          frameId = requestAnimationFrame(animate)
         }
       },
       { threshold: 0.3 }
     )
 
-    if (ref.current) {
-      observer.observe(ref.current)
+    const finish = () => {
+      if (reducedMotion.matches) {
+        observer.disconnect()
+        cancelAnimationFrame(frameId)
+        setCount(end)
+      }
     }
 
-    return () => observer.disconnect()
-  }, [end, duration, hasAnimated])
+    observer.observe(element)
+    reducedMotion.addEventListener("change", finish)
 
-  const formattedCount = count.toLocaleString()
+    return () => {
+      observer.disconnect()
+      cancelAnimationFrame(frameId)
+      reducedMotion.removeEventListener("change", finish)
+    }
+  }, [end, duration])
+
+  const formattedCount = count.toLocaleString("en-US")
 
   return (
     <span ref={ref} className={className}>
-      {prefix}{formattedCount}{suffix}
+      <span className="sr-only">{prefix}{end.toLocaleString("en-US")}{suffix}</span>
+      <span aria-hidden="true">{prefix}{formattedCount}{suffix}</span>
     </span>
   )
 }

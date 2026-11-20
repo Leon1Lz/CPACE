@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { articlesData } from "@/data/articles";
 import { prisma } from "@/lib/prisma";
-import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { rateLimitDistributed, getClientIp } from "@/lib/rate-limit";
 import { stripTags } from "@/lib/sanitize";
 import { verifyRecaptcha } from "@/lib/recaptcha";
 
@@ -60,7 +60,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const limit = rateLimit(
+    const limit = await rateLimitDistributed(
       `article-comment:${getClientIp(request)}`,
       5,
       15 * 60 * 1000,

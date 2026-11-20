@@ -26,6 +26,10 @@ export function LoginForm() {
     const errorParam = searchParams.get("error")
     if (errorParam === "session_expired") {
       setError("Your session has expired because you signed in from another device or tab.")
+    } else if (errorParam === "browser_closed") {
+      setError("Your session ended automatically because the browser was closed.")
+    } else if (errorParam === "inactivity_timeout") {
+      setError("You were signed out due to 30 minutes of inactivity for your security.")
     } else if (errorParam === "NotPreApproved") {
       setError("This Google account is not pre-approved. Please contact your CPACE administrator to request access.")
     } else if (errorParam === "UserSuspended") {
@@ -40,6 +44,9 @@ export function LoginForm() {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true)
     setError("")
+    if (typeof window !== "undefined") {
+      try { sessionStorage.setItem("cpace_session_active", "true") } catch {}
+    }
     try {
       await signIn("google", { callbackUrl: "/dashboard" })
     } catch {
@@ -64,6 +71,9 @@ export function LoginForm() {
       if (result?.error) {
         setError("Invalid email or password")
       } else {
+        if (typeof window !== "undefined") {
+          try { sessionStorage.setItem("cpace_session_active", "true") } catch {}
+        }
         router.push(targetUrl)
         if (typeof window !== "undefined" && !(process.env.VITEST || (window as any).__VITEST__)) {
           window.location.href = targetUrl

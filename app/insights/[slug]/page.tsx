@@ -5,7 +5,7 @@ import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import { Calendar, MessageCircle, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Newspaper } from "lucide-react"
 import Link from "next/link"
-import { SafeHtml } from "@/components/ui/safe-html"
+import { ArticleContent } from "@/components/insights/article-content"
 import { articlesData, type Article } from "@/data/articles"
 import { ArticleImage } from "@/components/ui/article-image"
 import { ArticleComments } from "@/components/sections/article-comments"
@@ -22,15 +22,12 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ slug: 
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          const managedArticles = data.map((article) => {
-            const matchingArticle = articlesData.find((item) => item.slug === article.slug)
-            return { ...article, image: matchingArticle?.image || article.image }
-          })
+          const managedArticles = data
           const databaseSlugs = new Set(managedArticles.map((article) => article.slug))
           setArticles([
             ...managedArticles,
             ...articlesData.filter((article) => !databaseSlugs.has(article.slug)),
-          ])
+          ].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)))
         }
       })
       .catch((err) => {
@@ -130,11 +127,7 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ slug: 
             )}
             
             <div className="p-6 md:p-12">
-              <SafeHtml
-                html={article.content}
-                className="prose max-w-none text-gray-700 leading-relaxed text-base md:text-lg"
-                externalLinks
-              />
+              <ArticleContent content={article.content} />
             </div>
           </article>
 
@@ -185,47 +178,7 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ slug: 
       </div>
       <Footer />
       
-      {/* Styles for Prose container rendering */}
-      <style>{`
-        .prose h1 {
-          font-size: 2rem;
-          font-weight: 800;
-          margin-top: 1.5rem;
-          margin-bottom: 0.75rem;
-          color: #111827;
-        }
-        .prose h2 {
-          font-size: 1.625rem;
-          font-weight: 700;
-          margin-top: 1.25rem;
-          margin-bottom: 0.75rem;
-          color: #1f2937;
-        }
-        .prose blockquote {
-          border-left: 4px solid #10b981;
-          padding-left: 1.25rem;
-          color: #4b5563;
-          font-style: italic;
-          margin: 1.5rem 0;
-        }
-        .prose ul {
-          list-style-type: disc;
-          padding-left: 1.75rem;
-          margin: 1.25rem 0;
-        }
-        .prose ol {
-          list-style-type: decimal;
-          padding-left: 1.75rem;
-          margin: 1.25rem 0;
-        }
-        .prose a {
-          color: #059669;
-          text-decoration: underline;
-        }
-        .prose p {
-          margin-bottom: 1.25rem;
-        }
-      `}</style>
+
     </div>
   )
 }

@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { validatePassword, PASSWORD_COMPLEXITY_MESSAGE } from "@/lib/password-validator"
 
 const registerSchema = z.object({
   email: z.string().email().max(255),
-  password: z.string().min(8).max(128),
+  password: z.string().refine(
+    (pwd) => validatePassword(pwd).isValid,
+    { message: PASSWORD_COMPLEXITY_MESSAGE }
+  ),
   firstName: z.string().trim().min(1).max(100),
   lastName: z.string().trim().min(1).max(100),
 })

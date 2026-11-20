@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
               iconName: item.iconName,
               image: item.image,
               featured: !!item.featured,
+              createdAt: new Date(item.createdAt),
             },
           })
           count++

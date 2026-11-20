@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import crypto from "crypto"
+import { validatePassword, PASSWORD_COMPLEXITY_MESSAGE } from "@/lib/password-validator"
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,8 +11,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Token and password are required" }, { status: 400 })
     }
 
-    if (typeof password !== "string" || password.length < 8 || password.length > 128) {
-      return NextResponse.json({ error: "Password must be between 8 and 128 characters" }, { status: 400 })
+    const validation = validatePassword(password)
+    if (!validation.isValid) {
+      return NextResponse.json({ error: validation.errors[0] || PASSWORD_COMPLEXITY_MESSAGE }, { status: 400 })
     }
 
     // Find and validate the reset token

@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Eye, EyeOff } from "lucide-react"
+import { Loader2, Eye, EyeOff, Check, X } from "lucide-react"
+import { validatePassword, PASSWORD_COMPLEXITY_MESSAGE } from "@/lib/password-validator"
 
 export function RegisterForm() {
   const [formData, setFormData] = useState({
@@ -33,6 +34,13 @@ export function RegisterForm() {
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match")
+      setIsLoading(false)
+      return
+    }
+
+    const pwValidation = validatePassword(formData.password)
+    if (!pwValidation.isValid) {
+      setError(pwValidation.errors[0] || PASSWORD_COMPLEXITY_MESSAGE)
       setIsLoading(false)
       return
     }
@@ -85,6 +93,7 @@ export function RegisterForm() {
 
   const inputClass = "h-11 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-xl bg-white"
   const labelClass = "text-sm font-medium text-gray-700"
+  const pwChecks = validatePassword(formData.password).checks
 
   return (
     <div className="space-y-4">
@@ -174,7 +183,7 @@ export function RegisterForm() {
           <Input
             id="password"
             type={showPassword ? "text" : "password"}
-            placeholder="Min. 8 characters"
+            placeholder="Min. 8 chars (e.g. Pass@123)"
             value={formData.password}
             onChange={(e) => handleChange("password", e.target.value)}
             required
@@ -186,6 +195,28 @@ export function RegisterForm() {
             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
         </div>
+        {formData.password.length > 0 && (
+          <div className="p-2.5 bg-gray-50 border border-gray-100 rounded-lg text-xs space-y-1 mt-1">
+            <p className="font-medium text-gray-600 mb-1">Password Requirements:</p>
+            <div className="grid grid-cols-2 gap-1 text-[11px]">
+              <span className={`flex items-center gap-1 ${pwChecks.hasMinLength ? "text-emerald-600 font-medium" : "text-gray-400"}`}>
+                {pwChecks.hasMinLength ? <Check className="w-3 h-3 shrink-0" /> : <X className="w-3 h-3 shrink-0" />} 8+ Characters
+              </span>
+              <span className={`flex items-center gap-1 ${pwChecks.hasUpperCase ? "text-emerald-600 font-medium" : "text-gray-400"}`}>
+                {pwChecks.hasUpperCase ? <Check className="w-3 h-3 shrink-0" /> : <X className="w-3 h-3 shrink-0" />} Uppercase (A-Z)
+              </span>
+              <span className={`flex items-center gap-1 ${pwChecks.hasLowerCase ? "text-emerald-600 font-medium" : "text-gray-400"}`}>
+                {pwChecks.hasLowerCase ? <Check className="w-3 h-3 shrink-0" /> : <X className="w-3 h-3 shrink-0" />} Lowercase (a-z)
+              </span>
+              <span className={`flex items-center gap-1 ${pwChecks.hasNumber ? "text-emerald-600 font-medium" : "text-gray-400"}`}>
+                {pwChecks.hasNumber ? <Check className="w-3 h-3 shrink-0" /> : <X className="w-3 h-3 shrink-0" />} Number (0-9)
+              </span>
+              <span className={`col-span-2 flex items-center gap-1 ${pwChecks.hasSpecialChar ? "text-emerald-600 font-medium" : "text-gray-400"}`}>
+                {pwChecks.hasSpecialChar ? <Check className="w-3 h-3 shrink-0" /> : <X className="w-3 h-3 shrink-0" />} Special Symbol (!@#$%...)
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-2">

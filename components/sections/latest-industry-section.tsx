@@ -35,10 +35,8 @@ export function LatestIndustrySection() {
       .then((data) => {
         if (Array.isArray(data)) {
           const managedArticles = data.map((article) => {
-            const matchingArticle = articlesData.find((item) => item.slug === article.slug)
             return {
               ...article,
-              image: matchingArticle?.image || article.image,
               comments: article.comments ?? 0,
               createdAt: article.createdAt ?? new Date().toISOString(),
             }
@@ -47,7 +45,7 @@ export function LatestIndustrySection() {
           setArticles([
             ...managedArticles,
             ...articlesData.filter((article) => !managedSlugs.has(article.slug)),
-          ])
+          ].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)))
         }
       })
       .catch(() => {})

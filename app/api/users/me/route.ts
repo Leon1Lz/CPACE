@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
+import { validatePassword, PASSWORD_COMPLEXITY_MESSAGE } from "@/lib/password-validator"
 
 const profileSchema = z.object({
   firstName: z.string().min(1).optional(),
@@ -14,7 +15,9 @@ const profileSchema = z.object({
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+  newPassword: z.string().refine((pwd) => validatePassword(pwd).isValid, {
+    message: PASSWORD_COMPLEXITY_MESSAGE,
+  }),
 })
 
 export async function GET() {

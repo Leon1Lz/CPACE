@@ -17,7 +17,7 @@ const serverEnvSchema = z.object({
   // Auth
   NEXTAUTH_SECRET: z
     .string({ required_error: "NEXTAUTH_SECRET is required — generate with: openssl rand -base64 32" })
-    .min(1, "NEXTAUTH_SECRET must not be empty"),
+    .min(32, "NEXTAUTH_SECRET must be at least 32 characters; generate a unique value for each environment"),
   NEXTAUTH_URL: z
     .string()
     .url("NEXTAUTH_URL must be a valid URL")

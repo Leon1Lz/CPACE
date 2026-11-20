@@ -1,12 +1,15 @@
 /**
  * lib/rate-limit.ts
  *
- * Lightweight, in-memory sliding window rate limiter.
- * Ideal for protecting sensitive auth endpoints (login, password reset) from brute force attacks
- * without requiring Redis or extra database infrastructure.
+ * Rate limiting helpers. `rateLimit` remains available for isolated unit tests;
+ * request handlers should use `rateLimitDistributed` so limits are shared by
+ * all application instances.
  */
 
+import { createHash } from "node:crypto"
+
 const tracker = new Map<string, number[]>()
+let lastDistributedCleanupAt = 0
 
 // Cleanup old entries every 5 minutes to prevent memory leaks
 if (typeof global !== "undefined") {
@@ -69,9 +72,66 @@ export function rateLimit(key: string, limit: number, windowMs: number): RateLim
 }
 
 /**
+ * Atomically enforce a fixed-window limit in PostgreSQL. The raw client key is
+ * hashed before storage so IP addresses are not retained in this table.
+ * Fails closed if the shared store is unavailable.
+ */
+export async function rateLimitDistributed(
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<RateLimitResponse> {
+  const now = Date.now()
+  const keyHash = createHash("sha256").update(key).digest("hex")
+
+  try {
+    const { prisma } = await import("@/lib/prisma")
+    const rows = await prisma.$queryRaw<Array<{ count: number; resetAt: Date }>>`
+      INSERT INTO "rate_limit_buckets" ("keyHash", "count", "resetAt")
+      VALUES (${keyHash}, 1, NOW() + (${windowMs} * INTERVAL '1 millisecond'))
+      ON CONFLICT ("keyHash") DO UPDATE SET
+        "count" = CASE
+          WHEN "rate_limit_buckets"."resetAt" <= NOW() THEN 1
+          ELSE "rate_limit_buckets"."count" + 1
+        END,
+        "resetAt" = CASE
+          WHEN "rate_limit_buckets"."resetAt" <= NOW() THEN EXCLUDED."resetAt"
+          ELSE "rate_limit_buckets"."resetAt"
+        END
+      RETURNING "count", "resetAt"
+    `
+
+    if (!rows[0]) throw new Error("Rate-limit store returned no bucket")
+
+    if (now - lastDistributedCleanupAt > 60 * 60 * 1000) {
+      lastDistributedCleanupAt = now
+      void prisma.$executeRaw`
+        DELETE FROM "rate_limit_buckets"
+        WHERE "resetAt" < NOW() - INTERVAL '1 day'
+      `.catch((error) => console.error("Rate-limit cleanup failed:", error))
+    }
+
+    const reset = rows[0].resetAt.getTime()
+    const success = rows[0].count <= limit
+    return {
+      success,
+      remaining: Math.max(0, limit - rows[0].count),
+      limit,
+      reset,
+    }
+  } catch (error) {
+    console.error("Distributed rate-limit check failed:", error)
+    return { success: false, remaining: 0, limit, reset: now + windowMs }
+  }
+}
+
+/**
  * Extract client IP helper from request headers.
  */
 export function getClientIp(req: Request): string {
+  const realIp = req.headers.get("x-real-ip")?.trim()
+  if (realIp) return realIp
+
   const forwarded = req.headers.get("x-forwarded-for")
   if (forwarded) {
     return forwarded.split(",")[0].trim()

@@ -6,21 +6,17 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-const DEFAULT_DATABASE_URL = "postgresql://postgres.pvolxtlteuyjekiskkce:Nzw7PXfK4bryGSv7@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
-
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = DEFAULT_DATABASE_URL
-}
-if (!process.env.DIRECT_URL) {
-  process.env.DIRECT_URL = "postgresql://postgres.pvolxtlteuyjekiskkce:Nzw7PXfK4bryGSv7@aws-1-ap-south-1.pooler.supabase.com:5432/postgres"
+const databaseUrl = process.env.DATABASE_URL
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL must be configured in the server environment")
 }
 
 const createPrismaClient = () => {
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || DEFAULT_DATABASE_URL,
-    // Enable SSL for Supabase connections.
-    // Supabase pooled connections use custom certificates that require rejectUnauthorized: false
-    ssl: { rejectUnauthorized: false },
+    connectionString: databaseUrl,
+    // Require a certificate trusted by the runtime instead of accepting any
+    // server certificate, which would make database traffic vulnerable to MITM.
+    ssl: { rejectUnauthorized: true },
   })
   const adapter = new PrismaPg(pool)
   return new PrismaClient({ adapter })

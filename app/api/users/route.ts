@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
 import bcrypt from "bcryptjs"
+import { validatePassword, PASSWORD_COMPLEXITY_MESSAGE } from "@/lib/password-validator"
 
 const userRoleEnum = z.enum(["ADMIN", "INSTRUCTOR", "LEARNER", "PROCTOR"])
 
@@ -12,7 +13,7 @@ const createUserSchema = z.object({
   email: z.string().email().max(255),
   firstName: z.string().trim().min(1).max(100),
   lastName: z.string().trim().min(1).max(100),
-  password: z.string().min(6).max(128).optional(),
+  password: z.string().optional(),
   role: userRoleEnum.optional().default("LEARNER"),
 }).strict()
 
@@ -142,7 +143,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "A user with this email address already exists" }, { status: 400 })
     }
 
-    const rawPassword = password && password.trim() ? password.trim() : "cpace1234"
+    const rawPassword = password && password.trim() ? password.trim() : "Cpace@1234"
+    if (password && password.trim()) {
+      const pwCheck = validatePassword(rawPassword)
+      if (!pwCheck.isValid) {
+        return NextResponse.json({ error: pwCheck.errors[0] || PASSWORD_COMPLEXITY_MESSAGE }, { status: 400 })
+      }
+    }
     const hashedPassword = await bcrypt.hash(rawPassword, 12)
 
     // Auto-approve email in whitelist so registration/login succeeds smoothly
