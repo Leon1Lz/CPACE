@@ -2,12 +2,13 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { getToken } from "next-auth/jwt"
 
-const authSecret = process.env.NEXTAUTH_SECRET
-if (!authSecret || authSecret.length < 32) {
-  throw new Error("NEXTAUTH_SECRET must be set to a unique secret of at least 32 characters")
-}
-
 export async function middleware(req: NextRequest) {
+  const authSecret = process.env.NEXTAUTH_SECRET
+  if (!authSecret || authSecret.length < 32) {
+    // Fail closed without crashing the edge runtime.
+    console.error("NEXTAUTH_SECRET must be set to a unique secret of at least 32 characters")
+    return NextResponse.redirect(new URL("/login?error=config", req.url))
+  }
   try {
     const isHttps = req.url.startsWith("https://") || req.headers.get("x-forwarded-proto") === "https" || req.cookies.has("__Secure-next-auth.session-token")
 
