@@ -63,11 +63,6 @@ const providers: NextAuthOptions["providers"] = [
   })
 ]
 
-const authSecret = process.env.NEXTAUTH_SECRET
-if (!authSecret || authSecret.length < 32) {
-  throw new Error("NEXTAUTH_SECRET must be set to a unique secret of at least 32 characters")
-}
-
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   providers.unshift(
     GoogleProvider({
@@ -87,9 +82,17 @@ if (!process.env.NEXTAUTH_URL) {
   process.env.NEXTAUTH_URL = "http://localhost:3000"
 }
 
+function getAuthSecret(): string {
+  const secret = process.env.NEXTAUTH_SECRET
+  if (!secret || secret.length < 32) {
+    throw new Error("NEXTAUTH_SECRET must be set to a unique secret of at least 32 characters")
+  }
+  return secret
+}
+
 export const authOptions: NextAuthOptions = {
   providers,
-  secret: authSecret,
+  get secret() { return getAuthSecret() },
   session: {
     strategy: "jwt",
     maxAge: 8 * 60 * 60,
