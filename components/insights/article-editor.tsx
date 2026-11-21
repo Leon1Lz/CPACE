@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react"
-import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, List, ListOrdered, Quote, Minus, Undo2, Redo2, Link2, Unlink, ImagePlus, Linkedin, Eraser, Trash2, Pencil, Eye, Monitor, Smartphone } from "lucide-react"
+import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, List, ListOrdered, Quote, Minus, Undo2, Redo2, Link2, Unlink, ImagePlus, Linkedin, Youtube, Table2, Code2, Eraser, Trash2, Pencil, Eye, Monitor, Smartphone, Plus, Rows3, Columns3 } from "lucide-react"
 import { createArticleExtensions } from "./editor-extensions"
 import { ArticleContent } from "./article-content"
-import { getLinkedInEmbedUrl, isArticleImageUrl, sanitizeArticleHtml } from "@/lib/article-html"
+import { ARTICLE_FONTS, getLinkedInEmbedUrl, getYouTubeEmbedUrl, isArticleImageUrl, sanitizeArticleHtml } from "@/lib/article-html"
 import { prepareArticleImage } from "@/lib/article-image-upload"
 import { cn } from "@/lib/utils"
 
@@ -30,7 +30,7 @@ export function ArticleEditor({ value, onChange, title, banner, category }: {
 }) {
   const [preview, setPreview] = useState(false)
   const [mobile, setMobile] = useState(false)
-  const [panel, setPanel] = useState<"link" | "image" | "embed" | null>(null)
+  const [panel, setPanel] = useState<"link" | "image" | "embed" | "youtube" | null>(null)
   const [url, setUrl] = useState("")
   const [alt, setAlt] = useState("")
   const [error, setError] = useState("")
@@ -46,7 +46,46 @@ export function ArticleEditor({ value, onChange, title, banner, category }: {
       lastValue.current = html
       onChange(html)
     },
-    editorProps: { attributes: { class: "article-body min-h-[480px] focus:outline-none", role: "textbox", "aria-label": "Article body", "aria-multiline": "true" } },
+    editorProps: {
+      attributes: { class: "article-body min-h-[480px] focus:outline-none", role: "textbox", "aria-label": "Article body", "aria-multiline": "true" },
+      handleDrop(view, event, _slice, moved) {
+        if (moved || !event.dataTransfer?.files?.length) return false
+        const file = Array.from(event.dataTransfer.files).find(item => /^image\/(?:jpeg|png|webp)$/.test(item.type))
+        if (!file) return false
+        event.preventDefault()
+        const coords = view.posAtCoords({ left: event.clientX, top: event.clientY })
+        setUploading(true)
+        prepareArticleImage(file)
+          .then(dataUrl => {
+            const altText = file.name.replace(/\.[^.]+$/, "")
+            const node = view.state.schema.nodes.image?.create({ src: dataUrl, alt: altText })
+            if (!node) return
+            const insertPos = coords?.pos ?? view.state.selection.from
+            view.dispatch(view.state.tr.insert(insertPos, node))
+          })
+          .catch(cause => setError(cause instanceof Error ? cause.message : "Unable to upload dropped image."))
+          .finally(() => setUploading(false))
+        return true
+      },
+      handlePaste(view, event) {
+        const files = event.clipboardData?.files
+        if (!files?.length) return false
+        const file = Array.from(files).find(item => /^image\/(?:jpeg|png|webp)$/.test(item.type))
+        if (!file) return false
+        event.preventDefault()
+        setUploading(true)
+        prepareArticleImage(file)
+          .then(dataUrl => {
+            const altText = file.name.replace(/\.[^.]+$/, "")
+            const node = view.state.schema.nodes.image?.create({ src: dataUrl, alt: altText })
+            if (!node) return
+            view.dispatch(view.state.tr.replaceSelectionWith(node))
+          })
+          .catch(cause => setError(cause instanceof Error ? cause.message : "Unable to paste image."))
+          .finally(() => setUploading(false))
+        return true
+      },
+    },
   })
   useEditorState({ editor, selector: ({ transactionNumber }) => transactionNumber })
 
@@ -61,14 +100,26 @@ export function ArticleEditor({ value, onChange, title, banner, category }: {
   const block = editor.isActive("heading") ? `h${editor.getAttributes("heading").level}` : "paragraph"
   const imageSelected = editor.isActive("image")
   const embedSelected = editor.isActive("linkedInEmbed")
+  const youtubeSelected = editor.isActive("youTubeEmbed")
+  const tableActive = editor.isActive("table")
   const textStyle = editor.getAttributes("textStyle")
   const blockAttributes = editor.getAttributes(editor.isActive("heading") ? "heading" : "paragraph")
 
-  function openPanel(kind: "link" | "image" | "embed") {
+  function openPanel(kind: "link" | "image" | "embed" | "youtube") {
     if (!editor) return
     setPanel(kind)
     setError("")
-    setUrl(kind === "link" ? editor.getAttributes("link").href || "" : kind === "image" && imageSelected ? editor.getAttributes("image").src || "" : kind === "embed" && embedSelected ? editor.getAttributes("linkedInEmbed").src || "" : "")
+    setUrl(
+      kind === "link"
+        ? editor.getAttributes("link").href || ""
+        : kind === "image" && imageSelected
+          ? editor.getAttributes("image").src || ""
+          : kind === "embed" && embedSelected
+            ? editor.getAttributes("linkedInEmbed").src || ""
+            : kind === "youtube" && youtubeSelected
+              ? editor.getAttributes("youTubeEmbed").src || ""
+              : ""
+    )
     setAlt(imageSelected ? editor.getAttributes("image").alt || "" : "")
   }
 
@@ -84,6 +135,11 @@ export function ArticleEditor({ value, onChange, title, banner, category }: {
       if (!src) { setError("Paste a LinkedIn post URL or the code from LinkedIn’s “Embed this post” option."); return }
       if (embedSelected) editor.chain().focus().updateAttributes("linkedInEmbed", { src }).run()
       else editor.chain().focus().insertContent([{ type: "linkedInEmbed", attrs: { src, height: 650 } }, { type: "paragraph" }]).run()
+    } else if (panel === "youtube") {
+      const src = getYouTubeEmbedUrl(input)
+      if (!src) { setError("Paste a valid YouTube video URL (youtube.com/watch?v=..., youtu.be/..., or YouTube embed code)."); return }
+      if (youtubeSelected) editor.chain().focus().updateAttributes("youTubeEmbed", { src }).run()
+      else editor.chain().focus().insertContent([{ type: "youTubeEmbed", attrs: { src, height: 420 } }, { type: "paragraph" }]).run()
     } else {
       if (!/^(?:https?:\/\/|mailto:|tel:|\/(?!\/)|#)/i.test(input)) { setError("Enter a full URL starting with https://, or a local page path."); return }
       if (editor.state.selection.empty && !editor.isActive("link")) {
@@ -113,6 +169,9 @@ export function ArticleEditor({ value, onChange, title, banner, category }: {
             <option value="paragraph">Paragraph</option>
             {[1, 2, 3, 4, 5, 6].map(level => <option key={level} value={`h${level}`}>Heading {level}</option>)}
           </select>
+          <select aria-label="Font family" className={selectClass} value={textStyle.fontFamily || ""} onChange={event => event.target.value ? editor.chain().focus().setFontFamily(event.target.value).run() : editor.chain().focus().unsetFontFamily().run()}>
+            {ARTICLE_FONTS.map(font => <option key={font.label} value={font.value}>{font.label}</option>)}
+          </select>
           <select aria-label="Font size" className={selectClass} value={textStyle.fontSize || ""} onChange={event => event.target.value ? editor.chain().focus().setFontSize(event.target.value).run() : editor.chain().focus().unsetFontSize().run()}>
             <option value="">Font size</option>{[12, 14, 16, 18, 20, 24, 32, 40, 48].map(size => <option key={size} value={`${size}px`}>{size} px</option>)}
           </select>
@@ -141,19 +200,22 @@ export function ArticleEditor({ value, onChange, title, banner, category }: {
           <Tool label="Bullet list" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}><List size={16} /></Tool>
           <Tool label="Numbered list" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}><ListOrdered size={16} /></Tool>
           <Tool label="Blockquote" active={editor.isActive("blockquote")} onClick={() => editor.chain().focus().toggleBlockquote().run()}><Quote size={16} /></Tool>
+          <Tool label="Code block" active={editor.isActive("codeBlock")} onClick={() => editor.chain().focus().toggleCodeBlock().run()}><Code2 size={16} /></Tool>
           <Tool label="Divider" onClick={() => editor.chain().focus().setHorizontalRule().run()}><Minus size={16} /></Tool>
           <Tool label="Clear formatting" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().resetAttributes("paragraph", ["textAlign", "paragraphSpacing", "blockLineHeight"]).run()}><Eraser size={16} /></Tool>
           <span className="mx-1 h-5 border-l" />
           <Tool label="Insert or edit link" active={editor.isActive("link")} onClick={() => openPanel("link")}><Link2 size={16} /></Tool>
           <Tool label="Remove link" disabled={!editor.isActive("link")} onClick={() => editor.chain().focus().extendMarkRange("link").unsetLink().run()}><Unlink size={16} /></Tool>
           <Tool label="Insert image" onClick={() => openPanel("image")}><ImagePlus size={16} />Image</Tool>
-          <Tool label="Embed LinkedIn post" onClick={() => openPanel("embed")}><Linkedin size={16} />LinkedIn</Tool>
+          <Tool label="Insert table" active={tableActive} onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}><Table2 size={16} />Table</Tool>
+          <Tool label="Embed YouTube video" active={youtubeSelected} onClick={() => openPanel("youtube")}><Youtube size={16} />Video</Tool>
+          <Tool label="Embed LinkedIn post" active={embedSelected} onClick={() => openPanel("embed")}><Linkedin size={16} />LinkedIn</Tool>
         </div>
       </div>
 
       {panel && <div className="space-y-3 border-b bg-emerald-50/50 p-4" role="region" aria-label={`Insert ${panel}`}>
-        <label className="block text-sm font-semibold text-slate-800">{panel === "image" ? "Image URL or local path" : panel === "embed" ? "LinkedIn post URL or embed code" : "Link URL"}
-          <input aria-label={panel === "image" ? "Image URL" : panel === "embed" ? "LinkedIn URL or embed code" : "Link URL"} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 font-normal" value={url.startsWith("data:") ? "" : url} onChange={event => setUrl(event.target.value)} placeholder={url.startsWith("data:") ? "Uploaded image ready" : panel === "image" ? "https://… or /assets/…" : "https://…"} />
+        <label className="block text-sm font-semibold text-slate-800">{panel === "image" ? "Image URL or local path" : panel === "embed" ? "LinkedIn post URL or embed code" : panel === "youtube" ? "YouTube video URL or embed code" : "Link URL"}
+          <input aria-label={panel === "image" ? "Image URL" : panel === "embed" ? "LinkedIn URL or embed code" : panel === "youtube" ? "YouTube URL or embed code" : "Link URL"} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 font-normal" value={url.startsWith("data:") ? "" : url} onChange={event => setUrl(event.target.value)} placeholder={url.startsWith("data:") ? "Uploaded image ready" : panel === "image" ? "https://… or /assets/…" : panel === "youtube" ? "https://www.youtube.com/watch?v=… or https://youtu.be/…" : "https://…"} />
         </label>
         {panel === "image" && <>
           {url && isArticleImageUrl(url) && <img src={url} alt={alt || "Image preview"} className="h-24 max-w-full rounded-md object-contain" />}
@@ -170,10 +232,11 @@ export function ArticleEditor({ value, onChange, title, banner, category }: {
               }} />
             </label>
             {banner && <button type="button" className="text-emerald-800 underline" onClick={() => setUrl(banner)}>Use banner image</button>}
-            <span className="text-slate-500">JPG, PNG, or WebP · up to 10 MB</span>
+            <span className="text-slate-500">JPG, PNG, or WebP · up to 10 MB (you can also drag & drop or paste images directly into the editor)</span>
           </div>
         </>}
         {panel === "embed" && <p className="text-xs text-slate-500">Paste a public post URL or copy “Embed this post” from LinkedIn. View it in Preview.</p>}
+        {panel === "youtube" && <p className="text-xs text-slate-500">Paste a YouTube watch, share (youtu.be), Shorts, or embed link. View it in Preview.</p>}
         {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
         <div className="flex gap-2">
           <button type="button" disabled={uploading} onClick={insert} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Apply {panel}</button>
@@ -181,13 +244,30 @@ export function ArticleEditor({ value, onChange, title, banner, category }: {
         </div>
       </div>}
 
-      {(imageSelected || embedSelected) && <div className="flex flex-wrap items-center gap-2 border-b bg-slate-50 px-4 py-2 text-xs">
-        <strong>{imageSelected ? "Selected image" : "Selected LinkedIn post"}</strong>
+      {tableActive && <div className="flex flex-wrap items-center gap-1.5 border-b bg-emerald-50/40 px-4 py-2 text-xs" role="region" aria-label="Table controls">
+        <strong className="mr-1 text-emerald-950">Table:</strong>
+        <Tool label="Add column before" onClick={() => editor.chain().focus().addColumnBefore().run()}><Plus size={13} /><Columns3 size={14} />Col before</Tool>
+        <Tool label="Add column after" onClick={() => editor.chain().focus().addColumnAfter().run()}><Columns3 size={14} /><Plus size={13} />Col after</Tool>
+        <Tool label="Delete column" onClick={() => editor.chain().focus().deleteColumn().run()}><Trash2 size={13} />Del col</Tool>
+        <span className="mx-1 h-4 border-l border-emerald-200" />
+        <Tool label="Add row above" onClick={() => editor.chain().focus().addRowBefore().run()}><Plus size={13} /><Rows3 size={14} />Row above</Tool>
+        <Tool label="Add row below" onClick={() => editor.chain().focus().addRowAfter().run()}><Rows3 size={14} /><Plus size={13} />Row below</Tool>
+        <Tool label="Delete row" onClick={() => editor.chain().focus().deleteRow().run()}><Trash2 size={13} />Del row</Tool>
+        <span className="mx-1 h-4 border-l border-emerald-200" />
+        <Tool label="Toggle header row" onClick={() => editor.chain().focus().toggleHeaderRow().run()}>Header row</Tool>
+        <Tool label="Merge cells" onClick={() => editor.chain().focus().mergeCells().run()}>Merge</Tool>
+        <Tool label="Split cell" onClick={() => editor.chain().focus().splitCell().run()}>Split</Tool>
+        <Tool label="Delete table" onClick={() => editor.chain().focus().deleteTable().run()}><Trash2 size={14} />Delete table</Tool>
+      </div>}
+
+      {(imageSelected || embedSelected || youtubeSelected) && <div className="flex flex-wrap items-center gap-2 border-b bg-slate-50 px-4 py-2 text-xs">
+        <strong>{imageSelected ? "Selected image" : youtubeSelected ? "Selected YouTube video" : "Selected LinkedIn post"}</strong>
         {imageSelected ? <>
           <select aria-label="Image width" className={selectClass} value={editor.getAttributes("image").displayWidth || "100%"} onChange={event => editor.chain().focus().updateAttributes("image", { displayWidth: event.target.value }).run()}>{[25, 50, 75, 100].map(width => <option key={width} value={`${width}%`}>{width}% width</option>)}</select>
           <select aria-label="Image alignment" className={selectClass} value={editor.getAttributes("image").imageAlign || "center"} onChange={event => editor.chain().focus().updateAttributes("image", { imageAlign: event.target.value }).run()}>{["left", "center", "right"].map(align => <option key={align} value={align}>{align}</option>)}</select>
-        </> : <select aria-label="LinkedIn embed height" className={selectClass} value={editor.getAttributes("linkedInEmbed").height} onChange={event => editor.chain().focus().updateAttributes("linkedInEmbed", { height: Number(event.target.value) }).run()}>{[450, 650, 850, 1000, 1200].map(height => <option key={height} value={height}>{height} px high</option>)}</select>}
-        <Tool label="Edit selected media" onClick={() => openPanel(imageSelected ? "image" : "embed")}><Pencil size={15} /></Tool>
+        </> : youtubeSelected ? <select aria-label="YouTube embed height" className={selectClass} value={editor.getAttributes("youTubeEmbed").height} onChange={event => editor.chain().focus().updateAttributes("youTubeEmbed", { height: Number(event.target.value) }).run()}>{[315, 420, 540, 640].map(height => <option key={height} value={height}>{height} px high</option>)}</select>
+        : <select aria-label="LinkedIn embed height" className={selectClass} value={editor.getAttributes("linkedInEmbed").height} onChange={event => editor.chain().focus().updateAttributes("linkedInEmbed", { height: Number(event.target.value) }).run()}>{[450, 650, 850, 1000, 1200].map(height => <option key={height} value={height}>{height} px high</option>)}</select>}
+        <Tool label="Edit selected media" onClick={() => openPanel(imageSelected ? "image" : youtubeSelected ? "youtube" : "embed")}><Pencil size={15} /></Tool>
         <Tool label="Remove selected media" onClick={() => editor.chain().focus().deleteSelection().run()}><Trash2 size={15} /></Tool>
       </div>}
       <div className="max-h-[65vh] overflow-y-auto bg-slate-50 p-3 sm:p-6">
