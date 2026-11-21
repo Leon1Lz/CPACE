@@ -75,7 +75,7 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
               "connect-src 'self' https://*.pusher.com wss://*.pusher.com https://va.vercel-scripts.com https://cdn.jsdelivr.net https://storage.googleapis.com https://vercel.com https://vercel.live https://maps.googleapis.com",
-              "frame-src 'self' https://maps.google.com https://www.google.com https://*.google.com https://recaptcha.google.com https://docs.google.com https://www.linkedin.com",
+              "frame-src 'self' https://maps.google.com https://www.google.com https://*.google.com https://recaptcha.google.com https://docs.google.com https://www.linkedin.com https://www.youtube-nocookie.com",
               "manifest-src 'self' https://vercel.com",
               "frame-ancestors 'none'",
               "object-src 'none'",
