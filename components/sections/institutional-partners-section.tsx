@@ -134,9 +134,6 @@ export function InstitutionalPartnersSection() {
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
               Institutional and Industry Partners
             </h2>
-            <p className="text-base md:text-lg text-gray-600 leading-relaxed">
-              Trusted by leading organizations and academic institutions across various industries for professional development and certification programs.
-            </p>
           </div>
 
           {/* Partners Logo Marquee */}
