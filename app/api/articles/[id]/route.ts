@@ -100,6 +100,7 @@ export async function PATCH(
             iconName: staticArt.iconName,
             image: staticArt.image,
             featured: staticArt.featured,
+            ...(staticArt.createdAt ? { createdAt: new Date(staticArt.createdAt) } : {}),
           }
         })
       }
@@ -110,7 +111,7 @@ export async function PATCH(
     }
 
     const body = await req.json()
-    const { title, excerpt, content, category, categoryColor, iconName, image, featured } = body
+    const { title, excerpt, content, category, categoryColor, iconName, image, featured, publishedAt, createdAt } = body
 
     const updateData: any = {}
     if (title !== undefined) updateData.title = stripTags(String(title)).slice(0, 200)
@@ -121,6 +122,12 @@ export async function PATCH(
     if (iconName !== undefined) updateData.iconName = iconName
     if (image !== undefined) updateData.image = image
     if (featured !== undefined) updateData.featured = !!featured
+    if (publishedAt !== undefined || createdAt !== undefined) {
+      const parsedDate = new Date(publishedAt ?? createdAt)
+      if (!Number.isNaN(parsedDate.getTime())) {
+        updateData.createdAt = parsedDate
+      }
+    }
 
     if (body.slug !== undefined) {
       const baseSlug = generateSlug(body.slug)

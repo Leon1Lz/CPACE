@@ -58,6 +58,7 @@ export default function ManageInsightsPage() {
   const [iconName, setIconName] = useState("users")
   const [image, setImage] = useState("")
   const [featured, setFeatured] = useState(false)
+  const [publishedDate, setPublishedDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [errorMsg, setErrorMsg] = useState("")
 
   // Delete dialog states
@@ -140,6 +141,7 @@ export default function ManageInsightsPage() {
     setIconName("users")
     setImage(DEFAULT_BANNER)
     setFeatured(false)
+    setPublishedDate(new Date().toISOString().slice(0, 10))
     setErrorMsg("")
     setFormOpen(true)
   }
@@ -154,6 +156,8 @@ export default function ManageInsightsPage() {
     setIconName(article.iconName)
     setImage(article.image)
     setFeatured(article.featured)
+    const parsed = article.createdAt ? new Date(article.createdAt) : new Date()
+    setPublishedDate(!Number.isNaN(parsed.getTime()) ? parsed.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10))
     setErrorMsg("")
     setFormOpen(true)
   }
@@ -180,7 +184,8 @@ export default function ManageInsightsPage() {
       categoryColor: CATEGORIES.find(c => c.value === category)?.color,
       iconName,
       image: image.trim() || DEFAULT_BANNER,
-      featured
+      featured,
+      publishedAt: publishedDate ? new Date(`${publishedDate}T08:00:00Z`).toISOString() : undefined,
     }
 
     if (new TextEncoder().encode(JSON.stringify(payload)).length > 3_500_000) {
@@ -497,7 +502,7 @@ export default function ManageInsightsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {/* Category */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Category</label>
@@ -511,6 +516,29 @@ export default function ManageInsightsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Publication Date */}
+              <div className="space-y-1.5">
+                <label htmlFor="article-publication-date" className="text-xs font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                  Publication Date
+                </label>
+                <Input
+                  id="article-publication-date"
+                  aria-label="Publication date"
+                  type="date"
+                  value={publishedDate}
+                  onChange={(e) => setPublishedDate(e.target.value)}
+                  required
+                  className="border-gray-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                  style={{ height: "42px" }}
+                />
+                {editingArticle?.updatedAt && (
+                  <p className="text-[11px] text-gray-400">
+                    Last edited: {new Date(editingArticle.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </p>
+                )}
               </div>
 
               {/* Icon Selection */}
@@ -580,7 +608,7 @@ export default function ManageInsightsPage() {
             {/* WYSIWYG Content Editor */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Article body</label>
-              <ArticleEditor key={editingArticle?.id || "new"} value={content} onChange={setContent} title={title} banner={image} category={category} />
+              <ArticleEditor key={editingArticle?.id || "new"} value={content} onChange={setContent} title={title} banner={image} category={category} publishedDate={publishedDate} />
             </div>
 
             <DialogFooter className="sticky bottom-0 z-20 border-t border-gray-100 bg-white py-4 gap-2">

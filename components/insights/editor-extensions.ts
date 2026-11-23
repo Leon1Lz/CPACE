@@ -1,6 +1,6 @@
 import { Extension, Node, mergeAttributes } from "@tiptap/core"
 import Image from "@tiptap/extension-image"
-import { getLinkedInEmbedUrl, getYouTubeEmbedUrl } from "@/lib/article-html"
+import { getFacebookEmbedUrl, getLinkedInEmbedUrl, getYouTubeEmbedUrl } from "@/lib/article-html"
 import StarterKit from "@tiptap/starter-kit"
 import TextAlign from "@tiptap/extension-text-align"
 import Highlight from "@tiptap/extension-highlight"
@@ -87,6 +87,42 @@ export const ArticleSpacing = Extension.create({
   },
 })
 
+function createEmbedNodeView(title: string, width: number, defaultHeight: number) {
+  return ({ node }: { node: any }) => {
+    const dom = document.createElement("div")
+    dom.className = "article-embed-placeholder"
+    dom.contentEditable = "false"
+    const header = document.createElement("div")
+    header.style.display = "flex"
+    header.style.alignItems = "center"
+    header.style.justifyContent = "space-between"
+    header.style.marginBottom = "0.5rem"
+    const label = document.createElement("strong")
+    label.textContent = title
+    const hint = document.createElement("small")
+    hint.textContent = "Click this frame header to resize or remove"
+    header.append(label, hint)
+    dom.append(header)
+    if (node.attrs.src) {
+      const frame = document.createElement("iframe")
+      frame.src = node.attrs.src
+      frame.title = title
+      frame.width = String(width)
+      frame.height = String(node.attrs.height || defaultHeight)
+      frame.style.border = "0"
+      frame.style.maxWidth = "100%"
+      frame.style.display = "block"
+      frame.style.margin = "0 auto"
+      frame.style.background = "#ffffff"
+      frame.style.borderRadius = "0.5rem"
+      frame.setAttribute("loading", "lazy")
+      frame.setAttribute("allowfullscreen", "true")
+      dom.append(frame)
+    }
+    return { dom }
+  }
+}
+
 export const LinkedInEmbed = Node.create({
   name: "linkedInEmbed",
   group: "block",
@@ -99,28 +135,43 @@ export const LinkedInEmbed = Node.create({
     }
   },
   parseHTML() {
-    return [{ tag: "iframe", getAttrs: element => {
-      const src = getLinkedInEmbedUrl(element.getAttribute("src") || "")
-      return src ? { src } : false
-    } }]
+    return [{
+      tag: "iframe", getAttrs: element => {
+        const src = getLinkedInEmbedUrl(element.getAttribute("src") || "")
+        return src ? { src } : false
+      }
+    }]
   },
   renderHTML({ HTMLAttributes }) {
     return ["iframe", mergeAttributes(HTMLAttributes, { title: "LinkedIn post", width: 504 })]
   },
   addNodeView() {
-    return ({ node }) => {
-      const dom = document.createElement("div")
-      dom.className = "article-embed-placeholder"
-      dom.contentEditable = "false"
-      const label = document.createElement("strong")
-      label.textContent = "LinkedIn post"
-      const details = document.createElement("p")
-      details.textContent = "Open Preview to view this embedded post. Select this block to change its height or remove it."
-      const address = document.createElement("small")
-      address.textContent = node.attrs.src
-      dom.append(label, details, address)
-      return { dom }
+    return createEmbedNodeView("LinkedIn post", 504, 650)
+  },
+})
+
+export const FacebookEmbed = Node.create({
+  name: "facebookEmbed",
+  group: "block",
+  atom: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      src: { default: null },
+      height: { default: 680, parseHTML: element => Number(element.getAttribute("height")) || 680 },
     }
+  },
+  parseHTML() {
+    return [{ tag: "iframe", getAttrs: element => {
+      const src = getFacebookEmbedUrl(element.getAttribute("src") || "")
+      return src ? { src } : false
+    } }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["iframe", mergeAttributes(HTMLAttributes, { title: "Facebook post", width: 500, scrolling: "no", frameborder: "0", allowfullscreen: "true" })]
+  },
+  addNodeView() {
+    return createEmbedNodeView("Facebook post", 500, 680)
   },
 })
 
@@ -136,28 +187,18 @@ export const YouTubeEmbed = Node.create({
     }
   },
   parseHTML() {
-    return [{ tag: "iframe", getAttrs: element => {
-      const src = getYouTubeEmbedUrl(element.getAttribute("src") || "")
-      return src ? { src } : false
-    } }]
+    return [{
+      tag: "iframe", getAttrs: element => {
+        const src = getYouTubeEmbedUrl(element.getAttribute("src") || "")
+        return src ? { src } : false
+      }
+    }]
   },
   renderHTML({ HTMLAttributes }) {
     return ["iframe", mergeAttributes(HTMLAttributes, { title: "YouTube video", width: 720, allowfullscreen: "true" })]
   },
   addNodeView() {
-    return ({ node }) => {
-      const dom = document.createElement("div")
-      dom.className = "article-embed-placeholder"
-      dom.contentEditable = "false"
-      const label = document.createElement("strong")
-      label.textContent = "YouTube video"
-      const details = document.createElement("p")
-      details.textContent = "Open Preview to watch this embedded video. Select this block to change its height or remove it."
-      const address = document.createElement("small")
-      address.textContent = node.attrs.src
-      dom.append(label, details, address)
-      return { dom }
-    }
+    return createEmbedNodeView("YouTube video", 720, 420)
   },
 })
 
@@ -177,35 +218,35 @@ export const ArticleTable = Node.create({
     return {
       insertTable:
         ({ rows = 3, cols = 3, withHeaderRow = true } = {}) =>
-        ({ tr, dispatch, editor }) => {
-          const { schema } = editor
-          const cellType = schema.nodes.tableCell
-          const headerType = schema.nodes.tableHeader
-          const rowType = schema.nodes.tableRow
-          const tableType = schema.nodes.table
-          if (!cellType || !headerType || !rowType || !tableType) return false
+          ({ tr, dispatch, editor }) => {
+            const { schema } = editor
+            const cellType = schema.nodes.tableCell
+            const headerType = schema.nodes.tableHeader
+            const rowType = schema.nodes.tableRow
+            const tableType = schema.nodes.table
+            if (!cellType || !headerType || !rowType || !tableType) return false
 
-          const rowNodes = []
-          for (let r = 0; r < rows; r++) {
-            const cells = []
-            for (let c = 0; c < cols; c++) {
-              const type = withHeaderRow && r === 0 ? headerType : cellType
-              const cell = type.createAndFill()
-              if (cell) cells.push(cell)
+            const rowNodes = []
+            for (let r = 0; r < rows; r++) {
+              const cells = []
+              for (let c = 0; c < cols; c++) {
+                const type = withHeaderRow && r === 0 ? headerType : cellType
+                const cell = type.createAndFill()
+                if (cell) cells.push(cell)
+              }
+              rowNodes.push(rowType.createChecked(null, cells))
             }
-            rowNodes.push(rowType.createChecked(null, cells))
-          }
-          const tableNode = tableType.createChecked(null, rowNodes)
-          if (dispatch) {
-            const offset = tr.selection.anchor + 1
-            tr.replaceSelectionWith(tableNode)
-            tr.scrollIntoView()
-            const resolved = tr.doc.resolve(Math.min(offset, tr.doc.content.size))
-            dispatch(tr)
-            void resolved
-          }
-          return true
-        },
+            const tableNode = tableType.createChecked(null, rowNodes)
+            if (dispatch) {
+              const offset = tr.selection.anchor + 1
+              tr.replaceSelectionWith(tableNode)
+              tr.scrollIntoView()
+              const resolved = tr.doc.resolve(Math.min(offset, tr.doc.content.size))
+              dispatch(tr)
+              void resolved
+            }
+            return true
+          },
       addColumnBefore: () => ({ state, dispatch }) => addColumnBefore(state, dispatch),
       addColumnAfter: () => ({ state, dispatch }) => addColumnAfter(state, dispatch),
       deleteColumn: () => ({ state, dispatch }) => deleteColumn(state, dispatch),
@@ -310,7 +351,7 @@ export function createArticleExtensions() {
     TextAlign.configure({ types: ["heading", "paragraph"] }),
     TextStyle, Color, FontSize, FontFamily,
     Highlight.configure({ multicolor: true }),
-    ArticleSpacing, ArticleImageExtension, LinkedInEmbed, YouTubeEmbed,
+    ArticleSpacing, ArticleImageExtension, LinkedInEmbed, FacebookEmbed, YouTubeEmbed,
     ArticleTable, ArticleTableRow, ArticleTableHeader, ArticleTableCell,
     CharacterCount,
     Placeholder.configure({ placeholder: "Write your article here…" }),

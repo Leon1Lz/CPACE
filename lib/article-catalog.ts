@@ -19,11 +19,16 @@ export function resolveImportedArticle(article: ManagedArticle): Article {
     return { ...imported, id: article.id }
   }
   const category = getArticleCategory({ ...article, sourceCategories: imported?.sourceCategories })
+  const parsedDate = new Date(article.createdAt)
+  const formattedDate = !Number.isNaN(parsedDate.getTime())
+    ? parsedDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })
+    : undefined
   return {
     ...article,
     category: category.value,
     categoryColor: category.color,
-    createdAt: new Date(article.createdAt).toISOString(),
+    createdAt: parsedDate.toISOString(),
+    ...(article.date ? { date: article.date } : formattedDate ? { date: formattedDate } : {}),
     comments: article.comments ?? 0,
   }
 }

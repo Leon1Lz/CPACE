@@ -29,14 +29,17 @@ describe("article editor persistence", () => {
     expect(saved).not.toContain("<script")
   })
 
-  it("retains advanced content when an existing article is updated", async () => {
+  it("retains advanced content and edited publication date when an existing article is updated", async () => {
     mocks.find.mockResolvedValue({ id: "article", slug: "article" })
-    const response = await PATCH(new NextRequest("http://localhost/api/articles/article", { method: "PATCH", body: JSON.stringify({ content }) }), { params: Promise.resolve({ id: "article" }) })
+    const publishedAt = "2026-11-06T08:00:00.000Z"
+    const response = await PATCH(new NextRequest("http://localhost/api/articles/article", { method: "PATCH", body: JSON.stringify({ content, publishedAt }) }), { params: Promise.resolve({ id: "article" }) })
     expect(response.status).toBe(200)
-    const saved = mocks.update.mock.calls[0][0].data.content
+    const savedData = mocks.update.mock.calls[0][0].data
+    const saved = savedData.content
     expect(saved).toContain('height="850"')
     expect(saved).toContain('<img src="/assets/hero-bg.jpg"')
     expect(saved).not.toContain("<script")
+    expect(savedData.createdAt).toEqual(new Date(publishedAt))
   })
 
   it("still prevents unauthenticated article writes", async () => {

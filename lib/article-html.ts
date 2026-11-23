@@ -40,6 +40,52 @@ export function getYouTubeEmbedUrl(input: string): string | null {
   }
 }
 
+const FACEBOOK_HOSTS = ["www.facebook.com", "facebook.com", "web.facebook.com", "m.facebook.com", "fb.watch"]
+
+/** Accept a public Facebook post/photo/video/share URL or Facebook's official iframe embed code. */
+export function getFacebookEmbedUrl(input: string): string | null {
+  try {
+    const rawSource = input.match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1] || input.trim()
+    const decodedSource = rawSource.replace(/&amp;/g, "&")
+    const url = new URL(decodedSource)
+    if (url.protocol !== "https:" || url.username || url.password || url.port) return null
+    const host = url.hostname.toLowerCase()
+    if (!FACEBOOK_HOSTS.includes(host)) return null
+
+    if (url.pathname === "/plugins/post.php" || url.pathname === "/plugins/video.php") {
+      const innerHref = url.searchParams.get("href")
+      if (!innerHref) return null
+      const innerUrl = new URL(innerHref)
+      const innerHost = innerUrl.hostname.toLowerCase()
+      if (
+        innerUrl.protocol !== "https:" ||
+        innerUrl.username ||
+        innerUrl.password ||
+        innerUrl.port ||
+        !FACEBOOK_HOSTS.includes(innerHost) ||
+        innerUrl.pathname === "/"
+      ) {
+        return null
+      }
+      if (innerHost !== "fb.watch") innerUrl.hostname = "www.facebook.com"
+      return `https://www.facebook.com${url.pathname}?href=${encodeURIComponent(innerUrl.toString())}&show_text=true&width=500`
+    }
+
+    if (!url.pathname || url.pathname === "/") return null
+    if (host !== "fb.watch") url.hostname = "www.facebook.com"
+    const isVideo =
+      host === "fb.watch" ||
+      url.pathname.includes("/videos/") ||
+      url.pathname.startsWith("/watch") ||
+      url.pathname.startsWith("/reel/") ||
+      url.pathname.startsWith("/share/v/")
+    const pluginPath = isVideo ? "/plugins/video.php" : "/plugins/post.php"
+    return `https://www.facebook.com${pluginPath}?href=${encodeURIComponent(url.toString())}&show_text=true&width=500`
+  } catch {
+    return null
+  }
+}
+
 export function isArticleImageUrl(value: string): boolean {
   if (value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") && [...value].every(character => character.charCodeAt(0) >= 32)) return true
   if (/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/.test(value)) return value.length <= 750_000
@@ -104,8 +150,9 @@ export function sanitizeArticleHtml(html: string): string {
     const rawSrc = frame.getAttribute("src") || ""
     const linkedInSrc = getLinkedInEmbedUrl(rawSrc)
     const youTubeSrc = !linkedInSrc ? getYouTubeEmbedUrl(rawSrc) : null
-    if (!linkedInSrc && !youTubeSrc) { frame.remove(); continue }
-    const requestedHeight = Number(frame.getAttribute("height")) || (youTubeSrc ? 420 : 650)
+    const facebookSrc = !linkedInSrc && !youTubeSrc ? getFacebookEmbedUrl(rawSrc) : null
+    if (!linkedInSrc && !youTubeSrc && !facebookSrc) { frame.remove(); continue }
+    const requestedHeight = Number(frame.getAttribute("height")) || (youTubeSrc ? 420 : facebookSrc ? 680 : 650)
     for (const attribute of [...frame.attributes]) frame.removeAttribute(attribute.name)
     if (linkedInSrc) {
       frame.setAttribute("src", linkedInSrc)
@@ -117,6 +164,14 @@ export function sanitizeArticleHtml(html: string): string {
       frame.setAttribute("title", "YouTube video")
       frame.setAttribute("width", "720")
       frame.setAttribute("height", String(Math.min(720, Math.max(240, requestedHeight))))
+      frame.setAttribute("allowfullscreen", "true")
+    } else if (facebookSrc) {
+      frame.setAttribute("src", facebookSrc)
+      frame.setAttribute("title", "Facebook post")
+      frame.setAttribute("width", "500")
+      frame.setAttribute("height", String(Math.min(1200, Math.max(250, requestedHeight))))
+      frame.setAttribute("scrolling", "no")
+      frame.setAttribute("frameborder", "0")
       frame.setAttribute("allowfullscreen", "true")
     }
     frame.setAttribute("loading", "lazy")

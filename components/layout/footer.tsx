@@ -27,11 +27,11 @@ export function Footer() {
   ];
 
   const programs = [
-    { name: "Financial Management (CFMS®)", href: "/services#certifications" },
-    { name: "Marketing Management (CMMS®)", href: "/services#certifications" },
-    { name: "Hospitality Management (CHMS®)", href: "/services#certifications" },
-    { name: "Operations Management (COMS®)", href: "/services#certifications" },
-    { name: "Labor Law Lecture (LLL)", href: "/services#certifications" },
+    { name: "Financial Management (CFMS®)", href: "/services/professional-certification/cfms" },
+    { name: "Marketing Management (CMMS®)", href: "/services/professional-certification/cmms" },
+    { name: "Hospitality Management (CHMS™)", href: "/services/professional-certification/chms" },
+    { name: "Operations Management (COMS®)", href: "/services/professional-certification/coms" },
+    { name: "Labor Law Lecture (LLL)", href: "/services/professional-certification/labor-law-lecture" },
     { name: "Business Consultancy", href: "/services#consultancy" },
   ];
 

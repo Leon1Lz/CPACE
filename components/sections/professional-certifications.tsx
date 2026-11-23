@@ -1,14 +1,11 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import Image from "next/image";
-import { Button } from "@/components/ui/button";
+import { useState } from "react"
+import Link from "next/link"
+import Image from "next/image"
+import { Button } from "@/components/ui/button"
 import {
   Award,
-  DollarSign,
-  BarChart3,
-  UtensilsCrossed,
-  Settings,
   Users,
   ArrowRight,
   Star,
@@ -16,105 +13,13 @@ import {
   GraduationCap,
   BookOpen,
   Zap,
-} from "lucide-react";
-import { cpaceStats } from "@/data/stats";
-
-const certifications = [
-  {
-    acronym: "CFMS®",
-    fullName: "Certified Financial Management Specialist",
-    description:
-      "Validate your expertise in financial management, budgeting, financial analysis, and strategic financial planning. The CFMS® credential distinguishes professionals who demonstrate advanced competency in managing organizational finances.",
-    icon: <DollarSign className="w-8 h-8 text-white" />,
-    badgeImage: "/assets/badges/cfms-badge.png",
-    gradient: "from-emerald-500 to-teal-600",
-    lightBg: "bg-emerald-50",
-    lightText: "text-emerald-700",
-    lightBorder: "border-emerald-200",
-    formats: "Online, In-person, Hybrid",
-    highlights: [
-      "Financial Analysis and Reporting",
-      "Budgeting and Forecasting",
-      "Strategic Financial Planning",
-      "Risk and Compliance Management",
-    ],
-  },
-  {
-    acronym: "CMMS®",
-    fullName: "Certified Marketing Management Specialist",
-    description:
-      "Demonstrate your proficiency in modern marketing management, digital marketing strategy, brand development, and consumer insights. The CMMS® certification equips professionals to lead impactful marketing initiatives.",
-    icon: <BarChart3 className="w-8 h-8 text-white" />,
-    badgeImage: "/assets/badges/cmms-badge.png",
-    gradient: "from-blue-500 to-cyan-600",
-    lightBg: "bg-blue-50",
-    lightText: "text-blue-700",
-    lightBorder: "border-blue-200",
-    formats: "Online, In-person, Hybrid",
-    highlights: [
-      "Digital Marketing Strategy",
-      "Brand Management and Development",
-      "Consumer Behavior and Insights",
-      "Marketing Analytics and ROI",
-    ],
-  },
-  {
-    acronym: "CHMS®",
-    fullName: "Certified Hospitality Management Specialist",
-    description:
-      "Master modern hospitality operations, guest service excellence, tourism leadership, and strategic hotel and food service management. The CHMS® credential validates advanced capability in hospitality industry standards and operational leadership.",
-    icon: <UtensilsCrossed className="w-8 h-8 text-white" />,
-    gradient: "from-amber-500 to-orange-600",
-    lightBg: "bg-amber-50",
-    lightText: "text-amber-700",
-    lightBorder: "border-amber-200",
-    formats: "Online, In-person, Hybrid",
-    highlights: [
-      "Hospitality Operations and Guest Experience",
-      "Hotel and Tourism Leadership",
-      "Food and Beverage Service Management",
-      "Quality Standards and Industry Compliance",
-    ],
-  },
-  {
-    acronym: "COMS®",
-    fullName: "Certified Operations Management Specialist",
-    description:
-      "Prove your capability in operations excellence, supply chain management, process optimization, and quality assurance. The COMS® credential is designed for professionals driving operational efficiency.",
-    icon: <Settings className="w-8 h-8 text-white" />,
-    badgeImage: "/assets/badges/coms-badge.png",
-    gradient: "from-violet-500 to-purple-600",
-    lightBg: "bg-violet-50",
-    lightText: "text-violet-700",
-    lightBorder: "border-violet-200",
-    formats: "Online, In-person, Hybrid",
-    highlights: [
-      "Supply Chain Management",
-      "Process Optimization and Lean",
-      "Quality Assurance Systems",
-      "Project and Resource Management",
-    ],
-  },
-  {
-    acronym: "LLL",
-    fullName: "Labor Law Lecture (A CHRA™ Online Review)",
-    description:
-      "Deepen your expertise in Philippine labor relations, statutory standards, and HR compliance through CPACE's specialized Labor Law Lecture. An intensive online review program designed to thoroughly prepare candidates for the CHRA™ assessment and practical employment practice.",
-    icon: <Users className="w-8 h-8 text-white" />,
-    badgeImage: "/assets/badges/lll-badge.png",
-    gradient: "from-emerald-700 to-green-900",
-    lightBg: "bg-emerald-50",
-    lightText: "text-emerald-800",
-    lightBorder: "border-emerald-200",
-    formats: "Online",
-    highlights: [
-      "Philippine Labor Law and Compliance",
-      "Employee Relations and Due Process",
-      "CHRA™ Online Review and Assessment Prep",
-      "HR Legal Compliance and Practical Application",
-    ],
-  },
-];
+  Layers,
+} from "lucide-react"
+import { cpaceStats } from "@/data/stats"
+import {
+  CERTIFICATION_CATEGORIES,
+  certificationCourses,
+} from "@/data/certification-courses"
 
 const stats = [
   {
@@ -137,9 +42,16 @@ const stats = [
     label: "Overall Passing Rate",
     icon: <Zap className="w-5 h-5" />,
   },
-];
+]
 
 export function ProfessionalCertifications() {
+  const [selectedCategory, setSelectedCategory] = useState<string>("All Programs")
+
+  const filteredCourses =
+    selectedCategory === "All Programs"
+      ? certificationCourses
+      : certificationCourses.filter(course => course.category === selectedCategory)
+
   return (
     <section id="certifications" className="relative overflow-hidden">
       {/* ── Hero Banner ── */}
@@ -185,9 +97,9 @@ export function ProfessionalCertifications() {
                 open doors to new opportunities.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/#contact">
+                <Link href="/services/professional-certification">
                   <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-8 py-3 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-                    Inquire Now
+                    Explore Programs
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
                 </Link>
@@ -234,7 +146,7 @@ export function ProfessionalCertifications() {
           <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-teal-100/60 to-transparent rounded-full blur-3xl"></div>
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           {/* Sub-header */}
           <div className="text-center space-y-5 max-w-3xl mx-auto">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-semibold text-gray-700 shadow-sm">
@@ -254,58 +166,79 @@ export function ProfessionalCertifications() {
             </p>
           </div>
 
+          {/* Category Filter Tabs */}
+          <div className="flex flex-wrap items-center justify-center gap-2.5" role="tablist" aria-label="Filter certification programs by category">
+            {CERTIFICATION_CATEGORIES.map(category => {
+              const active = selectedCategory === category
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                    active
+                      ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/20"
+                      : "bg-white border border-gray-200 text-gray-700 hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-emerald-800"
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  {category}
+                </button>
+              )
+            })}
+          </div>
+
           {/* Certification Cards */}
           <div className="space-y-8">
-            {certifications.map((cert, index) => (
+            {filteredCourses.map(cert => (
               <div
-                key={index}
+                key={cert.slug}
                 className="group relative bg-white rounded-3xl shadow-lg border border-gray-100/80 overflow-hidden hover:shadow-2xl transition-all duration-300"
               >
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
-                  {/* Left: Icon & Acronym */}
+                  {/* Left: Badge Logo */}
                   <div
                     className={`lg:col-span-3 bg-gradient-to-br ${cert.gradient} p-8 lg:p-10 flex flex-col items-center justify-center text-center text-white space-y-4`}
                   >
-                    {cert.badgeImage ? (
-                      <div className="relative w-40 h-40 lg:w-48 lg:h-48 group-hover:scale-110 transition-transform duration-300 drop-shadow-lg">
-                        <Image
-                          src={cert.badgeImage}
-                          alt={`${cert.acronym} Badge`}
-                          fill
-                          className="object-contain"
-                          sizes="(max-width: 1024px) 160px, 192px"
-                        />
-                      </div>
-                    ) : (
-                      <>
-                        <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                          {cert.icon}
-                        </div>
-                        <div>
-                          <div className="text-3xl lg:text-4xl font-black tracking-tight">
-                            {cert.acronym}
-                          </div>
-                          <div className="text-sm text-white/80 font-medium mt-1">
-                            Certification Program
-                          </div>
-                        </div>
-                      </>
-                    )}
+                    <Link
+                      href={`/services/professional-certification/${cert.slug}`}
+                      className="relative w-40 h-40 lg:w-48 lg:h-48 group-hover:scale-110 transition-transform duration-300 drop-shadow-lg block"
+                    >
+                      <Image
+                        src={cert.badgeImage}
+                        alt={`${cert.acronym} Badge`}
+                        fill
+                        className="object-contain"
+                        sizes="(max-width: 1024px) 160px, 192px"
+                      />
+                    </Link>
                   </div>
 
                   {/* Right: Details */}
                   <div className="lg:col-span-9 p-8 lg:p-10 space-y-6">
                     <div className="space-y-3">
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <h4 className="text-2xl font-bold text-gray-900 group-hover:text-emerald-700 transition-colors duration-200">
-                          {cert.fullName}
-                        </h4>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <span className={`inline-flex items-center rounded-full border ${cert.lightBorder} ${cert.lightBg} px-3 py-0.5 text-xs font-bold ${cert.lightText}`}>
+                            {cert.category}
+                          </span>
+                          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                            Categories A, B, C &amp; D Eligible
+                          </span>
+                        </div>
                         <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
                           {cert.formats}
                         </span>
                       </div>
+                      <Link href={`/services/professional-certification/${cert.slug}`}>
+                        <h4 className="text-2xl font-bold text-gray-900 group-hover:text-emerald-700 transition-colors duration-200">
+                          {cert.fullName} ({cert.acronym})
+                        </h4>
+                      </Link>
                       <p className="text-gray-600 leading-relaxed">
-                        {cert.description}
+                        {cert.shortDescription}
                       </p>
                     </div>
 
@@ -329,7 +262,7 @@ export function ProfessionalCertifications() {
 
                     {/* Actions */}
                     <div className="flex flex-wrap items-center gap-3 pt-2">
-                      <Link href="/#contact">
+                      <Link href={`/services/professional-certification/${cert.slug}`}>
                         <Button
                           className={`bg-gradient-to-r ${cert.gradient} hover:opacity-90 text-white font-semibold px-6 py-2.5 shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105`}
                         >
@@ -339,7 +272,7 @@ export function ProfessionalCertifications() {
                       </Link>
 
                       <Link
-                        href="https://bit.ly/cpaceprograms"
+                        href={cert.registerUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
@@ -371,7 +304,7 @@ export function ProfessionalCertifications() {
               Not sure which certification is right for you?
             </h4>
             <p className="text-gray-600 mb-8 max-w-2xl mx-auto text-lg">
-              Our team can help you choose the best certification program based on your career goals, experience, qualifications.
+              Our team can help you choose the best certification program based on your career goals, experience, and qualifications.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/#contact">
@@ -397,5 +330,5 @@ export function ProfessionalCertifications() {
         </div>
       </div>
     </section>
-  );
+  )
 }

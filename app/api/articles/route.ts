@@ -44,11 +44,15 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { title, excerpt, content, category, categoryColor, iconName, image, featured } = body
+    const { title, excerpt, content, category, categoryColor, iconName, image, featured, publishedAt, createdAt } = body
 
     if (!title || !content) {
       return NextResponse.json({ error: "Title and content are required" }, { status: 400 })
     }
+
+    const rawPublishedDate = publishedAt ?? createdAt
+    const parsedPublishedDate = rawPublishedDate ? new Date(rawPublishedDate) : null
+    const validPublishedDate = parsedPublishedDate && !Number.isNaN(parsedPublishedDate.getTime()) ? parsedPublishedDate : null
 
     let baseSlug = body.slug ? generateSlug(body.slug) : generateSlug(title)
     if (!baseSlug) {
@@ -79,6 +83,7 @@ export async function POST(req: NextRequest) {
         iconName: iconName || "users",
         image: image || "https://images.unsplash.com/photo-1504711434969-e33886168f5c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
         featured: !!featured,
+        ...(validPublishedDate ? { createdAt: validPublishedDate } : {}),
       },
     })
 

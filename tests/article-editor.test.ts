@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest"
 import { Editor } from "@tiptap/core"
 import { createArticleExtensions } from "@/components/insights/editor-extensions"
-import { getLinkedInEmbedUrl, getYouTubeEmbedUrl, isArticleImageUrl, sanitizeArticleHtml } from "@/lib/article-html"
+import { getFacebookEmbedUrl, getLinkedInEmbedUrl, getYouTubeEmbedUrl, isArticleImageUrl, sanitizeArticleHtml } from "@/lib/article-html"
 
 const embed = "https://www.linkedin.com/embed/feed/update/urn:li:activity:7251234567890123456"
 const ytEmbed = "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
+const fbEmbed = "https://www.facebook.com/plugins/post.php?href=https%3A%2F%2Fwww.facebook.com%2Fcpaceph%2Fposts%2Fpfbid02xyz&show_text=true&width=500"
 const editors: Editor[] = []
 afterEach(() => { editors.splice(0).forEach(editor => editor.destroy()) })
 
@@ -16,6 +17,17 @@ describe("advanced article content", () => {
     expect(getLinkedInEmbedUrl("https://www.linkedin.com/in/profile")).toBeNull()
   })
 
+  it("recognizes Facebook post URLs, share links and official iframe embed code", () => {
+    expect(getFacebookEmbedUrl("https://www.facebook.com/cpaceph/posts/pfbid02xyz")).toBe(fbEmbed)
+    expect(getFacebookEmbedUrl("https://web.facebook.com/cpaceph/posts/pfbid02xyz")).toBe(fbEmbed)
+    expect(getFacebookEmbedUrl(`<iframe src="${fbEmbed}" width="500" height="680"></iframe>`)).toBe(fbEmbed)
+    expect(getFacebookEmbedUrl("https://www.facebook.com/share/p/1B6DyMQimT/")).toBe(
+      "https://www.facebook.com/plugins/post.php?href=https%3A%2F%2Fwww.facebook.com%2Fshare%2Fp%2F1B6DyMQimT%2F&show_text=true&width=500"
+    )
+    expect(getFacebookEmbedUrl("https://facebook.com.evil.test/cpaceph/posts/123")).toBeNull()
+    expect(getFacebookEmbedUrl("https://www.facebook.com/")).toBeNull()
+  })
+
   it("recognizes YouTube watch, short, share and embed URLs safely", () => {
     expect(getYouTubeEmbedUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ")).toBe(ytEmbed)
     expect(getYouTubeEmbedUrl("https://youtu.be/dQw4w9WgXcQ?si=test")).toBe(ytEmbed)
@@ -24,8 +36,8 @@ describe("advanced article content", () => {
     expect(getYouTubeEmbedUrl("https://evil.example/watch?v=dQw4w9WgXcQ")).toBeNull()
   })
 
-  it("retains article formatting, fonts, tables, YouTube videos, images, lists and a constrained LinkedIn embed through save and reopen", () => {
-    const input = `<h1 style="text-align: center"><span style="color: #008000; font-size: 32px; font-family: Georgia, serif">Operational excellence</span></h1><p style="text-align: justify; line-height: 1.75; margin-bottom: 24px">The complete article.</p><ul><li><p>A key point</p></li></ul><table><tbody><tr><th><p>Metric</p></th><th><p>Result</p></th></tr><tr><td><p>ROI</p></td><td><p>+42%</p></td></tr></tbody></table><img src="/assets/hero-bg.jpg" alt="Industry" style="width: 50%; margin-left: auto; margin-right: auto"><iframe src="${embed}" height="850"></iframe><iframe src="${ytEmbed}" height="420"></iframe><h4>References</h4><p><a href="https://example.com">Source</a></p>`
+  it("retains article formatting, fonts, tables, YouTube videos, Facebook posts, images, lists and a constrained LinkedIn embed through save and reopen", () => {
+    const input = `<h1 style="text-align: center"><span style="color: #008000; font-size: 32px; font-family: Georgia, serif">Operational excellence</span></h1><p style="text-align: justify; line-height: 1.75; margin-bottom: 24px">The complete article.</p><ul><li><p>A key point</p></li></ul><table><tbody><tr><th><p>Metric</p></th><th><p>Result</p></th></tr><tr><td><p>ROI</p></td><td><p>+42%</p></td></tr></tbody></table><img src="/assets/hero-bg.jpg" alt="Industry" style="width: 50%; margin-left: auto; margin-right: auto"><iframe src="${embed}" height="850"></iframe><iframe src="${fbEmbed}" height="680"></iframe><iframe src="${ytEmbed}" height="420"></iframe><h4>References</h4><p><a href="https://example.com">Source</a></p>`
     const first = new Editor({ extensions: createArticleExtensions(), content: sanitizeArticleHtml(input) })
     editors.push(first)
     const saved = sanitizeArticleHtml(first.getHTML())
@@ -46,6 +58,8 @@ describe("advanced article content", () => {
     expect(output).toContain("width: 50%")
     expect(output).toContain(`src="${embed}"`)
     expect(output).toContain('height="850"')
+    expect(output).toContain('title="Facebook post"')
+    expect(output).toContain('height="680"')
     expect(output).toContain(`src="${ytEmbed}"`)
     expect(output).toContain('height="420"')
     expect(output).toContain("<h4>References</h4>")

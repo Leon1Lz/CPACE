@@ -26,11 +26,12 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-it("shows registration and login actions to signed-out visitors", () => {
+it("shows registration action pointing to bit.ly/cpaceprograms to signed-out visitors", () => {
   render(<Header />)
 
-  expect(screen.getAllByRole("link", { name: "Register" })).not.toHaveLength(0)
-  expect(screen.getAllByRole("link", { name: "Learning Portal" })).not.toHaveLength(0)
+  const registerLinks = screen.getAllByRole("link", { name: "Register" })
+  expect(registerLinks).not.toHaveLength(0)
+  expect(registerLinks[0]).toHaveAttribute("href", "https://bit.ly/cpaceprograms")
   expect(screen.queryByRole("button", { name: /Open profile menu/ })).not.toBeInTheDocument()
 })
 

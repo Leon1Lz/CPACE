@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react"
-import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, List, ListOrdered, Quote, Minus, Undo2, Redo2, Link2, Unlink, ImagePlus, Linkedin, Youtube, Table2, Code2, Eraser, Trash2, Pencil, Eye, Monitor, Smartphone, Plus, Rows3, Columns3 } from "lucide-react"
+import { Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, List, ListOrdered, Quote, Minus, Undo2, Redo2, Link2, Unlink, ImagePlus, Linkedin, Facebook, Youtube, Table2, Code2, Eraser, Trash2, Pencil, Eye, Monitor, Smartphone, Plus, Rows3, Columns3, Calendar } from "lucide-react"
 import { createArticleExtensions } from "./editor-extensions"
 import { ArticleContent } from "./article-content"
-import { ARTICLE_FONTS, getLinkedInEmbedUrl, getYouTubeEmbedUrl, isArticleImageUrl, sanitizeArticleHtml } from "@/lib/article-html"
+import { ARTICLE_FONTS, getFacebookEmbedUrl, getLinkedInEmbedUrl, getYouTubeEmbedUrl, isArticleImageUrl, sanitizeArticleHtml } from "@/lib/article-html"
 import { prepareArticleImage } from "@/lib/article-image-upload"
 import { cn } from "@/lib/utils"
 
@@ -25,12 +25,12 @@ function pickerColor(value: string | undefined, fallback: string) {
   return rgb ? `#${rgb.slice(1).map(channel => Number(channel).toString(16).padStart(2, "0")).join("")}` : fallback
 }
 
-export function ArticleEditor({ value, onChange, title, banner, category }: {
-  value: string; onChange: (value: string) => void; title: string; banner: string; category: string
+export function ArticleEditor({ value, onChange, title, banner, category, publishedDate }: {
+  value: string; onChange: (value: string) => void; title: string; banner: string; category: string; publishedDate?: string
 }) {
   const [preview, setPreview] = useState(false)
   const [mobile, setMobile] = useState(false)
-  const [panel, setPanel] = useState<"link" | "image" | "embed" | "youtube" | null>(null)
+  const [panel, setPanel] = useState<"link" | "image" | "embed" | "facebook" | "youtube" | null>(null)
   const [url, setUrl] = useState("")
   const [alt, setAlt] = useState("")
   const [error, setError] = useState("")
@@ -100,12 +100,13 @@ export function ArticleEditor({ value, onChange, title, banner, category }: {
   const block = editor.isActive("heading") ? `h${editor.getAttributes("heading").level}` : "paragraph"
   const imageSelected = editor.isActive("image")
   const embedSelected = editor.isActive("linkedInEmbed")
+  const facebookSelected = editor.isActive("facebookEmbed")
   const youtubeSelected = editor.isActive("youTubeEmbed")
   const tableActive = editor.isActive("table")
   const textStyle = editor.getAttributes("textStyle")
   const blockAttributes = editor.getAttributes(editor.isActive("heading") ? "heading" : "paragraph")
 
-  function openPanel(kind: "link" | "image" | "embed" | "youtube") {
+  function openPanel(kind: "link" | "image" | "embed" | "facebook" | "youtube") {
     if (!editor) return
     setPanel(kind)
     setError("")
@@ -116,9 +117,11 @@ export function ArticleEditor({ value, onChange, title, banner, category }: {
           ? editor.getAttributes("image").src || ""
           : kind === "embed" && embedSelected
             ? editor.getAttributes("linkedInEmbed").src || ""
-            : kind === "youtube" && youtubeSelected
-              ? editor.getAttributes("youTubeEmbed").src || ""
-              : ""
+            : kind === "facebook" && facebookSelected
+              ? editor.getAttributes("facebookEmbed").src || ""
+              : kind === "youtube" && youtubeSelected
+                ? editor.getAttributes("youTubeEmbed").src || ""
+                : ""
     )
     setAlt(imageSelected ? editor.getAttributes("image").alt || "" : "")
   }
@@ -126,15 +129,30 @@ export function ArticleEditor({ value, onChange, title, banner, category }: {
   function insert() {
     if (!editor) return
     const input = url.trim()
+    const customHeight = Number(input.match(/\bheight\s*=\s*["'](\d{3,4})["']/i)?.[1])
     if (panel === "image") {
       if (!isArticleImageUrl(input)) { setError("Choose an image file, a local image path, or an HTTPS image URL."); return }
       if (imageSelected) editor.chain().focus().updateAttributes("image", { src: input, alt }).run()
       else editor.chain().focus().setImage({ src: input, alt }).run()
+    } else if (panel === "facebook") {
+      const src = getFacebookEmbedUrl(input)
+      if (!src) { setError("Paste a Facebook post/video URL (e.g. facebook.com/.../posts/...) or Facebook’s “Embed” iframe code."); return }
+      const height = customHeight ? Math.min(1200, Math.max(250, customHeight)) : 680
+      if (facebookSelected) editor.chain().focus().updateAttributes("facebookEmbed", { src, height }).run()
+      else editor.chain().focus().insertContent([{ type: "facebookEmbed", attrs: { src, height } }, { type: "paragraph" }]).run()
     } else if (panel === "embed") {
-      const src = getLinkedInEmbedUrl(input)
-      if (!src) { setError("Paste a LinkedIn post URL or the code from LinkedIn’s “Embed this post” option."); return }
-      if (embedSelected) editor.chain().focus().updateAttributes("linkedInEmbed", { src }).run()
-      else editor.chain().focus().insertContent([{ type: "linkedInEmbed", attrs: { src, height: 650 } }, { type: "paragraph" }]).run()
+      const linkedInSrc = getLinkedInEmbedUrl(input)
+      const fbFallback = !linkedInSrc ? getFacebookEmbedUrl(input) : null
+      if (!linkedInSrc && !fbFallback) { setError("Paste a LinkedIn post URL or the code from LinkedIn’s “Embed this post” option."); return }
+      if (fbFallback) {
+        const height = customHeight ? Math.min(1200, Math.max(250, customHeight)) : 680
+        editor.chain().focus().insertContent([{ type: "facebookEmbed", attrs: { src: fbFallback, height } }, { type: "paragraph" }]).run()
+      } else if (embedSelected) {
+        editor.chain().focus().updateAttributes("linkedInEmbed", { src: linkedInSrc }).run()
+      } else {
+        const height = customHeight ? Math.min(1200, Math.max(300, customHeight)) : 650
+        editor.chain().focus().insertContent([{ type: "linkedInEmbed", attrs: { src: linkedInSrc, height } }, { type: "paragraph" }]).run()
+      }
     } else if (panel === "youtube") {
       const src = getYouTubeEmbedUrl(input)
       if (!src) { setError("Paste a valid YouTube video URL (youtube.com/watch?v=..., youtu.be/..., or YouTube embed code)."); return }
@@ -208,14 +226,15 @@ export function ArticleEditor({ value, onChange, title, banner, category }: {
           <Tool label="Remove link" disabled={!editor.isActive("link")} onClick={() => editor.chain().focus().extendMarkRange("link").unsetLink().run()}><Unlink size={16} /></Tool>
           <Tool label="Insert image" onClick={() => openPanel("image")}><ImagePlus size={16} />Image</Tool>
           <Tool label="Insert table" active={tableActive} onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}><Table2 size={16} />Table</Tool>
-          <Tool label="Embed YouTube video" active={youtubeSelected} onClick={() => openPanel("youtube")}><Youtube size={16} />Video</Tool>
+          <Tool label="Embed Facebook post" active={facebookSelected} onClick={() => openPanel("facebook")}><Facebook size={16} />Facebook</Tool>
           <Tool label="Embed LinkedIn post" active={embedSelected} onClick={() => openPanel("embed")}><Linkedin size={16} />LinkedIn</Tool>
+          <Tool label="Embed YouTube video" active={youtubeSelected} onClick={() => openPanel("youtube")}><Youtube size={16} />Video</Tool>
         </div>
       </div>
 
       {panel && <div className="space-y-3 border-b bg-emerald-50/50 p-4" role="region" aria-label={`Insert ${panel}`}>
-        <label className="block text-sm font-semibold text-slate-800">{panel === "image" ? "Image URL or local path" : panel === "embed" ? "LinkedIn post URL or embed code" : panel === "youtube" ? "YouTube video URL or embed code" : "Link URL"}
-          <input aria-label={panel === "image" ? "Image URL" : panel === "embed" ? "LinkedIn URL or embed code" : panel === "youtube" ? "YouTube URL or embed code" : "Link URL"} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 font-normal" value={url.startsWith("data:") ? "" : url} onChange={event => setUrl(event.target.value)} placeholder={url.startsWith("data:") ? "Uploaded image ready" : panel === "image" ? "https://… or /assets/…" : panel === "youtube" ? "https://www.youtube.com/watch?v=… or https://youtu.be/…" : "https://…"} />
+        <label className="block text-sm font-semibold text-slate-800">{panel === "image" ? "Image URL or local path" : panel === "facebook" ? "Facebook post URL or embed code" : panel === "embed" ? "LinkedIn post URL or embed code" : panel === "youtube" ? "YouTube video URL or embed code" : "Link URL"}
+          <input aria-label={panel === "image" ? "Image URL" : panel === "facebook" ? "Facebook URL or embed code" : panel === "embed" ? "LinkedIn URL or embed code" : panel === "youtube" ? "YouTube URL or embed code" : "Link URL"} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 font-normal" value={url.startsWith("data:") ? "" : url} onChange={event => setUrl(event.target.value)} placeholder={url.startsWith("data:") ? "Uploaded image ready" : panel === "image" ? "https://… or /assets/…" : panel === "facebook" ? "https://www.facebook.com/.../posts/... or <iframe src=..." : panel === "youtube" ? "https://www.youtube.com/watch?v=… or https://youtu.be/…" : "https://…"} />
         </label>
         {panel === "image" && <>
           {url && isArticleImageUrl(url) && <img src={url} alt={alt || "Image preview"} className="h-24 max-w-full rounded-md object-contain" />}
@@ -235,8 +254,9 @@ export function ArticleEditor({ value, onChange, title, banner, category }: {
             <span className="text-slate-500">JPG, PNG, or WebP · up to 10 MB (you can also drag & drop or paste images directly into the editor)</span>
           </div>
         </>}
-        {panel === "embed" && <p className="text-xs text-slate-500">Paste a public post URL or copy “Embed this post” from LinkedIn. View it in Preview.</p>}
-        {panel === "youtube" && <p className="text-xs text-slate-500">Paste a YouTube watch, share (youtu.be), Shorts, or embed link. View it in Preview.</p>}
+        {panel === "facebook" && <p className="text-xs text-slate-500">Paste any public Facebook post/photo/video URL or copy the <code>&lt;iframe&gt;</code> code from Facebook’s “Embed” option.</p>}
+        {panel === "embed" && <p className="text-xs text-slate-500">Paste a public post URL or copy “Embed this post” from LinkedIn.</p>}
+        {panel === "youtube" && <p className="text-xs text-slate-500">Paste a YouTube watch, share (youtu.be), Shorts, or embed link.</p>}
         {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
         <div className="flex gap-2">
           <button type="button" disabled={uploading} onClick={insert} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Apply {panel}</button>
@@ -260,14 +280,15 @@ export function ArticleEditor({ value, onChange, title, banner, category }: {
         <Tool label="Delete table" onClick={() => editor.chain().focus().deleteTable().run()}><Trash2 size={14} />Delete table</Tool>
       </div>}
 
-      {(imageSelected || embedSelected || youtubeSelected) && <div className="flex flex-wrap items-center gap-2 border-b bg-slate-50 px-4 py-2 text-xs">
-        <strong>{imageSelected ? "Selected image" : youtubeSelected ? "Selected YouTube video" : "Selected LinkedIn post"}</strong>
+      {(imageSelected || embedSelected || facebookSelected || youtubeSelected) && <div className="flex flex-wrap items-center gap-2 border-b bg-slate-50 px-4 py-2 text-xs">
+        <strong>{imageSelected ? "Selected image" : facebookSelected ? "Selected Facebook post" : youtubeSelected ? "Selected YouTube video" : "Selected LinkedIn post"}</strong>
         {imageSelected ? <>
           <select aria-label="Image width" className={selectClass} value={editor.getAttributes("image").displayWidth || "100%"} onChange={event => editor.chain().focus().updateAttributes("image", { displayWidth: event.target.value }).run()}>{[25, 50, 75, 100].map(width => <option key={width} value={`${width}%`}>{width}% width</option>)}</select>
           <select aria-label="Image alignment" className={selectClass} value={editor.getAttributes("image").imageAlign || "center"} onChange={event => editor.chain().focus().updateAttributes("image", { imageAlign: event.target.value }).run()}>{["left", "center", "right"].map(align => <option key={align} value={align}>{align}</option>)}</select>
-        </> : youtubeSelected ? <select aria-label="YouTube embed height" className={selectClass} value={editor.getAttributes("youTubeEmbed").height} onChange={event => editor.chain().focus().updateAttributes("youTubeEmbed", { height: Number(event.target.value) }).run()}>{[315, 420, 540, 640].map(height => <option key={height} value={height}>{height} px high</option>)}</select>
+        </> : facebookSelected ? <select aria-label="Facebook embed height" className={selectClass} value={editor.getAttributes("facebookEmbed").height} onChange={event => editor.chain().focus().updateAttributes("facebookEmbed", { height: Number(event.target.value) }).run()}>{[380, 500, 620, 680, 780, 900, 1100].map(height => <option key={height} value={height}>{height} px high</option>)}</select>
+        : youtubeSelected ? <select aria-label="YouTube embed height" className={selectClass} value={editor.getAttributes("youTubeEmbed").height} onChange={event => editor.chain().focus().updateAttributes("youTubeEmbed", { height: Number(event.target.value) }).run()}>{[315, 420, 540, 640].map(height => <option key={height} value={height}>{height} px high</option>)}</select>
         : <select aria-label="LinkedIn embed height" className={selectClass} value={editor.getAttributes("linkedInEmbed").height} onChange={event => editor.chain().focus().updateAttributes("linkedInEmbed", { height: Number(event.target.value) }).run()}>{[450, 650, 850, 1000, 1200].map(height => <option key={height} value={height}>{height} px high</option>)}</select>}
-        <Tool label="Edit selected media" onClick={() => openPanel(imageSelected ? "image" : youtubeSelected ? "youtube" : "embed")}><Pencil size={15} /></Tool>
+        <Tool label="Edit selected media" onClick={() => openPanel(imageSelected ? "image" : facebookSelected ? "facebook" : youtubeSelected ? "youtube" : "embed")}><Pencil size={15} /></Tool>
         <Tool label="Remove selected media" onClick={() => editor.chain().focus().deleteSelection().run()}><Trash2 size={15} /></Tool>
       </div>}
       <div className="max-h-[65vh] overflow-y-auto bg-slate-50 p-3 sm:p-6">
@@ -281,7 +302,16 @@ export function ArticleEditor({ value, onChange, title, banner, category }: {
         <Tool label="Mobile preview" active={mobile} onClick={() => setMobile(true)}><Smartphone size={16} />Mobile</Tool>
       </div>
       <div className={cn("mx-auto max-h-[70vh] overflow-y-auto rounded-xl bg-white shadow", mobile ? "max-w-[390px]" : "max-w-[900px]")}>
-        <div className="bg-emerald-950 px-6 py-8 text-center text-white"><span className="text-xs font-semibold uppercase tracking-wider text-emerald-300">{category}</span><h2 className="mt-3 text-2xl font-bold">{title || "Untitled article"}</h2></div>
+        <div className="bg-emerald-950 px-6 py-8 text-center text-white">
+          <span className="text-xs font-semibold uppercase tracking-wider text-emerald-300">{category}</span>
+          <h2 className="mt-3 text-2xl font-bold">{title || "Untitled article"}</h2>
+          {publishedDate && !Number.isNaN(Date.parse(publishedDate)) && (
+            <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-emerald-200/80">
+              <Calendar size={13} />
+              {new Date(`${publishedDate}T00:00:00Z`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}
+            </p>
+          )}
+        </div>
         {banner && isArticleImageUrl(banner) && <img src={banner} alt={title || "Article banner"} className="max-h-[350px] w-full object-cover" />}
         <ArticleContent content={value} className="p-6 sm:p-10" />
       </div>

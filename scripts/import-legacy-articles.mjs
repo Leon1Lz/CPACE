@@ -2,6 +2,7 @@
 // Downloads public posts and images only; does not write to the database.
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { createHash } from "node:crypto"
+import https from "node:https"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { JSDOM } from "jsdom"
@@ -9,6 +10,55 @@ import DOMPurify from "isomorphic-dompurify"
 import sharp from "sharp"
 import { articlesData } from "../data/articles.ts"
 import { getArticleCategory } from "../data/article-categories.ts"
+import { getFacebookEmbedUrl, getLinkedInEmbedUrl, getYouTubeEmbedUrl, sanitizeArticleHtml } from "../lib/article-html.ts"
+
+const LEGACY_WP_IP = process.env.LEGACY_WP_IP || "191.101.230.126"
+
+function fetchFromLegacyWp(url) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url)
+    const req = https.get(
+      {
+        host: LEGACY_WP_IP,
+        port: 443,
+        path: `${parsed.pathname}${parsed.search}`,
+        servername: parsed.hostname,
+        headers: {
+          Host: parsed.hostname,
+          "User-Agent": "CPACE-Legacy-Importer/1.0",
+        },
+        timeout: 60000,
+      },
+      res => {
+        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          res.resume()
+          const nextUrl = new URL(res.headers.location, url).href
+          fetchFromLegacyWp(nextUrl).then(resolve, reject)
+          return
+        }
+        const chunks = []
+        res.on("data", chunk => chunks.push(chunk))
+        res.on("end", () => {
+          resolve({
+            ok: Boolean(res.statusCode && res.statusCode >= 200 && res.statusCode < 300),
+            status: res.statusCode || 0,
+            headers: {
+              get(name) {
+                const val = res.headers[name.toLowerCase()]
+                return Array.isArray(val) ? val.join(", ") : val || null
+              },
+            },
+             buffer: Buffer.concat(chunks),
+          })
+        })
+      }
+    )
+    req.on("error", reject)
+    req.on("timeout", () => {
+      req.destroy(new Error(`Request timeout: ${url}`))
+    })
+  })
+}
 
 const root = fileURLToPath(new URL("../", import.meta.url))
 const existingSlugs = {
@@ -38,11 +88,11 @@ async function download(url) {
   const local = `/assets/articles/legacy/${name}`
   const destination = path.join(root, "public", local)
   try { await readFile(destination); return local } catch { /* Download missing assets. */ }
-  const response = await fetch(url, { signal: globalThis.AbortSignal.timeout(60000) })
+  const response = await fetchFromLegacyWp(url)
   if (!response.ok || !response.headers.get("content-type")?.startsWith("image/")) {
     throw new Error(`Image download failed: ${url} (${response.status})`)
   }
-  const buffer = Buffer.from(await response.arrayBuffer())
+  const buffer = response.buffer
   await sharp(buffer).rotate().resize({ width: 1600, withoutEnlargement: true }).webp({ quality: 85 }).toFile(destination)
   return local
 }
@@ -53,10 +103,10 @@ if (process.argv[2]) {
 } else {
   let pages = 1
   for (let page = 1; page <= pages; page++) {
-    const response = await fetch(`https://cpaceph.com/wp-json/wp/v2/posts?per_page=100&_embed&page=${page}`, { signal: globalThis.AbortSignal.timeout(60000) })
+    const response = await fetchFromLegacyWp(`https://cpaceph.com/wp-json/wp/v2/posts?per_page=100&_embed&page=${page}`)
     if (!response.ok) throw new Error(`Post import failed: ${response.status}`)
     pages = Number(response.headers.get("x-wp-totalpages") || 1)
-    posts.push(...await response.json())
+    posts.push(...JSON.parse(response.buffer.toString("utf8")))
   }
 }
 if (!posts.length || posts.some(post => post.status !== "publish")) throw new Error("Expected published posts")
@@ -66,7 +116,19 @@ const imported = []
 for (const post of posts) {
   const previous = articlesData.find(article => article.sourceId === post.id || article.slug === existingSlugs[post.id])
   const doc = new JSDOM(post.content.rendered).window.document
-  doc.querySelectorAll('script, style, iframe, form, [data-widget_type="html.default"]').forEach(node => node.remove())
+  doc.querySelectorAll("script, style, form").forEach(node => node.remove())
+  for (const frame of [...doc.querySelectorAll("iframe")]) {
+    const rawSrc = frame.getAttribute("src") || ""
+    const safeSrc = getFacebookEmbedUrl(rawSrc) || getLinkedInEmbedUrl(rawSrc) || getYouTubeEmbedUrl(rawSrc)
+    if (!safeSrc) {
+      frame.remove()
+      continue
+    }
+    const height = Number(frame.getAttribute("height")) || 680
+    for (const attr of [...frame.attributes]) frame.removeAttribute(attr.name)
+    frame.setAttribute("src", safeSrc)
+    frame.setAttribute("height", String(height))
+  }
   const featuredUrl = post._embedded?.["wp:featuredmedia"]?.[0]?.source_url || doc.querySelector("img")?.src
   if (!featuredUrl) throw new Error(`Missing image for ${post.slug}`)
   const image = await download(featuredUrl)
@@ -76,7 +138,7 @@ for (const post of posts) {
     img.removeAttribute("srcset")
     img.removeAttribute("sizes")
   }
-  // Keep article headings, paragraphs, lists and links; remove Elementor layout.
+  // Keep article headings, paragraphs, lists, links and safe social embeds; remove Elementor layout.
   for (const element of [...doc.querySelectorAll("div, section, span")].reverse()) {
     element.replaceWith(...element.childNodes)
   }
@@ -90,10 +152,11 @@ for (const post of posts) {
       link.removeAttribute("href")
     }
   }
-  const content = DOMPurify.sanitize(doc.body.innerHTML, {
-    ALLOWED_TAGS: ["p", "br", "strong", "b", "em", "i", "u", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote", "a", "img", "table", "thead", "tbody", "tr", "th", "td", "hr"],
-    ALLOWED_ATTR: ["href", "src", "alt", "title"],
+  const rawHtml = DOMPurify.sanitize(doc.body.innerHTML, {
+    ALLOWED_TAGS: ["p", "br", "strong", "b", "em", "i", "u", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote", "a", "img", "table", "thead", "tbody", "tr", "th", "td", "hr", "iframe"],
+    ALLOWED_ATTR: ["href", "src", "alt", "title", "width", "height"],
   }).replace(/<p>\s*<\/p>/g, "").replace(/\n\s*\n/g, "\n").trim()
+  const content = sanitizeArticleHtml(rawHtml)
   if (plain(content).length < 200) throw new Error(`Empty article: ${post.slug}`)
   const title = plain(post.title.rendered)
   const sourceCategories = post._embedded?.["wp:term"]?.flat().filter(term => term.taxonomy === "category").map(term => plain(term.name)) || []

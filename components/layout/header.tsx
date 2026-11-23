@@ -29,10 +29,8 @@ export function Header() {
   const pathname = usePathname()
   const { data: session, status } = useSession()
 
-  const registerHref = process.env.NEXT_PUBLIC_REGISTER_URL || "/register"
-  const loginHref = process.env.NEXT_PUBLIC_LMS_URL || "/login"
+  const registerHref = process.env.NEXT_PUBLIC_REGISTER_URL || "https://bit.ly/cpaceprograms"
   const registerIsExternal = registerHref.startsWith("http")
-  const loginIsExternal = loginHref.startsWith("http")
   const userName = session?.user.name?.trim() || "CPACE User"
   const userEmail = session?.user.email || ""
   const userRole = session?.user.role || "Member"
@@ -148,18 +146,11 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <>
-                <Link href={registerHref} target={registerIsExternal ? "_blank" : undefined} rel={registerIsExternal ? "noopener noreferrer" : undefined}>
-                  <Button variant="outline" className="border-gray-200 text-gray-700 hover:text-emerald-600 hover:border-emerald-600 hover:bg-emerald-50/40 font-medium rounded-lg px-4 h-9 text-sm transition-all duration-200">
-                    Register
-                  </Button>
-                </Link>
-                <Link href={loginHref} target={loginIsExternal ? "_blank" : undefined} rel={loginIsExternal ? "noopener noreferrer" : undefined}>
-                  <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium rounded-lg px-5 h-9 text-sm shadow-sm hover:shadow transition-all duration-200">
-                    Learning Portal
-                  </Button>
-                </Link>
-              </>
+              <Link href={registerHref} target={registerIsExternal ? "_blank" : undefined} rel={registerIsExternal ? "noopener noreferrer" : undefined}>
+                <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium rounded-lg px-5 h-9 text-sm shadow-sm hover:shadow transition-all duration-200">
+                  Register
+                </Button>
+              </Link>
             )}
           </div>
 
@@ -235,18 +226,11 @@ export function Header() {
                   </Button>
                 </>
               ) : (
-                <>
-                  <Link href={registerHref} target={registerIsExternal ? "_blank" : undefined} rel={registerIsExternal ? "noopener noreferrer" : undefined} onClick={() => setIsMobileMenuOpen(false)}>
-                    <Button variant="outline" className="w-full border-gray-200 text-gray-700 hover:text-emerald-600 hover:border-emerald-600 font-medium rounded-lg">
-                      Register
-                    </Button>
-                  </Link>
-                  <Link href={loginHref} target={loginIsExternal ? "_blank" : undefined} rel={loginIsExternal ? "noopener noreferrer" : undefined} onClick={() => setIsMobileMenuOpen(false)}>
-                    <Button className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium rounded-lg shadow-sm">
-                      Learning Portal
-                    </Button>
-                  </Link>
-                </>
+                <Link href={registerHref} target={registerIsExternal ? "_blank" : undefined} rel={registerIsExternal ? "noopener noreferrer" : undefined} onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium rounded-lg shadow-sm">
+                    Register
+                  </Button>
+                </Link>
               )}
             </div>
           </div>
