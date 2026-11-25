@@ -5,7 +5,7 @@ import { submitPublicForm } from "@/lib/public-form-client"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Calendar, ArrowRight, MessageCircle, Newspaper, Users, Zap, Globe, Mail, Send, CheckCircle, TrendingUp, Loader2 } from "lucide-react"
+import { Calendar, ArrowRight, ArrowDown, MessageCircle, Newspaper, Users, Zap, Globe, Mail, Send, CheckCircle, TrendingUp, Loader2 } from "lucide-react"
 import { articlesData, type Article } from "@/data/articles"
 import { ArticleImage } from "@/components/ui/article-image"
 
@@ -236,10 +236,22 @@ export function LatestIndustrySection() {
 
               {/* View All */}
               <div className="text-center">
-                <Link href="/insights">
-                  <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold px-10 py-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 text-base">
-                    View All Articles
-                    <ArrowRight className="ml-2 h-5 w-5" />
+                <Link
+                  href="/insights#all-articles"
+                  onClick={(e) => {
+                    const catalogEl = document.getElementById("all-articles")
+                    if (catalogEl) {
+                      e.preventDefault()
+                      catalogEl.scrollIntoView({ behavior: "smooth" })
+                    }
+                  }}
+                >
+                  <Button
+                    type="button"
+                    className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold px-10 py-4 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 text-base cursor-pointer"
+                  >
+                    Scroll Down to View All Articles
+                    <ArrowDown className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
               </div>

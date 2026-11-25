@@ -741,3 +741,41 @@ model AssessmentQuestionPool {
   @@index([assessmentId])
   @@map("assessment_question_pools")
 }
+
+// Public Website Certification Programs (CFMS, CMMS, COMS, CHMS, LLL, and custom programs)
+model CertificationProgram {
+  id                      String   @id @default(cuid())
+  slug                    String   @unique
+  aliases                 String[] @default([])
+  acronym                 String
+  parenthesizedAcronym    String
+  fullName                String
+  category                String
+  shortDescription        String   @db.Text
+  heroSubtitle            String   @db.Text
+  badgeImage              String
+  gradient                String   @default("from-emerald-600 to-teal-700")
+  lightBg                 String   @default("bg-emerald-50")
+  lightText               String   @default("text-emerald-700")
+  lightBorder             String   @default("border-emerald-200")
+  formats                 String   @default("Online, In-person, Hybrid")
+  highlights              Json
+  pillars                 Json
+  examFormat              Json
+  coverageTopics          Json
+  processSteps            Json
+  investment              String
+  submissionEmail         String
+  registerUrl             String
+  brochureUrl             String?
+  qualificationCategories Json
+  faqs                    Json
+  isPublished             Boolean  @default(true)
+  sortOrder               Int      @default(0)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([isPublished, sortOrder])
+  @@map("certification_programs")
+}
+

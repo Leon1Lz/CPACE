@@ -4,11 +4,12 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { ArrowRight, CalendarClock, ExternalLink, HelpCircle, Loader2, Newspaper, PanelsTopLeft, RefreshCw, CheckCircle2, Database } from "lucide-react"
+import { ArrowRight, Award, CalendarClock, ExternalLink, HelpCircle, Loader2, Newspaper, PanelsTopLeft, RefreshCw, CheckCircle2, Database } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 const sections = [
+  { title: "Certification programs", description: "Add or edit certification programs (CFMS®, CMMS®, COMS®, CHMS™, Labor Law Lecture), pricing, exam format, topics, eligibility, and FAQs.", href: "/dashboard/programs", icon: Award, color: "bg-teal-100 text-teal-700", key: "programs" },
   { title: "Training schedules", description: "Upcoming Training & Certification Events cards, registration links, dates, visibility, and ordering.", href: "/dashboard/schedules", icon: CalendarClock, color: "bg-emerald-100 text-emerald-700", key: "schedules" },
   { title: "Industry insights", description: "Public articles, featured stories, imagery, categories, and article content.", href: "/dashboard/insights", icon: Newspaper, color: "bg-blue-100 text-blue-700", key: "articles" },
   { title: "Frequently asked questions", description: "Public questions, answers, categories, visibility, and display ordering.", href: "/dashboard/faqs", icon: HelpCircle, color: "bg-amber-100 text-amber-700", key: "faqs" },
@@ -20,6 +21,7 @@ export default function WebsiteContentPage() {
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
   const [stats, setStats] = useState<{
+    programs?: { inDb: number; available: number }
     articles?: { inDb: number; available: number }
     schedules?: { inDb: number; available: number }
     faqs?: { inDb: number; available: number }
@@ -54,7 +56,7 @@ export default function WebsiteContentPage() {
       })
       if (res.ok) {
         const data = await res.json()
-        setSyncMessage(`All landing page content synchronized (${data.articlesSynced ?? 0} articles, ${data.schedulesSynced ?? 0} schedules, ${data.faqsSynced ?? 0} FAQs).`)
+        setSyncMessage(`All landing page content synchronized (${data.programsSynced ?? 0} programs, ${data.articlesSynced ?? 0} articles, ${data.schedulesSynced ?? 0} schedules, ${data.faqsSynced ?? 0} FAQs).`)
         await loadStats()
       }
     } catch (err) {
@@ -120,10 +122,14 @@ export default function WebsiteContentPage() {
             </div>
             <span className="text-xs text-slate-500 font-medium">Landing Page Content</span>
           </div>
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-100">
+              <p className="text-xs text-slate-500 font-medium">Certification Programs</p>
+              <p className="mt-1 text-lg font-black text-slate-900">{stats.programs?.inDb ?? 0} <span className="text-xs font-normal text-slate-400">/ {stats.programs?.available ?? 5} in database</span></p>
+            </div>
             <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-100">
               <p className="text-xs text-slate-500 font-medium">Industry Insights & Articles</p>
-              <p className="mt-1 text-lg font-black text-slate-900">{stats.articles?.inDb ?? 0} <span className="text-xs font-normal text-slate-400">/ {stats.articles?.available ?? 22} in database</span></p>
+              <p className="mt-1 text-lg font-black text-slate-900">{stats.articles?.inDb ?? 0} <span className="text-xs font-normal text-slate-400">/ {stats.articles?.available ?? 53} in database</span></p>
             </div>
             <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-100">
               <p className="text-xs text-slate-500 font-medium">Training & Certification Schedules</p>
@@ -137,10 +143,10 @@ export default function WebsiteContentPage() {
         </div>
       )}
 
-      <div className="grid gap-5 md:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
         {sections.map(section => {
           const Icon = section.icon
-          const count = section.key === "articles" ? stats?.articles?.inDb : section.key === "schedules" ? stats?.schedules?.inDb : stats?.faqs?.inDb
+          const count = section.key === "programs" ? stats?.programs?.inDb : section.key === "articles" ? stats?.articles?.inDb : section.key === "schedules" ? stats?.schedules?.inDb : stats?.faqs?.inDb
           return (
             <Card key={section.href} className="rounded-2xl border-slate-200 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
               <CardHeader>

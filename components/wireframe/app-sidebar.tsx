@@ -47,6 +47,7 @@ const menuItems = {
     { id: "groups", label: "Groups", icon: UsersRound, href: "/dashboard/groups" },
     { id: "users", label: "User Management", icon: Users, href: "/dashboard/users" },
     { id: "content", label: "Website Content", icon: PanelsTopLeft, href: "/dashboard/content" },
+    { id: "programs", label: "Certification Programs", icon: Award, href: "/dashboard/programs" },
     { id: "audit", label: "Audit Log", icon: ScrollText, href: "/dashboard/audit" },
     { id: "insights", label: "Manage Insights", icon: Newspaper, href: "/dashboard/insights" },
   ],
@@ -114,7 +115,7 @@ export function AppSidebar({ role = "learner", userName = "User", userEmail = ""
     { label: "Overview", ids: ["dashboard", "calendar"] },
     { label: "Learning", ids: ["courses", "question-banks", "learning-paths"] },
     { label: role === "learner" ? "My Results" : "Exams & Results", ids: ["proctor", "grading", "reports", "certificates"] },
-    { label: "Administration", ids: ["content", "schedules", "groups", "users", "insights", "audit"] },
+    { label: "Administration", ids: ["content", "programs", "schedules", "groups", "users", "insights", "audit"] },
   ].map(group => ({ ...group, items: group.ids.flatMap(id => items.filter(item => item.id === id)) })).filter(group => group.items.length)
   const initials = userName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
   const pathname = usePathname()

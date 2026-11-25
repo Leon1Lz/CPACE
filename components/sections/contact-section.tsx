@@ -63,7 +63,7 @@ export function ContactSection() {
     {
       title: "Manila, Philippines 🇵🇭",
       address: "Unit 1510 High Street South Corporate Plaza Tower 1, 26th St. Corner 9th Ave., BGC Taguig City, Philippines (1634)",
-      phone: "+63 956 221-2400",
+      phone: "(02) 8260-9931 | +63 956 221-2400",
       email: "info@cpaceph.com",
       hours: "Monday - Friday: 9:00 AM - 6:00 PM (PHT)"
     },
@@ -78,22 +78,22 @@ export function ContactSection() {
 
   const departments = [
     {
-      name: "Admissions & Enrollment",
+      name: "Registration & Enrollment",
       email: "programs@cpaceph.com",
-      phone: "+63 956 221-2400",
-      description: "For program inquiries, enrollments, and certification registration"
+      phone: "(02) 8260-9931 | +63 956 221-2400",
+      description: "For program inquiries, enrollments, and certification registrations"
     },
     {
       name: "Corporate & Institutional Services",
       email: "partnerships@cpaceph.com",
-      phone: "+63 956 221-2400",
+      phone: "(02) 8260-9931 | +63 956 221-2400",
       description: "For corporate training, partnerships, and business consultancy"
     },
     {
-      name: "Student Support & Verification",
+      name: "Support & Verification",
       email: "verify@cpaceph.com",
-      phone: "+63 956 221-2400",
-      description: "For student assistance, exam scheduling, and credential verification"
+      phone: "(02) 8260-9931 | +63 956 221-2400",
+      description: "For assistance and credential verification"
     }
   ]
 

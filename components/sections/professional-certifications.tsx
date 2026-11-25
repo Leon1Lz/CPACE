@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import {
   Award,
@@ -14,11 +15,13 @@ import {
   BookOpen,
   Zap,
   Layers,
+  Pencil,
 } from "lucide-react"
 import { cpaceStats } from "@/data/stats"
 import {
   CERTIFICATION_CATEGORIES,
   certificationCourses,
+  type CertificationCourse,
 } from "@/data/certification-courses"
 
 const stats = [
@@ -44,13 +47,51 @@ const stats = [
   },
 ]
 
+function formatTrademarkText(text: string) {
+  if (!text.includes("™")) return text
+  const parts = text.split("™")
+  return parts.map((part, idx) => (
+    <span key={idx}>
+      {part}
+      {idx < parts.length - 1 && (
+        <span className="text-[0.75em] relative -top-[0.18em]">™</span>
+      )}
+    </span>
+  ))
+}
+
 export function ProfessionalCertifications() {
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === "ADMIN"
   const [selectedCategory, setSelectedCategory] = useState<string>("All Programs")
+  const [courses, setCourses] = useState<CertificationCourse[]>(certificationCourses)
+
+  useEffect(() => {
+    let mounted = true
+    fetch("/api/certification-programs")
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (mounted && Array.isArray(data) && data.length > 0) {
+          setCourses(data)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const categories = Array.from(
+    new Set([
+      ...CERTIFICATION_CATEGORIES,
+      ...courses.map(c => c.category).filter(Boolean),
+    ])
+  )
 
   const filteredCourses =
     selectedCategory === "All Programs"
-      ? certificationCourses
-      : certificationCourses.filter(course => course.category === selectedCategory)
+      ? courses
+      : courses.filter(course => course.category === selectedCategory)
 
   return (
     <section id="certifications" className="relative overflow-hidden">
@@ -168,7 +209,7 @@ export function ProfessionalCertifications() {
 
           {/* Category Filter Tabs */}
           <div className="flex flex-wrap items-center justify-center gap-2.5" role="tablist" aria-label="Filter certification programs by category">
-            {CERTIFICATION_CATEGORIES.map(category => {
+            {categories.map(category => {
               const active = selectedCategory === category
               return (
                 <button
@@ -188,6 +229,18 @@ export function ProfessionalCertifications() {
                 </button>
               )
             })}
+            {isAdmin && (
+              <Link href="/dashboard/programs">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-bold text-xs px-4 py-2"
+                >
+                  <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                  Manage Programs
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Certification Cards */}
@@ -224,9 +277,6 @@ export function ProfessionalCertifications() {
                           <span className={`inline-flex items-center rounded-full border ${cert.lightBorder} ${cert.lightBg} px-3 py-0.5 text-xs font-bold ${cert.lightText}`}>
                             {cert.category}
                           </span>
-                          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                            Categories A, B, C &amp; D Eligible
-                          </span>
                         </div>
                         <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
                           {cert.formats}
@@ -234,11 +284,15 @@ export function ProfessionalCertifications() {
                       </div>
                       <Link href={`/services/professional-certification/${cert.slug}`}>
                         <h4 className="text-2xl font-bold text-gray-900 group-hover:text-emerald-700 transition-colors duration-200">
-                          {cert.fullName} ({cert.acronym})
+                          {formatTrademarkText(
+                            cert.acronym === "LLL"
+                              ? `${cert.fullName} ${cert.parenthesizedAcronym}`
+                              : `${cert.fullName} ${cert.parenthesizedAcronym}`
+                          )}
                         </h4>
                       </Link>
                       <p className="text-gray-600 leading-relaxed">
-                        {cert.shortDescription}
+                        {formatTrademarkText(cert.shortDescription)}
                       </p>
                     </div>
 
@@ -254,7 +308,7 @@ export function ProfessionalCertifications() {
                             />
                           </div>
                           <span className="text-sm text-gray-700 font-medium">
-                            {highlight}
+                            {formatTrademarkText(highlight)}
                           </span>
                         </div>
                       ))}
@@ -266,7 +320,7 @@ export function ProfessionalCertifications() {
                         <Button
                           className={`bg-gradient-to-r ${cert.gradient} hover:opacity-90 text-white font-semibold px-6 py-2.5 shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105`}
                         >
-                          Inquire About {cert.acronym}
+                          Inquire About {formatTrademarkText(cert.acronym)}
                           <ArrowRight className="ml-2 w-4 h-4" />
                         </Button>
                       </Link>
@@ -283,6 +337,19 @@ export function ProfessionalCertifications() {
                           Register Online
                         </Button>
                       </Link>
+
+                      {isAdmin && (
+                        <Link href={`/dashboard/programs?edit=${cert.slug}`}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-slate-600 hover:text-emerald-800 hover:bg-emerald-50 font-semibold"
+                          >
+                            <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                            Edit Program
+                          </Button>
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </div>

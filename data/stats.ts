@@ -5,15 +5,15 @@
 
 export const cpaceStats = {
   certifiedProfessionals: {
-    value: "12,880+",
-    numericValue: 12880,
+    value: "19,980+",
+    numericValue: 19980,
     label: "Certified Professionals",
-    sublabel: "CFMS® | CMMS® | COMS®",
+    sublabel: "Across Certification Programs",
   },
   chraPassers: {
-    value: "5,890+",
-    numericValue: 5890,
-    label: "CHRA™ Review Passers",
+    value: "6,280+",
+    numericValue: 6280,
+    label: "CHRA® Review Passers",
     sublabel: "Review Lecture & Credential Programs",
   },
   institutionalPartners: {

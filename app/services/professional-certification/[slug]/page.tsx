@@ -1,8 +1,9 @@
 "use client"
 
-import { use } from "react"
+import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { useSession } from "next-auth/react"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import { Button } from "@/components/ui/button"
@@ -20,6 +21,7 @@ import {
   HelpCircle,
   Mail,
   MapPin,
+  Pencil,
   Phone,
   ShieldCheck,
   Sparkles,
@@ -28,6 +30,7 @@ import {
 import {
   certificationCourses,
   getCertificationCourseBySlug,
+  type CertificationCourse,
 } from "@/data/certification-courses"
 
 const categoryIcons = {
@@ -37,13 +40,59 @@ const categoryIcons = {
   "Category D": <Briefcase className="w-6 h-6" />,
 }
 
+function formatTrademarkText(text: string) {
+  if (!text.includes("™")) return text
+  const parts = text.split("™")
+  return parts.map((part, idx) => (
+    <span key={idx}>
+      {part}
+      {idx < parts.length - 1 && (
+        <span className="text-[0.75em] relative -top-[0.18em]">™</span>
+      )}
+    </span>
+  ))
+}
+
 export default function CertificationCourseDetailPage({
   params,
 }: {
   params: Promise<{ slug: string }>
 }) {
   const { slug } = use(params)
-  const course = getCertificationCourseBySlug(slug)
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === "ADMIN"
+
+  const [allCourses, setAllCourses] = useState<CertificationCourse[]>(
+    certificationCourses
+  )
+  const [course, setCourse] = useState<CertificationCourse | undefined>(() =>
+    getCertificationCourseBySlug(slug)
+  )
+
+  useEffect(() => {
+    let mounted = true
+    const normalized = slug.toLowerCase().trim()
+
+    fetch("/api/certification-programs")
+      .then(res => (res.ok ? res.json() : null))
+      .then((list: CertificationCourse[] | null) => {
+        if (!mounted || !Array.isArray(list) || list.length === 0) return
+        setAllCourses(list)
+        const matched = list.find(
+          item =>
+            item.slug.toLowerCase() === normalized ||
+            item.aliases?.includes(normalized)
+        )
+        if (matched) {
+          setCourse(matched)
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      mounted = false
+    }
+  }, [slug])
 
   if (!course) {
     return (
@@ -61,13 +110,13 @@ export default function CertificationCourseDetailPage({
               Choose one of CPACE Philippines&apos; official professional certification and review programs below.
             </p>
             <div className="flex flex-wrap justify-center gap-3 pt-4">
-              {certificationCourses.map(item => (
+              {allCourses.map(item => (
                 <Link
                   key={item.slug}
                   href={`/services/professional-certification/${item.slug}`}
                 >
                   <Button variant="outline" className="rounded-xl font-semibold">
-                    {item.acronym} — {item.fullName}
+                    {formatTrademarkText(item.acronym)} — {formatTrademarkText(item.fullName)}
                   </Button>
                 </Link>
               ))}
@@ -95,7 +144,7 @@ export default function CertificationCourseDetailPage({
               All Certifications
             </Link>
             <div className="flex flex-wrap items-center gap-1.5" aria-label="Switch certification program">
-              {certificationCourses.map(item => {
+              {allCourses.map(item => {
                 const isCurrent = item.slug === course.slug
                 return (
                   <Link
@@ -107,10 +156,19 @@ export default function CertificationCourseDetailPage({
                         : "bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-800"
                     }`}
                   >
-                    {item.acronym === "LLL" ? "Labor Law Lecture" : item.acronym}
+                    {item.acronym === "LLL" ? "Labor Law Lecture" : formatTrademarkText(item.acronym)}
                   </Link>
                 )
               })}
+              {isAdmin && (
+                <Link
+                  href={`/dashboard/programs?edit=${course.slug}`}
+                  className="ml-1 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit Program
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -128,7 +186,7 @@ export default function CertificationCourseDetailPage({
                   <div className="relative w-44 h-44 sm:w-52 sm:h-52">
                     <Image
                       src={course.badgeImage}
-                      alt={`${course.fullName} (${course.acronym}) Badge`}
+                      alt={`${course.fullName} ${course.parenthesizedAcronym} Badge`}
                       fill
                       priority
                       className="object-contain drop-shadow-2xl"
@@ -154,14 +212,14 @@ export default function CertificationCourseDetailPage({
                 </div>
 
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">
-                  {course.fullName}{" "}
+                  {formatTrademarkText(course.fullName)}{" "}
                   <span className="text-emerald-400">
-                    ({course.acronym})
+                    {formatTrademarkText(course.parenthesizedAcronym)}
                   </span>
                 </h1>
 
                 <p className="text-base sm:text-lg text-white/80 leading-relaxed max-w-3xl">
-                  {course.heroSubtitle}
+                  {formatTrademarkText(course.heroSubtitle)}
                 </p>
 
                 <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-2">
@@ -176,19 +234,21 @@ export default function CertificationCourseDetailPage({
                     </Button>
                   </Link>
 
-                  <Link
-                    href={course.brochureUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button
-                      variant="outline"
-                      className="border-2 border-white/30 bg-white/5 text-white hover:bg-white/15 hover:text-white font-semibold px-7 py-6 rounded-xl text-base"
+                  {course.brochureUrl && (
+                    <Link
+                      href={course.brochureUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
-                      <Download className="mr-2 w-4 h-4" />
-                      Download Brochure / Info Sheet
-                    </Button>
-                  </Link>
+                      <Button
+                        variant="outline"
+                        className="border-2 border-white/30 bg-white/5 text-white hover:bg-white/15 hover:text-white font-semibold px-7 py-6 rounded-xl text-base"
+                      >
+                        <Download className="mr-2 w-4 h-4" />
+                        Download Brochure / Info Sheet
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>
@@ -208,10 +268,10 @@ export default function CertificationCourseDetailPage({
                     <Sparkles className="w-5 h-5" />
                   </div>
                   <h2 className="text-lg font-bold text-slate-900">
-                    {pillar.title}
+                    {formatTrademarkText(pillar.title)}
                   </h2>
                   <p className="text-sm text-slate-600 leading-relaxed">
-                    {pillar.description}
+                    {formatTrademarkText(pillar.description)}
                   </p>
                 </div>
               ))}
@@ -233,7 +293,7 @@ export default function CertificationCourseDetailPage({
                   Assessment Structure
                 </h2>
                 <p className="text-sm text-slate-600 leading-relaxed">
-                  {course.examFormat.overview}
+                  {formatTrademarkText(course.examFormat.overview)}
                 </p>
 
                 <div className="space-y-3 pt-2">
@@ -243,8 +303,10 @@ export default function CertificationCourseDetailPage({
                       <div className="text-xs font-semibold text-slate-400 uppercase">
                         Duration &amp; Volume
                       </div>
-                      <div className="text-sm font-bold text-slate-900">
-                        {course.examFormat.duration} · {course.examFormat.questions}
+                      <div className="text-sm font-bold text-slate-900 whitespace-pre-line">
+                        {course.examFormat.questions
+                          ? `${course.examFormat.duration} · ${course.examFormat.questions}`
+                          : course.examFormat.duration}
                       </div>
                     </div>
                   </div>
@@ -275,7 +337,7 @@ export default function CertificationCourseDetailPage({
                 </div>
 
                 <div className="p-4 rounded-2xl bg-emerald-950 text-emerald-100 text-xs leading-relaxed">
-                  {course.examFormat.authorization}
+                  {formatTrademarkText(course.examFormat.authorization)}
                 </div>
               </div>
 
@@ -307,7 +369,7 @@ export default function CertificationCourseDetailPage({
                         {String(i + 1).padStart(2, "0")}
                       </span>
                       <span className="text-sm font-semibold text-slate-800 leading-snug">
-                        {topic}
+                        {formatTrademarkText(topic)}
                       </span>
                     </div>
                   ))}
@@ -329,7 +391,7 @@ export default function CertificationCourseDetailPage({
                 Who Are Qualified?
               </h2>
               <p className="text-slate-600 text-base">
-                Applicants qualify for the {course.fullName} ({course.acronym}) program under any of the following four official qualification categories:
+                Applicants qualify for the {formatTrademarkText(course.fullName)} {formatTrademarkText(course.parenthesizedAcronym)} program under any of the following four official qualification categories:
               </p>
             </div>
 
@@ -352,12 +414,12 @@ export default function CertificationCourseDetailPage({
                       {cat.title}
                     </h3>
                     <p className="text-sm text-slate-600 leading-relaxed">
-                      {cat.description}
+                      {formatTrademarkText(cat.description)}
                     </p>
                   </div>
                   <div className="pt-2 flex items-center gap-2 text-xs font-semibold text-emerald-700">
                     <CheckCircle2 className="w-4 h-4" />
-                    Eligible for {course.acronym} Registration
+                    <span>Eligible for {formatTrademarkText(course.acronym)} Registration</span>
                   </div>
                 </div>
               ))}
@@ -392,19 +454,21 @@ export default function CertificationCourseDetailPage({
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <Link
-                  href={course.brochureUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button
-                    variant="outline"
-                    className="border-white/30 bg-white/10 text-white hover:bg-white/20 font-semibold rounded-xl px-6 py-5"
+                {course.brochureUrl && (
+                  <Link
+                    href={course.brochureUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    <Download className="mr-2 w-4 h-4" />
-                    Get Information Sheet
-                  </Button>
-                </Link>
+                    <Button
+                      variant="outline"
+                      className="border-white/30 bg-white/10 text-white hover:bg-white/20 font-semibold rounded-xl px-6 py-5"
+                    >
+                      <Download className="mr-2 w-4 h-4" />
+                      Get Information Sheet
+                    </Button>
+                  </Link>
+                )}
                 <Link
                   href={course.registerUrl}
                   target="_blank"
@@ -431,7 +495,7 @@ export default function CertificationCourseDetailPage({
                     {item.title}
                   </h3>
                   <p className="text-sm text-white/75 leading-relaxed">
-                    {item.detail}
+                    {formatTrademarkText(item.detail)}
                   </p>
                 </div>
               ))}
@@ -448,7 +512,7 @@ export default function CertificationCourseDetailPage({
                 Frequently Asked Questions
               </div>
               <h2 className="text-3xl font-extrabold text-slate-900">
-                Everything You Need to Know About {course.acronym}
+                Everything You Need to Know About {formatTrademarkText(course.acronym)}
               </h2>
             </div>
 
@@ -460,10 +524,10 @@ export default function CertificationCourseDetailPage({
                 >
                   <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-start gap-2.5">
                     <span className="text-emerald-600 font-extrabold">Q.</span>
-                    <span>{faq.question}</span>
+                    <span>{formatTrademarkText(faq.question)}</span>
                   </h3>
                   <p className="text-sm text-slate-600 leading-relaxed pl-6">
-                    {faq.answer}
+                    {formatTrademarkText(faq.answer)}
                   </p>
                 </div>
               ))}
@@ -473,7 +537,7 @@ export default function CertificationCourseDetailPage({
             <div className="bg-white rounded-3xl border border-emerald-200 p-8 sm:p-10 shadow-md flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="space-y-2 text-center md:text-left">
                 <h3 className="text-2xl font-extrabold text-slate-900">
-                  Ready to earn your {course.acronym} credential?
+                  Ready to earn your {formatTrademarkText(course.acronym)} credential?
                 </h3>
                 <p className="text-sm text-slate-600 max-w-xl">
                   Unit 1510 High Street South Corporate Plaza Tower 1, 26th St. Corner 9th Ave., BGC Taguig City, Philippines (1634)
@@ -485,7 +549,7 @@ export default function CertificationCourseDetailPage({
                   </span>
                   <span className="inline-flex items-center gap-1.5">
                     <Phone className="w-4 h-4 text-emerald-600" />
-                    +63 956 221-2400
+                    (02) 8260-9931 | +63 956 221-2400
                   </span>
                   <span className="inline-flex items-center gap-1.5">
                     <MapPin className="w-4 h-4 text-emerald-600" />

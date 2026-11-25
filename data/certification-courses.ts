@@ -13,6 +13,7 @@ export interface CertificationCourse {
   slug: string
   aliases?: string[]
   acronym: string
+  parenthesizedAcronym: string
   fullName: string
   category: string
   shortDescription: string
@@ -31,7 +32,7 @@ export interface CertificationCourse {
   examFormat: {
     overview: string
     duration: string
-    questions: string
+    questions?: string
     passingMark: string
     validity: string
     authorization: string
@@ -45,7 +46,7 @@ export interface CertificationCourse {
   investment: string
   submissionEmail: string
   registerUrl: string
-  brochureUrl: string
+  brochureUrl?: string
   qualificationCategories: QualificationCategory[]
   faqs: CertificationFaq[]
 }
@@ -63,6 +64,7 @@ export const certificationCourses: CertificationCourse[] = [
   {
     slug: "cfms",
     acronym: "CFMS®",
+    parenthesizedAcronym: "(CFMS)®",
     fullName: "Certified Financial Management Specialist",
     category: "Finance",
     shortDescription:
@@ -103,7 +105,7 @@ export const certificationCourses: CertificationCourse[] = [
         "The CERTIFIED FINANCIAL MANAGEMENT SPECIALIST (CFMS)® is an assessment exam of core knowledge in financial management conducted by the Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines). The exam evaluates the essential competencies that both aspiring and practicing finance professionals must possess.",
       duration: "2 Hours (120 Minutes)",
       questions: "120 Multiple-Choice Questions",
-      passingMark: "75% Rating (score must not be below 60)",
+      passingMark: "75% Rating (A minimum score of 60 points is required to pass.)",
       validity: "Lifetime Validity (No renewal required)",
       authorization:
         "Examinees who pass and earn formal certification are authorized to use the professional post-nominal title Certified Financial Management Specialist (CFMS)®.",
@@ -143,7 +145,7 @@ export const certificationCourses: CertificationCourse[] = [
     ],
     investment: "Php 1,680.00",
     submissionEmail: "cfms@cpaceph.com",
-    registerUrl: "https://bit.ly/cpaceprograms",
+    registerUrl: "https://bit.ly/cfmsbycpace",
     brochureUrl: "https://bit.ly/cfmsinfosheet",
     qualificationCategories: [
       {
@@ -174,7 +176,7 @@ export const certificationCourses: CertificationCourse[] = [
     faqs: [
       {
         question:
-          "Does the Professional Regulation Commission (PRC) or the Civil Service Commission (CSC) oversee the CFMS® Assessment Exam?",
+          "Does the Professional Regulation Commission (PRC) or the Civil Service Commission (CSC) oversee the Certified Financial Management Specialist (CFMS)® Assessment Exam?",
         answer:
           "The certification does not fall under the purview of the Professional Regulation Commission or the Civil Service Commission. This is not a government professional license or civil service eligibility. It is an industry assessment examination and credential of your competencies in financial management, initiated by the Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines).",
       },
@@ -185,7 +187,7 @@ export const certificationCourses: CertificationCourse[] = [
       },
       {
         question: "What is the passing mark?",
-        answer: "Each examinee must achieve a rating of at least 75% and must not get a score below 60 on the test.",
+        answer: "75% Rating (A minimum score of 60 points is required to pass.)",
       },
       {
         question: "Is there a limit to how many times we can take the CFMS®?",
@@ -205,6 +207,7 @@ export const certificationCourses: CertificationCourse[] = [
   {
     slug: "cmms",
     acronym: "CMMS®",
+    parenthesizedAcronym: "(CMMS)®",
     fullName: "Certified Marketing Management Specialist",
     category: "Marketing",
     shortDescription:
@@ -245,7 +248,7 @@ export const certificationCourses: CertificationCourse[] = [
         "The CERTIFIED MARKETING MANAGEMENT SPECIALIST (CMMS)® is an assessment examination of core knowledge in marketing management conducted by the Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines). The examination evaluates the fundamental competencies that an aspiring or practicing marketing professional must possess.",
       duration: "2 Hours (120 Minutes)",
       questions: "120 Multiple-Choice Questions",
-      passingMark: "75% Rating (score must not be below 60)",
+      passingMark: "75% Rating (A minimum score of 60 points is required to pass.)",
       validity: "Lifetime Validity (No renewal required)",
       authorization:
         "Examinees who pass and earn formal certification are authorized to use the professional post-nominal title Certified Marketing Management Specialist (CMMS)®.",
@@ -288,7 +291,7 @@ export const certificationCourses: CertificationCourse[] = [
     ],
     investment: "Php 1,680.00",
     submissionEmail: "cmms@cpaceph.com",
-    registerUrl: "https://bit.ly/cpaceprograms",
+    registerUrl: "https://bit.ly/cmmsbycpace",
     brochureUrl: "https://bit.ly/cmmsinfosheet",
     qualificationCategories: [
       {
@@ -319,7 +322,7 @@ export const certificationCourses: CertificationCourse[] = [
     faqs: [
       {
         question:
-          "Does the Professional Regulation Commission (PRC) or the Civil Service Commission (CSC) oversee the CMMS® Assessment Exam?",
+          "Does the Professional Regulation Commission (PRC) or the Civil Service Commission (CSC) oversee the Certified Marketing Management Specialist (CMMS)® Assessment Exam?",
         answer:
           "The certification does not fall under the purview of the Professional Regulation Commission or the Civil Service Commission. This is not a government professional license or civil service eligibility. It is an industry assessment examination and credential of your skills in marketing management, initiated by the Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines).",
       },
@@ -330,7 +333,7 @@ export const certificationCourses: CertificationCourse[] = [
       },
       {
         question: "What is the passing mark?",
-        answer: "Each examinee must achieve a rating of at least 75% and must not get a score below 60 on the test.",
+        answer: "75% Rating (A minimum score of 60 points is required to pass.)",
       },
       {
         question: "Is there a limit to how many times we can take the CMMS®?",
@@ -350,6 +353,7 @@ export const certificationCourses: CertificationCourse[] = [
   {
     slug: "coms",
     acronym: "COMS®",
+    parenthesizedAcronym: "(COMS)®",
     fullName: "Certified Operations Management Specialist",
     category: "Operations",
     shortDescription:
@@ -390,7 +394,7 @@ export const certificationCourses: CertificationCourse[] = [
         "The CERTIFIED OPERATIONS MANAGEMENT SPECIALIST (COMS)® is an assessment examination of core knowledge in the field of operations and supply chain management conducted by the Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines). The examination evaluates the essential competencies that an aspiring or practicing operations professional must possess.",
       duration: "2 Hours (120 Minutes)",
       questions: "120 Multiple-Choice Questions",
-      passingMark: "75% Rating (score must not be below 60)",
+      passingMark: "75% Rating (A minimum score of 60 points is required to pass.)",
       validity: "Lifetime Validity (No renewal required)",
       authorization:
         "Examinees who pass and earn formal certification are authorized to use the professional post-nominal title Certified Operations Management Specialist (COMS)®.",
@@ -431,7 +435,7 @@ export const certificationCourses: CertificationCourse[] = [
     ],
     investment: "Php 1,680.00",
     submissionEmail: "coms@cpaceph.com",
-    registerUrl: "https://bit.ly/cpaceprograms",
+    registerUrl: "https://bit.ly/comsbycpace",
     brochureUrl: "https://bit.ly/comsinfosheet",
     qualificationCategories: [
       {
@@ -462,7 +466,7 @@ export const certificationCourses: CertificationCourse[] = [
     faqs: [
       {
         question:
-          "Does the Professional Regulation Commission (PRC) or the Civil Service Commission (CSC) oversee the COMS® Assessment Exam?",
+          "Does the Professional Regulation Commission (PRC) or the Civil Service Commission (CSC) oversee the Certified Operations Management Specialist (COMS)® Assessment Exam?",
         answer:
           "The certification does not fall under the purview of the Professional Regulation Commission or the Civil Service Commission. This is not a government professional license or civil service eligibility. It is an industry assessment examination and certification of your skills in operations management, initiated by the Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines).",
       },
@@ -473,7 +477,7 @@ export const certificationCourses: CertificationCourse[] = [
       },
       {
         question: "What is the passing mark?",
-        answer: "Each examinee must achieve a rating of at least 75% and must not get a score below 60 on the test.",
+        answer: "75% Rating (A minimum score of 60 points is required to pass.)",
       },
       {
         question: "Is there a limit to how many times we can take the COMS®?",
@@ -493,6 +497,7 @@ export const certificationCourses: CertificationCourse[] = [
   {
     slug: "chms",
     acronym: "CHMS™",
+    parenthesizedAcronym: "(CHMS)™",
     fullName: "Certified Hospitality Management Specialist",
     category: "Hospitality & Tourism",
     shortDescription:
@@ -531,35 +536,30 @@ export const certificationCourses: CertificationCourse[] = [
     examFormat: {
       overview:
         "The CERTIFIED HOSPITALITY MANAGEMENT SPECIALIST (CHMS)™ is a comprehensive assessment examination of core competencies in hospitality, lodging, food service, and tourism management conducted by the Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines).",
-      duration: "2 Hours (120 Minutes)",
-      questions: "120 Multiple-Choice Questions",
-      passingMark: "75% Rating (score must not be below 60)",
+      duration: "3 hours instructor-led live learning\n2 hours assessment examination",
+      passingMark: "75% Rating (A minimum score of 60 points is required to pass.)",
       validity: "Lifetime Validity (No renewal required)",
       authorization:
         "Examinees who pass and earn formal certification are authorized to use the professional post-nominal title Certified Hospitality Management Specialist (CHMS)™.",
     },
     coverageTopics: [
-      "Hospitality Operations & Front Office Management",
-      "Guest Relations & Service Excellence Standards",
-      "Food and Beverage Service Management",
-      "Hotel, Resort & Lodging Administration",
-      "Tourism Planning, Marketing & Destination Management",
-      "Events, MICE & Banquet Operations",
-      "Housekeeping, Facilities & Property Management",
-      "Hospitality Cost Control & Revenue Management",
-      "Food Safety, Hygiene (HACCP) & Risk Compliance",
-      "Strategic Leadership & Sustainability in Hospitality",
+      "Tourism and Hospitality Foundations",
+      "Hotel and Lodging Operations",
+      "Food and Beverage Operations",
+      "Hospitality Business and Management",
+      "Hospitality Systems and Technology",
+      "Risk, Law, and Quality",
     ],
     processSteps: [
       {
         step: "01",
         title: "Register Online",
-        detail: "Complete the online registration form and settle the learning investment of Php 1,680.00.",
+        detail: "Complete the online registration form and settle the learning investment of Php 1,980.00.",
       },
       {
         step: "02",
         title: "Submit Requirements & Payment Confirmation",
-        detail: "Email your documentary requirements and proof of payment to info@cpaceph.com.",
+        detail: "Email your documentary requirements and proof of payment to chms@cpaceph.com.",
       },
       {
         step: "03",
@@ -572,10 +572,10 @@ export const certificationCourses: CertificationCourse[] = [
         detail: "You will receive your official self-review materials, references, and exam schedule upon confirmation of your slot.",
       },
     ],
-    investment: "Php 1,680.00",
-    submissionEmail: "info@cpaceph.com",
-    registerUrl: "https://bit.ly/cpaceprograms",
-    brochureUrl: "https://bit.ly/cpaceprograms",
+    investment: "Php 1,980.00",
+    submissionEmail: "chms@cpaceph.com",
+    registerUrl: "https://bit.ly/chmsbycpace",
+    brochureUrl: "https://bit.ly/chmsinfosheet",
     qualificationCategories: [
       {
         code: "Category A",
@@ -605,7 +605,7 @@ export const certificationCourses: CertificationCourse[] = [
     faqs: [
       {
         question:
-          "Does the Professional Regulation Commission (PRC) or the Civil Service Commission (CSC) oversee the CHMS™ Assessment Exam?",
+          "Does the Professional Regulation Commission (PRC) or the Civil Service Commission (CSC) oversee the Certified Hospitality Management Specialist (CHMS)™ Assessment Exam?",
         answer:
           "The certification does not fall under the purview of the Professional Regulation Commission or the Civil Service Commission. This is not a government professional license or civil service eligibility. It is an industry assessment examination and certification of your skills in hospitality management, initiated by the Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines).",
       },
@@ -616,7 +616,7 @@ export const certificationCourses: CertificationCourse[] = [
       },
       {
         question: "What is the passing mark?",
-        answer: "Each examinee must achieve a rating of at least 75% and must not get a score below 60 on the test.",
+        answer: "75% Rating (A minimum score of 60 points is required to pass.)",
       },
       {
         question: "Is there a limit to how many times we can take the CHMS™?",
@@ -637,29 +637,30 @@ export const certificationCourses: CertificationCourse[] = [
     slug: "labor-law-lecture",
     aliases: ["lll"],
     acronym: "LLL",
-    fullName: "Labor Law Lecture (A CHRA™ Online Review)",
+    parenthesizedAcronym: "(LLL)",
+    fullName: "Labor Law Lecture (A CHRA® Online Review)",
     category: "HR & Labor Law",
     shortDescription:
-      "Deepen your expertise in Philippine labor relations, statutory standards, and HR compliance through CPACE's specialized Labor Law Lecture. An intensive online review program designed to thoroughly prepare candidates for the CHRA™ assessment and practical employment practice.",
+      "Deepen your expertise in Philippine labor relations, statutory standards, and HR compliance through CPACE's specialized Labor Law Lecture. An intensive online review program designed to thoroughly prepare candidates for the CHRA® assessment and practical employment practice.",
     heroSubtitle:
-      "Master the Philippine Labor Code, statutory benefits, employee discipline due process, and labor relations through CPACE Philippines' intensive online review lecture — built for CHRA™ examinees and practicing HR professionals.",
+      "Master the Philippine Labor Code, statutory benefits, employee discipline due process, and labor relations through CPACE Philippines' intensive online review lecture — built for CHRA® examinees and practicing HR professionals.",
     badgeImage: "/assets/badges/lll-badge.png",
     gradient: "from-emerald-700 to-green-900",
     lightBg: "bg-emerald-50",
     lightText: "text-emerald-800",
     lightBorder: "border-emerald-200",
-    formats: "Online Live & Recorded Review",
+    formats: "Online Live & Review Handouts",
     highlights: [
       "Philippine Labor Law and Compliance",
       "Employee Relations and Due Process",
-      "CHRA™ Online Review and Assessment Prep",
+      "CHRA® Online Review and Assessment Prep",
       "HR Legal Compliance and Practical Application",
     ],
     pillars: [
       {
-        title: "Structured CHRA™ Exam Preparation",
+        title: "Structured CHRA® Exam Preparation",
         description:
-          "Engineered around the core Labor Standards and Labor Relations competencies tested in the Certified Human Resource Associate (CHRA)™ examination, with over 2,300+ CPACE reviewees succeeding.",
+          "Engineered around the core Labor Standards and Labor Relations competencies tested in the Certified Human Resource Associate (CHRA)® examination, with over 6,000+ participants.",
       },
       {
         title: "100% Online Interactive Lecture & Drills",
@@ -674,13 +675,12 @@ export const certificationCourses: CertificationCourse[] = [
     ],
     examFormat: {
       overview:
-        "The LABOR LAW LECTURE (A CHRA™ ONLINE REVIEW) is an intensive continuing education and review program conducted by the Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines). It equips HR students, examinees, and practitioners with a thorough command of Book I to Book VII of the Labor Code of the Philippines and recent DOLE issuances.",
-      duration: "Comprehensive Online Lecture Series + Mock Drills",
-      questions: "Case-Based & Multiple-Choice Review Drills",
-      passingMark: "Certificate of Completion & CHRA™ Readiness",
+        "The LABOR LAW LECTURE (A CHRA® ONLINE REVIEW) is an intensive continuing education and review program conducted by the Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines). It equips HR students, examinees, and practitioners with a thorough command of Book I to Book VII of the Labor Code of the Philippines and recent DOLE issuances.",
+      duration: "Comprehensive Online Lectures",
+      passingMark: "Certificate of Completion & CHRA® Readiness",
       validity: "Lifetime Access to Issued Certificate",
       authorization:
-        "Participants receive an official CPACE Philippines Certificate of Completion and structured review kit preparing them for the CHRA™ examination and HR compliance roles.",
+        "Participants receive an official CPACE Philippines Certificate of Attendance and structured review kit preparing them for the CHRA® examination and HR compliance roles.",
     },
     coverageTopics: [
       "Fundamental Principles & Constitutional Mandates on Labor",
@@ -692,18 +692,18 @@ export const certificationCourses: CertificationCourse[] = [
       "Management Prerogative, Workplace Discipline & The Twin-Notice Rule",
       "Just Causes vs. Authorized Causes of Termination & Separation Pay",
       "Labor Relations, Right to Self-Organization, CBA & Unfair Labor Practices",
-      "Mock Assessment Drills & Situational Jurisprudence Analysis",
+      "Situational Jurisprudence Analysis",
     ],
     processSteps: [
       {
         step: "01",
         title: "Register Online",
-        detail: "Select the Labor Law Lecture (CHRA™ Online Review) schedule on the CPACE registration portal.",
+        detail: "Complete the online registration form and settle the learning investment of Php 500.00.",
       },
       {
         step: "02",
         title: "Submit Registration & Payment Proof",
-        detail: "Send your registration confirmation and proof of payment to info@cpaceph.com.",
+        detail: "Email your documentary requirements and proof of payment to lectures@cpaceph.com.",
       },
       {
         step: "03",
@@ -713,19 +713,18 @@ export const certificationCourses: CertificationCourse[] = [
       {
         step: "04",
         title: "Attend the Online Review & Receive Handouts",
-        detail: "Join the live online review lecture, answer practice drills, and claim your official CPACE Certificate.",
+        detail: "Join the online live review session, Q&A, and claim your certificate of attendance.",
       },
     ],
-    investment: "See Current Batch Schedule",
-    submissionEmail: "info@cpaceph.com",
-    registerUrl: "https://bit.ly/cpaceprograms",
-    brochureUrl: "https://bit.ly/cpaceprograms",
+    investment: "Php 500.00",
+    submissionEmail: "lectures@cpaceph.com",
+    registerUrl: "https://bit.ly/chraonlinereview",
     qualificationCategories: [
       {
         code: "Category A",
         title: "Undergraduate & Graduating Students",
         description:
-          "Graduating students or fresh graduates of Human Resource Management (BSBA-HRM / BSBA-HRDM), Psychology (BS/AB Psychology), Behavioral Science, Legal Management, or related business degrees preparing for the CHRA™ exam.",
+          "Graduating students or fresh graduates of Human Resource Management (BSBA-HRM / BSBA-HRDM), Psychology (BS/AB Psychology), Behavioral Science, Legal Management, or related business degrees preparing for the CHRA® exam.",
       },
       {
         code: "Category B",
@@ -748,9 +747,9 @@ export const certificationCourses: CertificationCourse[] = [
     ],
     faqs: [
       {
-        question: "Who should enroll in the Labor Law Lecture (A CHRA™ Online Review)?",
+        question: "Who should enroll in the Labor Law Lecture (A CHRA® Online Review)?",
         answer:
-          "The program is ideal for graduating students, fresh graduates, and HR practitioners preparing to take the Certified Human Resource Associate (CHRA)™ assessment examination, as well as managers and business owners who want a solid foundation in Philippine Labor Law.",
+          "The program is ideal for graduating students, fresh graduates, and HR practitioners preparing to take the Certified Human Resource Associate (CHRA)® assessment examination, as well as managers and business owners who want a solid foundation in Philippine Labor Law.",
       },
       {
         question: "How is the Labor Law Lecture delivered?",
@@ -760,12 +759,12 @@ export const certificationCourses: CertificationCourse[] = [
       {
         question: "Do participants receive a certificate?",
         answer:
-          "Yes. Participants who complete the lecture receive an official Certificate of Completion from the Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines).",
+          "Yes. Participants who complete the lecture receive an official Certificate of Attendance from the Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines).",
       },
       {
         question: "How do I register for the next batch?",
         answer:
-          "Click the Register button to open https://bit.ly/cpaceprograms and select the upcoming Labor Law Lecture schedule, or message our team at info@cpaceph.com for institutional group bookings.",
+          "Click the Register button to open https://bit.ly/chraonlinereview and select the upcoming Labor Law Lecture schedule, or message our team at lectures@cpaceph.com for institutional group bookings.",
       },
     ],
   },

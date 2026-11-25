@@ -151,13 +151,13 @@ export async function POST(request: Request) {
             <div class="content">
               <p>Dear <strong>${safeName}</strong>,</p>
               <p>Thank you for reaching out to the <strong>Center for Professional Advancement and Continuing Education, Inc. (CPACE Philippines)</strong>.</p>
-              <p>We have received your inquiry regarding <strong>${safeProgram}</strong>. One of our admissions advisors or program specialists will review your message and get in touch with you within 24 to 48 hours.</p>
+              <p>We have received your inquiry regarding <strong>${safeProgram}</strong>. One of our program specialists will review your message and get in touch with you within 24 to 48 hours.</p>
               <p>In the meantime, you can explore our latest certifications, announcements, and registration links at <a href="https://bit.ly/cpaceprograms" style="color:#059669; font-weight:600;">bit.ly/cpaceprograms</a> or access the <a href="https://certifications.cpaceph.com/login" style="color:#059669; font-weight:600;">Learning Portal</a>.</p>
               <br>
-              <p>Best regards,<br><strong>CPACE Philippines Team</strong><br>Admissions & Support</p>
+              <p>Best regards,<br><strong>CPACE Philippines Team</strong><br>Registration &amp; Support</p>
             </div>
             <div class="footer">
-              Manila: +63 956 221-2400 • Dubai: +971 50 348 9439<br>
+              Manila: (02) 8260-9931 / +63 956 221-2400 • Dubai: +971 50 348 9439<br>
               info@cpaceph.com • www.cpaceph.com
             </div>
           </div>

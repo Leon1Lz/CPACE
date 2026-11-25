@@ -271,14 +271,32 @@ export function ServicesSection() {
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 shrink-0">
-                <Link href="/services">
-                  <Button className="bg-white text-emerald-800 hover:bg-emerald-50 font-bold px-8 py-4 shadow-xl text-base whitespace-nowrap">
+                <Link
+                  href="/services#certifications"
+                  onClick={(e) => {
+                    const certsEl = document.getElementById("certifications")
+                    if (certsEl) {
+                      e.preventDefault()
+                      certsEl.scrollIntoView({ behavior: "smooth" })
+                    }
+                  }}
+                >
+                  <Button type="button" className="bg-white text-emerald-800 hover:bg-emerald-50 font-bold px-8 py-4 shadow-xl text-base whitespace-nowrap cursor-pointer">
                     View All Services
                     <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
                 </Link>
-                <Link href="/#contact">
-                  <Button variant="ghost" className="border-2 border-white/40 text-white hover:bg-white/10 hover:text-white font-semibold px-8 py-4 text-base whitespace-nowrap backdrop-blur-sm">
+                <Link
+                  href="/#contact"
+                  onClick={(e) => {
+                    const contactEl = document.getElementById("contact")
+                    if (contactEl) {
+                      e.preventDefault()
+                      contactEl.scrollIntoView({ behavior: "smooth" })
+                    }
+                  }}
+                >
+                  <Button type="button" variant="ghost" className="border-2 border-white/40 text-white hover:bg-white/10 hover:text-white font-semibold px-8 py-4 text-base whitespace-nowrap backdrop-blur-sm cursor-pointer">
                     Contact Us
                   </Button>
                 </Link>

@@ -27,10 +27,10 @@ export function Footer() {
   ];
 
   const programs = [
-    { name: "Financial Management (CFMS®)", href: "/services/professional-certification/cfms" },
-    { name: "Marketing Management (CMMS®)", href: "/services/professional-certification/cmms" },
-    { name: "Hospitality Management (CHMS™)", href: "/services/professional-certification/chms" },
-    { name: "Operations Management (COMS®)", href: "/services/professional-certification/coms" },
+    { name: "Financial Management (CFMS)®", href: "/services/professional-certification/cfms" },
+    { name: "Marketing Management (CMMS)®", href: "/services/professional-certification/cmms" },
+    { name: "Hospitality Management (CHMS)™", href: "/services/professional-certification/chms" },
+    { name: "Operations Management (COMS)®", href: "/services/professional-certification/coms" },
     { name: "Labor Law Lecture (LLL)", href: "/services/professional-certification/labor-law-lecture" },
     { name: "Business Consultancy", href: "/services#consultancy" },
   ];
@@ -86,7 +86,16 @@ export function Footer() {
                   Dubai, UAE PO Box 31303
                 </span>
               </div>
-              <div className="flex flex-col sm:flex-row gap-x-4 gap-y-1 pt-1">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-x-4 gap-y-1 pt-1">
+                <div className="flex items-center gap-2 text-gray-300">
+                  <Phone className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <a
+                    href="tel:+63282609931"
+                    className="hover:text-emerald-400 transition-colors"
+                  >
+                    (02) 8260-9931 (PH Landline)
+                  </a>
+                </div>
                 <div className="flex items-center gap-2 text-gray-300">
                   <Phone className="h-4 w-4 text-emerald-400 shrink-0" />
                   <a

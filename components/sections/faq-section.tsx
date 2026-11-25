@@ -17,7 +17,7 @@ const faqs: FAQItem[] = [
     id: "faq-1",
     category: "certifications",
     question: "What certifications does CPACE Philippines offer?",
-    answer: "CPACE Philippines provides industry-recognized certifications including the Certified Financial Management Specialist (CFMS®), Certified Marketing Management Specialist (CMMS®), Certified Hospitality Management Specialist (CHMS®), Certified Operations Management Specialist (COMS®), and the Certified Human Resource Associate (CHRA™) review lecture and credential programs."
+    answer: "CPACE Philippines provides industry-recognized certifications including the Certified Financial Management Specialist (CFMS)®, Certified Marketing Management Specialist (CMMS)®, Certified Hospitality Management Specialist (CHMS)™, Certified Operations Management Specialist (COMS)®, and the Certified Human Resource Associate (CHRA)® review lecture and credential programs."
   },
   {
     id: "faq-2",
@@ -41,7 +41,7 @@ const faqs: FAQItem[] = [
     id: "faq-5",
     category: "verification",
     question: "How can employers and graduates verify certification credentials?",
-    answer: "Official credential authenticity can be verified directly through our Student Support & Verification department by emailing verify@cpaceph.com or calling +63 956 221-2400 with the certified individual's full name and certificate reference."
+    answer: "Official credential authenticity can be verified directly through our Support & Verification department by emailing verify@cpaceph.com or calling (02) 8260-9931 / +63 956 221-2400 with the certified individual's full name and certificate reference."
   },
   {
     id: "faq-6",
@@ -163,15 +163,24 @@ export function FAQSection() {
           <div>
             <h4 className="text-xl font-bold text-gray-900">Have more specific questions?</h4>
             <p className="text-gray-600 text-sm mt-1 max-w-md mx-auto">
-              Our admissions team is available to assist you with program details, fees, and institution arrangements.
+              Our team is available to assist you with program details, fees, and institution arrangements.
             </p>
           </div>
           <div className="pt-1">
-            <Link href="/#contact">
-              <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-2.5 rounded-xl shadow-sm hover:shadow transition-all">
+            <a
+              href="/#contact"
+              onClick={(e) => {
+                const contactEl = document.getElementById("contact")
+                if (contactEl) {
+                  e.preventDefault()
+                  contactEl.scrollIntoView({ behavior: "smooth" })
+                }
+              }}
+            >
+              <Button type="button" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-2.5 rounded-xl shadow-sm hover:shadow transition-all cursor-pointer">
                 Send Us a Message
               </Button>
-            </Link>
+            </a>
           </div>
         </div>
       </div>

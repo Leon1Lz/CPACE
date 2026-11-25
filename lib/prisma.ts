@@ -24,7 +24,10 @@ const createPrismaClient = () => {
 // This prevents Next.js build-time static analysis from throwing when DATABASE_URL
 // is not available in the build environment.
 function getPrisma(): PrismaClient {
-  if (!globalForPrisma.prisma) {
+  if (
+    !globalForPrisma.prisma ||
+    typeof (globalForPrisma.prisma as unknown as Record<string, unknown>).certificationProgram === "undefined"
+  ) {
     globalForPrisma.prisma = createPrismaClient()
   }
   return globalForPrisma.prisma

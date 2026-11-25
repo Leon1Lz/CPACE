@@ -46,6 +46,7 @@ export async function middleware(req: NextRequest) {
     const pathname = req.nextUrl.pathname
     const roleRules: Array<{ prefix: string; roles: string[] }> = [
       { prefix: "/dashboard/content", roles: ["ADMIN"] },
+      { prefix: "/dashboard/programs", roles: ["ADMIN"] },
       { prefix: "/dashboard/schedules", roles: ["ADMIN"] },
       { prefix: "/dashboard/users", roles: ["ADMIN"] },
       { prefix: "/dashboard/audit", roles: ["ADMIN"] },

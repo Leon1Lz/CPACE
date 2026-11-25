@@ -21,6 +21,7 @@ const pageTitles: Record<string, string> = {
   "/dashboard/assessments": "Assessments",
   "/dashboard/calendar": "Calendar",
   "/dashboard/content": "Website Content",
+  "/dashboard/programs": "Certification Programs",
   "/dashboard/audit": "Audit Log",
   "/dashboard/faqs": "Manage FAQs",
   "/dashboard/schedules": "Manage Schedules",
@@ -86,6 +87,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     if (path === "/dashboard/assessments" || path.startsWith("/dashboard/assessments/")) return { label: "Courses & Assessments", href: "/dashboard/courses" }
     if (path.startsWith("/dashboard/courses/")) return { label: "Courses & Assessments", href: "/dashboard/courses" }
     if (path.startsWith("/dashboard/groups/")) return { label: "Groups", href: "/dashboard/groups" }
+    if (path === "/dashboard/programs" || path === "/dashboard/schedules" || path === "/dashboard/faqs") {
+      return { label: "Website Content", href: "/dashboard/content" }
+    }
     return null
   }
   const breadcrumbParent = getBreadcrumbParent(pathname)
